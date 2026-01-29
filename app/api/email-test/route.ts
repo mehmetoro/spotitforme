@@ -3,111 +3,85 @@ import { NextRequest, NextResponse } from 'next/server'
 import nodemailer from 'nodemailer'
 
 export async function GET(request: NextRequest) {
-  console.log('🔧 Environment Variables Kontrol:')
-  console.log('SMTP_HOST:', process.env.SMTP_HOST)
-  console.log('SMTP_PORT:', process.env.SMTP_PORT)
-  console.log('SMTP_USER:', process.env.SMTP_USER)
-  console.log('SMTP_PASSWORD uzunluğu:', process.env.SMTP_PASSWORD?.length)
-  console.log('SMTP_PASSWORD ilk 4 karakter:', process.env.SMTP_PASSWORD?.substring(0, 4))
-
+  console.log('🔧 Email test API çağrıldı')
+  
   try {
-    // 1. Transporter oluştur
+    // 1. Environment variables kontrol
+    const envCheck = {
+      SMTP_HOST: process.env.SMTP_HOST || 'AYARLANMADI',
+      SMTP_PORT: process.env.SMTP_PORT || 'AYARLANMADI',
+      SMTP_USER: process.env.SMTP_USER ? '*** ayarlandı' : 'AYARLANMADI',
+      SMTP_PASSWORD: process.env.SMTP_PASSWORD ? '*** ayarlandı (' + process.env.SMTP_PASSWORD.length + ' karakter)' : 'AYARLANMADI',
+      SMTP_FROM: process.env.SMTP_FROM || 'AYARLANMADI',
+      NODE_ENV: process.env.NODE_ENV
+    }
+    
+    console.log('📊 Environment Variables:', envCheck)
+
+    // 2. Eğer environment variables eksikse
+    if (!process.env.SMTP_USER || !process.env.SMTP_PASSWORD) {
+      return NextResponse.json({
+        success: false,
+        error: 'Environment variables eksik',
+        envCheck,
+        help: '.env.local dosyasını kontrol edin'
+      }, { status: 400 })
+    }
+
+    // 3. Transporter oluştur
     const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
+      host: process.env.SMTP_HOST || 'smtp.gmail.com',
       port: Number(process.env.SMTP_PORT) || 587,
-      secure: false, // TLS için false
+      secure: false,
       auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASSWORD,
       },
       tls: {
-        rejectUnauthorized: false // Development için
+        rejectUnauthorized: false
       }
     })
 
-    // 2. Verify connection
+    // 4. Connection test
     console.log('🔄 SMTP bağlantısı test ediliyor...')
     await transporter.verify()
     console.log('✅ SMTP bağlantısı başarılı!')
 
-    // 3. Test email gönder
-    const testEmail = process.env.SMTP_USER || 'test@example.com'
+    // 5. Test email gönder
+    const testEmail = process.env.SMTP_USER
     
     const info = await transporter.sendMail({
-      from: process.env.SMTP_FROM || 'test@example.com',
+      from: process.env.SMTP_FROM,
       to: testEmail,
-      subject: '✅ SpotItForMe Email Testi - ' + new Date().toLocaleTimeString(),
-      text: `Merhaba! Email sisteminiz çalışıyor. 
-      
-Gönderen: ${process.env.SMTP_FROM}
-Alıcı: ${testEmail}
-Zaman: ${new Date().toLocaleString('tr-TR')}
-
-App Password formatınız doğru: ahfd vrzy kuen opmj`,
-      html: `
-        <div style="font-family: Arial, sans-serif; padding: 20px;">
-          <h1 style="color: #10b981;">✅ Email Testi BAŞARILI!</h1>
-          <p>Merhaba,</p>
-          <p>SpotItForMe email sisteminiz başarıyla çalışıyor!</p>
-          
-          <div style="background: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0;">
-            <p><strong>Test Detayları:</strong></p>
-            <p>📧 Gönderen: ${process.env.SMTP_FROM}</p>
-            <p>📨 Alıcı: ${testEmail}</p>
-            <p>⏰ Zaman: ${new Date().toLocaleString('tr-TR')}</p>
-            <p>🔐 App Password: <code>ahfd vrzy kuen opmj</code> (format doğru!)</p>
-          </div>
-          
-          <p>Artık AuthModal'da hoşgeldin email'leri gönderebilirsiniz!</p>
-          
-          <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
-            <p style="font-size: 12px; color: #6b7280;">
-              Bu bir test email'idir. SpotItForMe platformu.
-            </p>
-          </div>
-        </div>
-      `
+      subject: '✅ SpotItForMe Email Testi',
+      text: 'Email sisteminiz çalışıyor! App password: ahfd vrzy kuen opmj',
+      html: '<h1>✅ Email Testi Başarılı!</h1><p>App password formatınız doğru.</p>'
     })
 
-    console.log('📧 Test emaili gönderildi! Message ID:', info.messageId)
+    console.log('📧 Test emaili gönderildi:', info.messageId)
 
     return NextResponse.json({
       success: true,
       message: 'Email testi başarılı!',
-      details: {
+      envCheck,
+      emailInfo: {
         messageId: info.messageId,
         to: testEmail,
-        appPasswordFormat: 'DOĞRU (ahfd vrzy kuen opmj)',
-        timestamp: new Date().toISOString()
+        appPasswordFormat: 'DOĞRU (ahfd vrzy kuen opmj)'
       }
     })
 
   } catch (error: any) {
     console.error('❌ Email testi hatası:', error)
     
-    // Detaylı hata analizi
-    let errorDetails = 'Bilinmeyen hata'
-    
-    if (error.code === 'EAUTH') {
-      errorDetails = 'Kimlik doğrulama hatası. App password yanlış olabilir.'
-    } else if (error.code === 'ECONNECTION') {
-      errorDetails = 'Bağlantı hatası. SMTP ayarlarını kontrol edin.'
-    } else if (error.message.includes('Invalid login')) {
-      errorDetails = 'Geçersiz giriş. App password doğru mu?'
-    } else {
-      errorDetails = error.message
-    }
-
     return NextResponse.json({
       success: false,
-      error: 'Email gönderilemedi',
-      details: errorDetails,
+      error: error.message,
+      errorCode: error.code,
+      help: 'App password ve Gmail adresini kontrol edin',
       debug: {
-        smtpHost: process.env.SMTP_HOST,
-        smtpPort: process.env.SMTP_PORT,
-        smtpUser: process.env.SMTP_USER,
-        passwordLength: process.env.SMTP_PASSWORD?.length,
-        passwordFirstChars: process.env.SMTP_PASSWORD?.substring(0, 8)
+        timestamp: new Date().toISOString(),
+        nodeVersion: process.version
       }
     }, { status: 500 })
   }
