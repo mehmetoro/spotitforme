@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import UserMenu from './UserMenu'
 
 export default function Header() {
   return (
@@ -34,12 +35,13 @@ export default function Header() {
 
           {/* Buttons */}
           <div className="flex items-center space-x-4">
-            <button className="text-gray-700 hover:text-blue-600 font-medium hidden md:block">
-              Giriş Yap
-            </button>
-            <button className="btn-primary">
-              Ücretsiz Spot Oluştur
-            </button>
+            <UserMenu />
+            <Link 
+              href="/create-spot"
+              className="btn-primary hidden md:inline-block"
+            >
+              Spot Oluştur
+            </Link>
           </div>
         </div>
 
@@ -53,6 +55,16 @@ export default function Header() {
           </Link>
           <Link href="/for-business" className="text-gray-700 hover:text-blue-600 text-sm">
             İşletmeler
+          </Link>
+        </div>
+
+        {/* Mobile Spot Oluştur Butonu */}
+        <div className="md:hidden mt-4">
+          <Link 
+            href="/create-spot"
+            className="btn-primary w-full block text-center"
+          >
+            Ücretsiz Spot Oluştur
           </Link>
         </div>
       </div>
