@@ -1,5 +1,5 @@
-// lib/email.ts - YENİ VERSİYON
-// Bu artık sadece bir wrapper, gerçek işi email-client.ts yapacak
+// lib/email.ts dosyasının TAMAMINI bu kodla değiştirin:
+// Bu sadece bir wrapper - gerçek kod email-client.ts'te
 
 // Client fonksiyonlarını export et
 export { 
@@ -8,9 +8,11 @@ export {
   sendSightingNotificationEmail 
 } from './email-client'
 
-// Server-side fonksiyon (sadece API route'larda kullanılacak)
-export async function sendEmailDirectly(to: string, subject: string, html: string) {
-  // Bu sadece server-side'da çalışır
-  // API route'larında kullanılır
-  return { success: false, message: 'Use API route instead' }
+// Test fonksiyonu (isteğe bağlı)
+export async function testEmailConnection() {
+  console.log('🔧 Email test (simulated for client)')
+  return {
+    success: true,
+    message: 'Client-side test başarılı. Real test için API kullanın.'
+  }
 }

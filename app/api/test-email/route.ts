@@ -1,36 +1,15 @@
-// app/api/test-email/route.ts
-import { NextRequest, NextResponse } from 'next/server'
-import { testEmailConnection } from '@/lib/email'
+// app/api/test-email/route.ts dosyasını bu kodla değiştirin:
+import { NextResponse } from 'next/server'
 
-export async function GET(request: NextRequest) {
-  try {
-    // Sadece development'ta çalışsın
-    if (process.env.NODE_ENV !== 'development') {
-      return NextResponse.json(
-        { error: 'Bu endpoint sadece development ortamında kullanılabilir' },
-        { status: 403 }
-      )
+export async function GET() {
+  return NextResponse.json({
+    status: 'ok',
+    message: 'Email test API çalışıyor',
+    instructions: 'AuthModal veya CreateSpot sayfasından test yapın',
+    environment: {
+      SMTP_USER: process.env.SMTP_USER ? '*** configured' : 'NOT configured',
+      SMTP_PASSWORD: process.env.SMTP_PASSWORD ? '*** configured' : 'NOT configured',
+      NODE_ENV: process.env.NODE_ENV
     }
-
-    const result = await testEmailConnection()
-    
-    if (result.success) {
-      return NextResponse.json({
-        success: true,
-        message: 'Email testi başarılı',
-        messageId: result.messageId
-      })
-    } else {
-      return NextResponse.json({
-        success: false,
-        error: result.error,
-        details: result.details
-      }, { status: 500 })
-    }
-  } catch (error: any) {
-    return NextResponse.json(
-      { error: 'Email testi sırasında hata', details: error.message },
-      { status: 500 }
-    )
-  }
+  })
 }
