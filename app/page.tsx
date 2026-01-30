@@ -1,3 +1,4 @@
+// app/page.tsx
 import Header from '@/components/Header'
 import Hero from '@/components/Hero'
 import HowItWorks from '@/components/HowItWorks'
@@ -6,6 +7,7 @@ import Categories from '@/components/Categories'
 import Stats from '@/components/Stats'
 import CTA from '@/components/CTA'
 import Footer from '@/components/Footer'
+import EmailNotificationDemo from '@/components/EmailNotificationDemo'
 
 export default function HomePage() {
   return (
@@ -14,6 +16,7 @@ export default function HomePage() {
       <Hero />
       <Stats />
       <HowItWorks />
+      <EmailNotificationDemo /> {/* YENİ: Email bildirim demo */}
       <RecentSpots />
       <Categories />
       <CTA />

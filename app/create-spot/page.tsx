@@ -1,12 +1,13 @@
-// app/create-spot/page.tsx - GÜNCELLENMİŞ
+// app/create-spot/page.tsx
 'use client'
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { sendSpotCreatedEmail } from '@/lib/email'
+import { emailService } from '@/lib/email-service'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
+import EmailSuccessModal from '@/components/EmailSuccessModal'
 
 export default function CreateSpotPage() {
   const router = useRouter()
@@ -19,7 +20,8 @@ export default function CreateSpotPage() {
   const [imagePreview, setImagePreview] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [successMessage, setSuccessMessage] = useState('')
+  const [showSuccessModal, setShowSuccessModal] = useState(false)
+  const [createdSpotId, setCreatedSpotId] = useState<string | null>(null)
 
   const categories = [
     'Elektronik',
@@ -48,7 +50,7 @@ export default function CreateSpotPage() {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
-      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+      if (file.size > 5 * 1024 * 1024) {
         setError('Resim boyutu 5MB\'dan küçük olmalıdır')
         return
       }
@@ -65,7 +67,6 @@ export default function CreateSpotPage() {
     e.preventDefault()
     setLoading(true)
     setError('')
-    setSuccessMessage('')
 
     try {
       // 1. Kullanıcı kontrolü
@@ -74,65 +75,30 @@ export default function CreateSpotPage() {
         throw new Error('Lütfen önce giriş yapın')
       }
 
-      console.log('👤 User authenticated:', user.email)
-
       let imageUrl = ''
 
-      // 2. RESİM YÜKLEME
+      // 2. Resim yükleme
       if (imageFile) {
-        console.log('🖼️ Image file selected:', imageFile.name)
+        const timestamp = Date.now()
+        const fileExt = imageFile.name.split('.').pop()
+        const fileName = `${user.id}/${timestamp}.${fileExt}`
         
-        try {
-          // Dosya adını oluştur
-          const timestamp = Date.now()
-          const fileExt = imageFile.name.split('.').pop()
-          const fileName = `${user.id}/${timestamp}.${fileExt}`
-          
-          console.log('📤 Uploading to spot-images bucket:', fileName)
-          
-          // Resmi yükle
-          const { error: uploadError } = await supabase.storage
-            .from('spot-images')
-            .upload(fileName, imageFile, {
-              cacheControl: '3600',
-              upsert: false,
-              contentType: imageFile.type
-            })
+        const { error: uploadError } = await supabase.storage
+          .from('spot-images')
+          .upload(fileName, imageFile)
 
-          if (uploadError) {
-            console.error('❌ Upload error:', uploadError)
-            
-            if (uploadError.message.includes('bucket')) {
-              throw new Error('Resim deposu bulunamadı. Lütfen Supabase Storage ayarlarını kontrol edin.')
-            } else if (uploadError.message.includes('policy')) {
-              throw new Error('Yükleme izni yok. Storage politikalarını kontrol edin.')
-            } else {
-              throw new Error(`Resim yüklenemedi: ${uploadError.message}`)
-            }
-          }
-
-          console.log('✅ Image uploaded successfully!')
-
-          // Yüklenen resmin PUBLIC URL'sini al
+        if (uploadError) {
+          console.error('Resim yükleme hatası:', uploadError)
+          // Resim yüklenemezse devam et (opsiyonel)
+        } else {
           const { data: { publicUrl } } = supabase.storage
             .from('spot-images')
             .getPublicUrl(fileName)
-          
-          console.log('📷 Public URL alındı')
           imageUrl = publicUrl
-          
-        } catch (uploadErr: any) {
-          console.error('❌ Image upload failed:', uploadErr)
-          setError(`❌ Resim yüklenemedi: ${uploadErr.message}. Resimsiz devam edebilirsiniz.`)
-          // Resim hatası işlemi durdurmuyor, devam ediyoruz
         }
-      } else {
-        console.log('ℹ️ No image selected, proceeding without image')
       }
 
       // 3. Spot'u database'e kaydet
-      console.log('💾 Saving spot to database...')
-      
       const { data: spotData, error: spotError } = await supabase
         .from('spots')
         .insert([
@@ -147,95 +113,50 @@ export default function CreateSpotPage() {
           }
         ])
         .select()
+        .single()
 
-      console.log('Database response:', { spotData, spotError })
+      if (spotError) throw spotError
 
-      if (spotError) {
-        console.error('❌ Database error:', spotError)
-        throw spotError
-      }
-
-      // 4. ✅ EMAIL GÖNDER - SPOT OLUŞTURMA BİLDİRİMİ
-      if (spotData?.[0]?.id && user.email) {
-        console.log('📧 Sending spot creation email...')
-        try {
-          const emailSent = await sendSpotCreatedEmail(
-            user.email,
+      // 4. EMAİL GÖNDER - YENİ SİSTEM
+      try {
+        // Kullanıcı email'ini al
+        const { data: { user: authUser } } = await supabase.auth.getUser()
+        
+        if (authUser?.email) {
+          const emailResult = await emailService.sendSpotCreatedEmail(
+            authUser.email,
             title,
-            spotData[0].id
+            spotData.id
           )
           
-          if (emailSent) {
-            console.log('✅ Spot oluşturma emaili gönderildi')
-            setSuccessMessage(`
-              🎉 Spot başarıyla oluşturuldu!
-              
-              • Spot'unuz topluluğumuzla paylaşıldı
-              • Binlerce kullanıcı sizin için arayacak
-              • Email adresinize bilgi gönderildi
-              • Spot detay sayfasına yönlendiriliyorsunuz...
-            `)
+          if (emailResult.success) {
+            console.log('📧 Spot oluşturma emaili gönderildi')
           } else {
-            console.warn('⚠️ Spot oluşturma emaili gönderilemedi')
-            setSuccessMessage(`
-              ✅ Spot başarıyla oluşturuldu!
-              
-              • Spot'unuz topluluğumuzla paylaşıldı
-              • Email gönderilemedi (teknik nedenler)
-              • Spot detay sayfasına yönlendiriliyorsunuz...
-            `)
+            console.warn('Email gönderilemedi:', emailResult.error)
+            // Email hatası spot oluşturmayı engellemesin
           }
-        } catch (emailError) {
-          console.error('❌ Email gönderme hatası:', emailError)
-          // Email hatası spot oluşturmayı engellemesin
-          setSuccessMessage(`
-            ✅ Spot başarıyla oluşturuldu!
-            
-            • Spot'unuz topluluğumuzla paylaşıldı
-            • Spot detay sayfasına yönlendiriliyorsunuz...
-          `)
         }
+      } catch (emailError) {
+        console.error('Email gönderme hatası:', emailError)
+        // Email hatası ana işlemi engellemesin
       }
 
-      // 5. 3 saniye sonra spot detay sayfasına yönlendir
-      setTimeout(() => {
-        if (spotData?.[0]?.id) {
-          router.push(`/spots/${spotData[0].id}`)
-        } else {
-          router.push('/spots')
-        }
-        router.refresh()
-      }, 3000)
+      // 5. Başarılı - Modal göster
+      setCreatedSpotId(spotData.id)
+      setShowSuccessModal(true)
 
     } catch (err: any) {
-      console.error('❌ Create spot error:', err)
-      
-      // Hata mesajlarını Türkçe'ye çevir
-      let errorMessage = err.message || 'Spot oluşturulurken bir hata oluştu'
-      
-      if (errorMessage.includes('row-level security')) {
-        errorMessage = 'Güvenlik hatası. Lütfen tekrar giriş yapın.'
-      } else if (errorMessage.includes('network')) {
-        errorMessage = 'Ağ hatası. İnternet bağlantınızı kontrol edin.'
-      } else if (errorMessage.includes('timeout')) {
-        errorMessage = 'İşlem zaman aşımına uğradı. Lütfen tekrar deneyin.'
-      }
-      
-      setError(errorMessage)
+      console.error('❌ Spot oluşturma hatası:', err)
+      setError(err.message || 'Spot oluşturulurken bir hata oluştu')
     } finally {
       setLoading(false)
     }
   }
 
-  const resetForm = () => {
-    setTitle('')
-    setDescription('')
-    setCategory('')
-    setLocation('')
-    setImageFile(null)
-    setImagePreview('')
-    setError('')
-    setSuccessMessage('')
+  const handleCloseModal = () => {
+    setShowSuccessModal(false)
+    router.push('/spots')
+    router.refresh()
   }
 
   return (
@@ -250,23 +171,32 @@ export default function CreateSpotPage() {
               Yeni Spot Oluştur
             </h1>
             <p className="text-gray-600">
-              Aradığınız ürünü topluluğumuzla paylaşın, binlerce göz sizin için arasın
+              Aradığınız ürünü paylaşın, email bildirimleriyle anında haberdar olun
             </p>
+            
+            {/* Email bilgi kartı */}
+            <div className="mt-6 bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 rounded-xl p-4">
+              <div className="flex items-center">
+                <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center mr-4">
+                  <span className="text-white">📧</span>
+                </div>
+                <div className="text-left">
+                  <p className="font-medium text-blue-800">Email Bildirim Aktif</p>
+                  <p className="text-sm text-blue-600">
+                    Spot oluşturulunca ve yardım gelince email alacaksınız
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-lg p-6 md:p-8">
-            {/* Başarı Mesajı */}
-            {successMessage && (
-              <div className="mb-6 bg-green-50 border border-green-200 text-green-800 p-4 rounded-lg whitespace-pre-line">
-                {successMessage}
-              </div>
-            )}
-
             {/* Resim Yükleme */}
             <div className="mb-8">
               <label className="block text-sm font-medium text-gray-700 mb-3">
-                Ürün Fotoğrafı (Opsiyonel ama tavsiye edilir)
+                Ürün Fotoğrafı (Opsiyonel)
+                <span className="text-blue-600 ml-2">📸 Email'de görünecek</span>
               </label>
               
               {imagePreview ? (
@@ -277,9 +207,6 @@ export default function CreateSpotPage() {
                       alt="Preview"
                       className="w-full max-w-md h-64 object-cover rounded-lg mx-auto border-2 border-green-200"
                     />
-                    <div className="absolute top-2 right-2 bg-green-100 text-green-800 text-xs px-2 py-1 rounded">
-                      ✓ Hazır
-                    </div>
                   </div>
                   <button
                     type="button"
@@ -288,22 +215,21 @@ export default function CreateSpotPage() {
                       setImagePreview('')
                     }}
                     className="mt-2 text-red-600 hover:text-red-800 text-sm flex items-center"
-                    disabled={loading}
                   >
                     <span className="mr-1">🗑️</span> Resmi Kaldır
                   </button>
                 </div>
               ) : (
                 <label className="cursor-pointer">
-                  <div className={`border-2 border-dashed border-gray-300 rounded-2xl p-8 text-center transition duration-200 bg-gray-50 hover:bg-blue-50 ${loading ? 'opacity-50' : 'hover:border-blue-400'}`}>
+                  <div className="border-2 border-dashed border-gray-300 rounded-2xl p-8 text-center hover:border-blue-400 transition duration-200 bg-gray-50 hover:bg-blue-50">
                     <div className="text-4xl mb-4 text-gray-400">📷</div>
                     <p className="text-gray-600 mb-2 font-medium">
-                      Resim yüklemek için tıklayın veya sürükleyin
+                      Resim yüklemek için tıklayın
                     </p>
                     <p className="text-sm text-gray-500 mb-4">
-                      PNG, JPG, GIF • Maksimum 5MB • Ürünü daha hızlı buldurun
+                      Email bildirimlerinde görünecek • Maksimum 5MB
                     </p>
-                    <div className={`btn-primary inline-block ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                    <div className="btn-primary inline-block">
                       Resim Seç
                     </div>
                     <input
@@ -311,34 +237,9 @@ export default function CreateSpotPage() {
                       accept="image/*"
                       onChange={handleImageChange}
                       className="hidden"
-                      disabled={loading}
                     />
                   </div>
                 </label>
-              )}
-              
-              {/* Resim Yükleme İstatistikleri */}
-              {imageFile && (
-                <div className="mt-3 p-3 bg-blue-50 rounded-lg">
-                  <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center">
-                      <span className="text-blue-600 mr-2">📦</span>
-                      <span className="font-medium">{imageFile.name}</span>
-                    </div>
-                    <div className="text-gray-600">
-                      {(imageFile.size / 1024 / 1024).toFixed(2)} MB
-                    </div>
-                  </div>
-                  <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="bg-green-600 h-2 rounded-full transition-all duration-300"
-                      style={{ width: loading ? '50%' : '100%' }}
-                    ></div>
-                  </div>
-                  <p className="text-xs text-green-600 mt-1">
-                    {loading ? '⏳ Yükleniyor...' : '✓ Resim yüklemeye hazır'}
-                  </p>
-                </div>
               )}
             </div>
 
@@ -346,54 +247,34 @@ export default function CreateSpotPage() {
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Ne arıyorsunuz? *
+                <span className="text-gray-500 text-sm ml-2">(Email başlığında görünecek)</span>
               </label>
               <input
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${loading ? 'bg-gray-100' : ''}`}
-                placeholder="Örnek: Vintage Nikon F2 kamera lensi, eski çay makinesi cam kapağı"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Örnek: Vintage Nikon F2 kamera lensi"
                 required
                 maxLength={100}
-                disabled={loading}
               />
-              <div className="flex justify-between items-center mt-1">
-                <p className="text-sm text-gray-500">
-                  Açık ve net bir başlık yazın ({title.length}/100)
-                </p>
-                {title.length > 80 && (
-                  <p className="text-sm text-yellow-600">
-                    {100 - title.length} karakter kaldı
-                  </p>
-                )}
-              </div>
             </div>
 
             {/* Açıklama */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Detaylı Açıklama *
+                <span className="text-gray-500 text-sm ml-2">(Email içeriğinde görünecek)</span>
               </label>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${loading ? 'bg-gray-100' : ''}`}
-                placeholder="Ürünle ilgili tüm detayları yazın. Marka, model, renk, boyut, özel notlar..."
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Marka, model, renk, özellikler, nerede gördünüz? Yardımcı olacak tüm detayları yazın..."
                 rows={5}
                 required
                 maxLength={1000}
-                disabled={loading}
               />
-              <div className="flex justify-between items-center mt-1">
-                <p className="text-sm text-gray-500">
-                  Ne kadar detaylı olursa o kadar iyi! ({description.length}/1000)
-                </p>
-                {description.length > 800 && (
-                  <p className="text-sm text-yellow-600">
-                    {1000 - description.length} karakter kaldı
-                  </p>
-                )}
-              </div>
             </div>
 
             {/* Kategori ve Konum */}
@@ -405,8 +286,7 @@ export default function CreateSpotPage() {
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                  className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${loading ? 'bg-gray-100' : ''}`}
-                  disabled={loading}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">Kategori Seçin</option>
                   {categories.map((cat) => (
@@ -418,12 +298,12 @@ export default function CreateSpotPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Konum
+                  <span className="text-gray-500 text-sm ml-2">(Email'de belirtilecek)</span>
                 </label>
                 <select
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
-                  className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${loading ? 'bg-gray-100' : ''}`}
-                  disabled={loading}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">Konum Seçin</option>
                   {locations.map((loc) => (
@@ -433,13 +313,28 @@ export default function CreateSpotPage() {
               </div>
             </div>
 
+            {/* Email Bilgi Kartı */}
+            <div className="mb-6 p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-200">
+              <div className="flex items-start">
+                <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
+                  <span className="text-white text-lg">✓</span>
+                </div>
+                <div>
+                  <h4 className="font-bold text-green-800 mb-2">Email Bildirim Sistemi Aktif</h4>
+                  <ul className="text-sm text-green-700 space-y-1">
+                    <li>• Spot oluşturulunca onay email'i alacaksınız</li>
+                    <li>• Birisi yardım edince anında haberdar olacaksınız</li>
+                    <li>• Ürün bulununca tebrik email'i gelecek</li>
+                    <li>• Tüm email'ler spam'e düşmez, direkt gelen kutusuna gider</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
             {/* Hata Mesajı */}
             {error && (
               <div className="mb-6 bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg">
-                <div className="flex items-center">
-                  <span className="mr-2">❌</span>
-                  <span>{error}</span>
-                </div>
+                {error}
               </div>
             )}
 
@@ -448,89 +343,42 @@ export default function CreateSpotPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-3 rounded-lg disabled:opacity-50 flex items-center justify-center"
               >
                 {loading ? (
                   <>
-                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
+                    <span className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white mr-3"></span>
                     Oluşturuluyor...
                   </>
                 ) : (
-                  'Spot\'u Oluştur ve Paylaş'
+                  <>
+                    <span className="mr-2">🚀</span>
+                    Spot'u Oluştur ve Email Al
+                  </>
                 )}
               </button>
               
               <button
                 type="button"
-                onClick={resetForm}
-                disabled={loading}
-                className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-3 rounded-lg disabled:opacity-50"
-              >
-                Formu Temizle
-              </button>
-              
-              <button
-                type="button"
-                onClick={() => router.push('/spots')}
-                disabled={loading}
-                className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 rounded-lg disabled:opacity-50"
+                onClick={() => router.push('/')}
+                className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-3 rounded-lg"
               >
                 İptal
               </button>
             </div>
-
-            {/* Email Sistem Bilgisi */}
-            {!loading && (
-              <div className="mt-8 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <div className="flex items-start">
-                  <span className="text-blue-600 mr-3">📧</span>
-                  <div>
-                    <p className="font-medium text-blue-800 mb-1">Email Bildirim Sistemi Aktif</p>
-                    <ul className="text-sm text-blue-700 space-y-1">
-                      <li>• Spot oluşturulunca size email gönderilecek</li>
-                      <li>• Biri yardım ettiğinde anında bildirim alacaksınız</li>
-                      <li>• Email adresiniz: Gmail SMTP ile güvenli</li>
-                      <li>• Spam klasörünü kontrol etmeyi unutmayın</li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Bilgi Notu */}
-            <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-              <div className="flex items-start">
-                <span className="text-gray-600 mr-3">💡</span>
-                <div>
-                  <p className="font-medium text-gray-800 mb-1">İpuçları</p>
-                  <ul className="text-sm text-gray-700 space-y-1">
-                    <li>• Net ve kaliteli fotoğraf eklemek bulunma şansını %70 artırır</li>
-                    <li>• Marka ve model bilgisi çok önemli</li>
-                    <li>• Bütçe aralığı belirtirseniz daha hızlı yardım alırsınız</li>
-                    <li>• Spot'unuz 30 gün aktif kalacak, dilerseniz uzatabilirsiniz</li>
-                    <li>• Email bildirimlerini kapatmak için profil ayarlarından düzenleyin</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
           </form>
-
-          {/* Development Debug */}
-          {process.env.NODE_ENV === 'development' && (
-            <div className="mt-8 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <p className="text-sm text-yellow-800">
-                <strong>🔧 Development Mode:</strong> Email gönderimi test ediliyor. 
-                App Password: <code className="bg-yellow-100 px-1 rounded">ahfd vrzy kuen opmj</code>
-              </p>
-            </div>
-          )}
         </div>
       </main>
 
       <Footer />
+
+      {/* Başarı Modalı */}
+      <EmailSuccessModal
+        isOpen={showSuccessModal}
+        onClose={handleCloseModal}
+        spotId={createdSpotId || ''}
+        spotTitle={title}
+      />
     </div>
   )
 }

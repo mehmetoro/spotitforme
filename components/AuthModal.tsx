@@ -1,9 +1,9 @@
-// components/AuthModal.tsx
+// components/AuthModal.tsx - CLIENT SIDE (nodemailer olmadan)
 'use client'
 
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { sendWelcomeEmail } from '@/lib/email'
+import { sendWelcomeEmail } from '@/lib/email-server' // SERVER ACTION
 
 interface AuthModalProps {
   isOpen: boolean
@@ -34,12 +34,10 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           email,
           password,
         })
-        
         if (error) throw error
         
-        setSuccessMessage('✅ Başarıyla giriş yaptınız! Yönlendiriliyorsunuz...')
+        setSuccessMessage('Başarıyla giriş yaptınız!')
         
-        // 1.5 saniye sonra modal'ı kapat ve sayfayı yenile
         setTimeout(() => {
           onClose()
           window.location.reload()
@@ -54,64 +52,36 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
             data: {
               name: name,
             },
-            emailRedirectTo: `${window.location.origin}/auth/callback`
           },
         })
         
         if (error) throw error
         
-        // KAYIT BAŞARILI - HOŞGELDİN EMAIL'İ GÖNDER
+        // KAYIT BAŞARILI - SERVER ACTION İLE EMAIL GÖNDER
         if (data.user) {
           try {
-            // EMAIL GÖNDERMEYİ DENE
-            console.log('📧 Hoşgeldin emaili gönderiliyor...')
-            const emailSent = await sendWelcomeEmail(email, name)
+            const result = await sendWelcomeEmail(email, name)
             
-            if (emailSent) {
-              setSuccessMessage(`
-                🎉 Tebrikler ${name}!
-                
-                • Hesabınız başarıyla oluşturuldu
-                • Hoş geldin email'i gönderildi
-                • Email doğrulama linki gönderildi
-                
-                Lütfen email'inizi kontrol edin (spam klasörüne bakın).
-                Email doğrulama sayfasına yönlendiriliyorsunuz...
-              `)
+            if (result.success) {
+              setSuccessMessage(`🎉 Hoş geldiniz ${name}! Kaydınız başarıyla oluşturuldu.`)
             } else {
-              setSuccessMessage(`
-                ✅ Hesabınız oluşturuldu ${name}!
-                
-                Ancak teknik bir nedenden email gönderilemedi.
-                Giriş yapıp profilinizi düzenleyebilirsiniz.
-                
-                Yönlendiriliyorsunuz...
-              `)
+              setSuccessMessage(`✅ Kaydınız başarıyla oluşturuldu ${name}! (Email gönderilemedi)`)
             }
           } catch (emailError) {
             console.warn('⚠️ Email gönderilemedi:', emailError)
-            setSuccessMessage(`
-              ✅ Hesabınız oluşturuldu ${name}!
-              
-              Giriş yapıp profilinizi düzenleyebilirsiniz.
-              
-              Yönlendiriliyorsunuz...
-            `)
+            setSuccessMessage(`✅ Kaydınız başarıyla oluşturuldu ${name}!`)
           }
           
-          // 3 saniye sonra modal'ı kapat ve yönlendir
           setTimeout(() => {
             onClose()
-            // Email doğrulama bekleme sayfasına yönlendir
-            window.location.href = '/verify-email'
-          }, 3000)
+            window.location.href = '/profile'
+          }, 2000)
         }
       }
 
     } catch (err: any) {
       console.error('Auth error:', err)
       
-      // Hata mesajlarını Türkçe'ye çevir
       let errorMessage = err.message || 'Bir hata oluştu'
       
       if (errorMessage.includes('Invalid login credentials')) {
@@ -124,8 +94,6 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
         errorMessage = 'Şifre en az 6 karakter olmalıdır'
       } else if (errorMessage.includes('Invalid email')) {
         errorMessage = 'Geçersiz email adresi'
-      } else if (errorMessage.includes('rate limit')) {
-        errorMessage = 'Çok fazla deneme yaptınız, lütfen bekleyin'
       }
       
       setError(errorMessage)
@@ -184,7 +152,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Ahmet Yılmaz"
                 required={!isLogin}
                 disabled={loading}
@@ -200,7 +168,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               placeholder="ornek@email.com"
               required
               disabled={loading}
@@ -215,7 +183,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               placeholder="••••••••"
               minLength={6}
               required
@@ -230,7 +198,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
           {/* Başarı Mesajı */}
           {successMessage && (
-            <div className="bg-green-50 border border-green-200 text-green-800 p-4 rounded-lg whitespace-pre-line">
+            <div className="bg-green-50 border border-green-200 text-green-700 p-4 rounded-lg">
               {successMessage}
             </div>
           )}
@@ -259,23 +227,6 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
               isLogin ? 'Giriş Yap' : 'Hesap Oluştur'
             )}
           </button>
-
-          {/* Şifremi Unuttum (sadece girişte) */}
-          {isLogin && (
-            <div className="text-center">
-              <button
-                type="button"
-                onClick={() => {
-                  onClose()
-                  window.location.href = '/forgot-password'
-                }}
-                className="text-blue-600 hover:text-blue-800 text-sm"
-                disabled={loading}
-              >
-                Şifremi unuttum
-              </button>
-            </div>
-          )}
         </form>
 
         {/* Footer */}
@@ -290,64 +241,8 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
               {isLogin ? 'Kayıt Olun' : 'Giriş Yapın'}
             </button>
           </p>
-
-          {/* Sosyal Giriş (Gelecekte eklenecek) */}
-          <div className="mt-6 pt-6 border-t">
-            <p className="text-sm text-gray-500 mb-3">Veya sosyal medya ile devam edin</p>
-            <div className="flex justify-center space-x-4">
-              <button 
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm disabled:opacity-50 flex items-center"
-                disabled
-                title="Yakında eklenecek"
-              >
-                <span className="mr-2">🔵</span>
-                Google
-              </button>
-              <button 
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm disabled:opacity-50 flex items-center"
-                disabled
-                title="Yakında eklenecek"
-              >
-                <span className="mr-2">⚫</span>
-                GitHub
-              </button>
-            </div>
-          </div>
-
-          {/* Gizlilik Politikası */}
-          <div className="mt-6 text-xs text-gray-500">
-            Devam ederek{' '}
-            <button 
-              className="text-blue-600 hover:underline"
-              onClick={() => window.open('/terms', '_blank')}
-              type="button"
-            >
-              Kullanım Koşulları
-            </button>
-            {' '}ve{' '}
-            <button 
-              className="text-blue-600 hover:underline"
-              onClick={() => window.open('/privacy', '_blank')}
-              type="button"
-            >
-              Gizlilik Politikası
-            </button>
-            {' '}nı kabul etmiş olursunuz.
-          </div>
         </div>
       </div>
-
-      {/* Email Sistemi Bilgilendirme (Sadece Development) */}
-      {process.env.NODE_ENV === 'development' && !isLogin && (
-        <div className="fixed bottom-4 left-4 bg-blue-100 text-blue-800 p-3 rounded-lg text-sm max-w-xs">
-          <div className="font-bold mb-1">🔧 Development Modu</div>
-          <div>Email: {email || '(boş)'}</div>
-          <div>Şifre: {password ? '••••••' : '(boş)'}</div>
-          <div className="mt-2 text-xs">
-            App Password: <code className="bg-blue-200 px-1 rounded">ahfd vrzy kuen opmj</code>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
