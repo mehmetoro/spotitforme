@@ -144,7 +144,73 @@ export async function sendBusinessRegistrationEmail(to: string, shopName: string
     return { success: false, message: 'Email gönderilemedi' }
   }
 }
+// Server Action: Şifre sıfırlama emaili gönder
+export async function sendPasswordResetEmail(to: string, resetLink: string) {
+  try {
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://spotitforme.vercel.app'
+    
+    await transporter.sendMail({
+      from: `"SpotItForMe Şifre Sıfırlama" <${process.env.GMAIL_USER}>`,
+      to,
+      subject: '🔐 SpotItForMe Şifre Sıfırlama İsteği',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f5f7fa; padding: 20px;">
+          <div style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+            <h1 style="color: white; margin: 0; font-size: 24px;">🔐 Şifre Sıfırlama</h1>
+          </div>
+          
+          <div style="background: white; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
+            <p>Merhaba,</p>
+            <p>SpotItForMe hesabınız için şifre sıfırlama talebinde bulundunuz.</p>
+            
+            <div style="background: #fef2f2; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ef4444;">
+              <p><strong>⚠️ Güvenlik Uyarısı:</strong></p>
+              <p>Bu isteği siz yapmadıysanız, bu email'i görmezden gelebilirsiniz.</p>
+              <p>Hesabınızla ilgili endişeleriniz varsa lütfen bizimle iletişime geçin.</p>
+            </div>
 
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${resetLink}" style="background: #ef4444; color: white; padding: 12px 30px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: bold;">
+                Şifremi Sıfırla
+              </a>
+            </div>
+
+            <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <p><strong>🔒 Güvenlik İpuçları:</strong></p>
+              <ul style="margin-left: 20px; color: #4b5563;">
+                <li>Şifrenizi kimseyle paylaşmayın</li>
+                <li>Link'e tıkladıktan sonra yeni bir şifre belirleyin</li>
+                <li>Güçlü bir şifre kullanın (harf, rakam, özel karakter)</li>
+                <li>Bu link 24 saat sonra geçersiz olacaktır</li>
+              </ul>
+            </div>
+
+            <p><strong>📝 Link çalışmıyor mu?</strong></p>
+            <p>Eğer buton çalışmıyorsa, aşağıdaki linki tarayıcınıza kopyalayıp yapıştırın:</p>
+            <p style="word-break: break-all; background: #f3f4f6; padding: 10px; border-radius: 5px; font-size: 12px;">
+              ${resetLink}
+            </p>
+
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;" />
+
+            <p style="font-size: 12px; color: #6b7280; text-align: center;">
+              Bu email SpotItForMe platformundan otomatik olarak gönderilmiştir.<br/>
+              <a href="${siteUrl}" style="color: #6b7280;">${siteUrl}</a> | 
+              <a href="mailto:${process.env.GMAIL_USER}" style="color: #6b7280;">Yardım</a>
+            </p>
+          </div>
+        </div>
+      `,
+      text: `SpotItForMe Şifre Sıfırlama\n\nŞifrenizi sıfırlamak için bu linke tıklayın: ${resetLink}\n\nBu link 24 saat geçerlidir.\n\nEğer bu isteği siz yapmadıysanız, bu email'i görmezden gelebilirsiniz.\n\nTeşekkür ederiz!`
+    })
+
+    console.log('✅ Şifre sıfırlama emaili gönderildi:', to)
+    return { success: true, message: 'Şifre sıfırlama emaili gönderildi' }
+  } catch (error) {
+    console.error('❌ Şifre sıfırlama emaili gönderilemedi:', error)
+    return { success: false, message: 'Şifre sıfırlama emaili gönderilemedi' }
+  }
+}
 // Server Action: Spot oluşturma emaili
 export async function sendSpotCreatedEmail(to: string, spotTitle: string, spotId: string) {
   try {
