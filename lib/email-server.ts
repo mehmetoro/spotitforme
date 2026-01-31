@@ -1,249 +1,266 @@
-// lib/email-server.ts - SERVER SIDE EMAIL
+// lib/email-server.ts
 'use server'
 
 import nodemailer from 'nodemailer'
 
-// 1. EMAIL TRANSPORTER (SERVER SIDE)
-const createTransporter = () => {
-  return nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: Number(process.env.SMTP_PORT) || 587,
-    secure: false,
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASSWORD,
-    },
-    tls: {
-      rejectUnauthorized: process.env.NODE_ENV === 'production'
-    }
-  })
-}
+// Email transporter oluştur
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_APP_PASS
+  }
+})
 
-// 2. EMAIL TEMPLATE HELPER
-const createEmailTemplate = (title: string, content: string, button?: { text: string; url: string }) => {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://spotitforme.vercel.app'
-  
-  return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>${title}</title>
-      <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif; line-height: 1.6; color: #333; background: #f9fafb; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px; text-align: center; border-radius: 12px 12px 0 0; }
-        .logo { color: white; font-size: 28px; font-weight: bold; margin-bottom: 10px; }
-        .tagline { color: rgba(255, 255, 255, 0.9); font-size: 14px; }
-        .content { background: white; padding: 40px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px; }
-        .button { display: inline-block; background: #3b82f6; color: white; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; margin: 20px 0; }
-        .button:hover { background: #2563eb; }
-        .highlight { background: #f8fafc; padding: 20px; border-radius: 8px; border-left: 4px solid #3b82f6; margin: 20px 0; }
-        .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 12px; text-align: center; }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <div class="header">
-          <div class="logo">SpotItForMe</div>
-          <div class="tagline">Toplulukla Bul, Birlikte Keşfet</div>
-        </div>
-        
-        <div class="content">
-          ${content}
+// Server Action: Hoşgeldin emaili gönder
+export async function sendWelcomeEmail(to: string, name: string) {
+  try {
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://spotitforme.vercel.app'
+    
+    await transporter.sendMail({
+      from: `"SpotItForMe" <${process.env.GMAIL_USER}>`,
+      to,
+      subject: `🎉 SpotItForMe Topluluğuna Hoş Geldin ${name}!`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f5f7fa; padding: 20px;">
+          <div style="background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+            <h1 style="color: white; margin: 0; font-size: 24px;">🤝 Hoş Geldiniz!</h1>
+          </div>
           
-          ${button ? `
-            <div style="text-align: center; margin-top: 30px;">
-              <a href="${button.url}" class="button">${button.text}</a>
+          <div style="background: white; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
+            <p>Merhaba <strong>${name}</strong>,</p>
+            <p>SpotItForMe topluluğuna katıldığınız için çok mutluyuz! 🎉</p>
+            
+            <div style="background: #faf5ff; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <p><strong>🚀 Hemen Başlayın:</strong></p>
+              <div style="display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 15px;">
+                <a href="${siteUrl}/create-spot" style="background: #8b5cf6; color: white; padding: 12px; text-align: center; border-radius: 8px; text-decoration: none; font-weight: bold;">
+                  İlk Spot'unu Oluştur
+                </a>
+                <a href="${siteUrl}/spots" style="background: #f1f5f9; color: #475569; padding: 12px; text-align: center; border-radius: 8px; text-decoration: none;">
+                  Spot'ları Keşfet
+                </a>
+                <a href="${siteUrl}/how-it-works" style="background: #f1f5f9; color: #475569; padding: 12px; text-align: center; border-radius: 8px; text-decoration: none;">
+                  Nasıl Çalışır?
+                </a>
+              </div>
             </div>
-          ` : ''}
-          
-          <div class="footer">
-            <p>Bu e-posta SpotItForMe platformundan otomatik olarak gönderilmiştir.</p>
+
+            <p><strong>✨ Platform Özellikleri:</strong></p>
+            <ul style="padding-left: 20px;">
+              <li>✅ Ücretsiz spot oluşturma</li>
+              <li>✅ Binlerce aktif topluluk üyesi</li>
+              <li>✅ Anlık yardım bildirimleri</li>
+              <li>✅ Mobil uyumlu tasarım</li>
+              <li>✅ Güvenli ve gizli</li>
+            </ul>
+
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;" />
+
+            <p style="font-size: 12px; color: #6b7280; text-align: center;">
+              Sorularınız için: <a href="mailto:${process.env.GMAIL_USER}" style="color: #6b7280;">${process.env.GMAIL_USER}</a><br/>
+              <a href="${siteUrl}" style="color: #6b7280;">${siteUrl}</a>
+            </p>
           </div>
         </div>
-      </div>
-    </body>
-    </html>
-  `
-}
+      `,
+      text: `SpotItForMe'ye Hoş Geldiniz!\n\nMerhaba ${name},\n\nSpotItForMe topluluğuna katıldığınız için teşekkür ederiz.\n\nHemen başlayın: ${siteUrl}/create-spot\n\nİyi kullanımlar!`
+    })
 
-// 3. HOŞGELDİN EMAIL'I
-export async function sendWelcomeEmail(to: string, name: string): Promise<{ success: boolean; message?: string }> {
-  try {
-    console.log(`👋 Hoşgeldin emaili gönderiliyor: ${to} (${name})`)
-    
-    const transporter = createTransporter()
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://spotitforme.vercel.app'
-    
-    const mailOptions = {
-      from: process.env.SMTP_FROM || 'SpotItForMe <noreply@spotitforme.com>',
-      to,
-      subject: `🤝 Hoş Geldin ${name}! - SpotItForMe Topluluğuna Katıldınız`,
-      html: createEmailTemplate(
-        'Hoş Geldiniz',
-        `
-          <h2 style="color: #1f2937; margin-bottom: 20px;">Merhaba ${name},</h2>
-          <p>SpotItForMe topluluğuna katıldığınız için çok mutluyuz! 🎉</p>
-          
-          <div class="highlight">
-            <p style="font-weight: 600; color: #1e40af; margin-bottom: 10px;">🚀 Hemen Başlayın:</p>
-            <p>Kayıp ürünlerinizi bulmak veya başkalarına yardım etmek için platformumuzu kullanmaya başlayabilirsiniz.</p>
-          </div>
-          
-          <p>Herhangi bir sorunuz olursa destek@spotitforme.com adresinden bize ulaşabilirsiniz.</p>
-        `,
-        {
-          text: 'SpotItForMe\'yi Keşfet',
-          url: `${siteUrl}/spots`
-        }
-      )
-    }
-
-    const info = await transporter.sendMail(mailOptions)
-    console.log('✅ Hoşgeldin emaili gönderildi:', info.messageId)
-    
+    console.log('✅ Hoşgeldin emaili gönderildi:', to)
     return { success: true, message: 'Email gönderildi' }
-    
-  } catch (error: any) {
-    console.error('❌ Hoşgeldin emaili gönderilemedi:', error.message)
-    return { success: false, message: error.message }
+  } catch (error) {
+    console.error('❌ Hoşgeldin emaili gönderilemedi:', error)
+    return { success: false, message: 'Email gönderilemedi' }
   }
 }
 
-// 4. SPOT OLUŞTURMA EMAIL'I
-export async function sendSpotCreatedEmail(to: string, spotTitle: string, spotId: string, userName: string): Promise<{ success: boolean; message?: string }> {
+// Server Action: Mağaza kayıt emaili gönder
+export async function sendBusinessRegistrationEmail(to: string, shopName: string, ownerId: string) {
   try {
-    console.log(`📝 Spot oluşturma emaili: ${to} - "${spotTitle}"`)
-    
-    const transporter = createTransporter()
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://spotitforme.vercel.app'
     
-    const mailOptions = {
-      from: process.env.SMTP_FROM || 'SpotItForMe <noreply@spotitforme.com>',
+    await transporter.sendMail({
+      from: `"SpotItForme İşletme" <${process.env.GMAIL_USER}>`,
       to,
-      subject: `🎉 Spot Oluşturuldu: "${spotTitle.substring(0, 50)}${spotTitle.length > 50 ? '...' : ''}"`,
-      html: createEmailTemplate(
-        'Spot Oluşturuldu',
-        `
-          <h2 style="color: #1f2937; margin-bottom: 20px;">Merhaba ${userName},</h2>
-          <p><strong>"${spotTitle}"</strong> başlıklı spot'unuz başarıyla oluşturuldu!</p>
-          
-          <div class="highlight">
-            <p style="font-weight: 600; color: #059669; margin-bottom: 15px;">✅ Spot'unuz Aktif!</p>
-            <p>Spot'unuz şu anda topluluğumuzun yardımına sunuldu.</p>
+      cc: process.env.ADMIN_EMAIL,
+      subject: `🏪 Mağaza Kaydınız Alındı: ${shopName}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f5f7fa; padding: 20px;">
+          <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+            <h1 style="color: white; margin: 0; font-size: 24px;">🏪 Mağaza Kaydınız Alındı!</h1>
           </div>
           
-          <p><strong>🔗 Spot Linki:</strong> <a href="${siteUrl}/spots/${spotId}">${siteUrl}/spots/${spotId}</a></p>
-        `,
-        {
-          text: 'Spot\'umu Görüntüle',
-          url: `${siteUrl}/spots/${spotId}`
-        }
-      )
-    }
+          <div style="background: white; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
+            <p>Merhaba,</p>
+            <p><strong>${shopName}</strong> mağazanız için kaydınız başarıyla alındı! 🎉</p>
+            
+            <div style="background: #f0fdf4; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10b981;">
+              <p><strong>🎯 Sonraki Adımlar:</strong></p>
+              <ol style="margin-left: 20px;">
+                <li>Mağaza profilinizi tamamlayın</li>
+                <li>İlk ürünlerinizi ekleyin</li>
+                <li>Spot'lara cevap verin</li>
+                <li>Premium paketlere geçerek limitlerinizi artırın</li>
+              </ol>
+            </div>
 
-    const info = await transporter.sendMail(mailOptions)
-    console.log('✅ Spot oluşturma emaili gönderildi:', info.messageId)
-    
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${siteUrl}/shop/dashboard" style="background: #10b981; color: white; padding: 12px 30px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: bold; margin: 5px;">
+                Mağaza Paneline Git
+              </a>
+              <a href="${siteUrl}/create-spot" style="background: #3b82f6; color: white; padding: 12px 30px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: bold; margin: 5px;">
+                İlk Spot'u Oluştur
+              </a>
+            </div>
+
+            <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <p><strong>📊 Mağaza İstatistikleriniz:</strong></p>
+              <p>✅ <strong>Paket:</strong> Ücretsiz Başlangıç</p>
+              <p>✅ <strong>Resim Limiti:</strong> 20 adet ücretsiz</p>
+              <p>✅ <strong>Spot Limiti:</strong> Sınırsız</p>
+              <p>✅ <strong>Destek:</strong> Email ile 7/24</p>
+            </div>
+
+            <p><strong>📞 İletişim:</strong></p>
+            <p>Herhangi bir sorunuz için: <a href="mailto:${process.env.GMAIL_USER}" style="color: #3b82f6;">${process.env.GMAIL_USER}</a></p>
+
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;" />
+
+            <p style="font-size: 12px; color: #6b7280; text-align: center;">
+              SpotItForme İşletme Ekibi<br/>
+              <a href="${siteUrl}" style="color: #6b7280;">${siteUrl}</a>
+            </p>
+          </div>
+        </div>
+      `,
+      text: `Mağaza Kaydı\n\n${shopName} mağazanız için kaydınız alındı.\n\nMağaza Paneliniz: ${siteUrl}/shop/dashboard\n\nTeşekkür ederiz!`
+    })
+
+    console.log('✅ Mağaza kayıt emaili gönderildi:', to)
     return { success: true, message: 'Email gönderildi' }
-    
-  } catch (error: any) {
-    console.error('❌ Spot oluşturma emaili gönderilemedi:', error.message)
-    return { success: false, message: error.message }
+  } catch (error) {
+    console.error('❌ Mağaza kayıt emaili gönderilemedi:', error)
+    return { success: false, message: 'Email gönderilemedi' }
   }
 }
 
-// 5. YARDIM BİLDİRİMİ EMAIL'I
+// Server Action: Spot oluşturma emaili
+export async function sendSpotCreatedEmail(to: string, spotTitle: string, spotId: string) {
+  try {
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://spotitforme.vercel.app'
+    
+    await transporter.sendMail({
+      from: `"SpotItForMe" <${process.env.GMAIL_USER}>`,
+      to,
+      subject: `🎉 Spot Oluşturuldu: ${spotTitle}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f5f7fa; padding: 20px;">
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+            <h1 style="color: white; margin: 0; font-size: 24px;">🎉 Spot'unuz Oluşturuldu!</h1>
+          </div>
+          <div style="background: white; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
+            <p>Merhaba,</p>
+            <p><strong>"${spotTitle}"</strong> başlıklı spot'unuz başarıyla oluşturuldu.</p>
+            
+            <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #3b82f6;">
+              <p><strong>Spot Detayları:</strong></p>
+              <p>📌 <strong>Başlık:</strong> ${spotTitle}</p>
+              <p>🔗 <strong>Spot Linki:</strong> <a href="${siteUrl}/spots/${spotId}" style="color: #3b82f6;">${siteUrl}/spots/${spotId}</a></p>
+              <p>⏰ <strong>Tarih:</strong> ${new Date().toLocaleDateString('tr-TR')}</p>
+            </div>
+
+            <p>Spot'unuz şu anda topluluğumuzun yardımına sunuldu. Binlerce kullanıcı şehirlerinde gezerken sizin için göz kulak olacak.</p>
+            
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${siteUrl}/spots/${spotId}" style="background: #3b82f6; color: white; padding: 12px 30px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: bold;">
+                Spot'u Görüntüle
+              </a>
+            </div>
+
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;" />
+
+            <p style="font-size: 12px; color: #6b7280; text-align: center;">
+              Bu e-posta SpotItForMe platformundan otomatik olarak gönderilmiştir.<br/>
+              <a href="${siteUrl}/unsubscribe" style="color: #6b7280;">Bildirimleri devre dışı bırak</a>
+            </p>
+          </div>
+        </div>
+      `,
+      text: `SpotItForMe - Spot Oluşturuldu\n\n"${spotTitle}" başlıklı spot'unuz başarıyla oluşturuldu.\n\nSpot Linki: ${siteUrl}/spots/${spotId}\n\nTeşekkür ederiz!`
+    })
+
+    console.log('✅ Spot oluşturma emaili gönderildi:', to)
+    return { success: true, message: 'Email gönderildi' }
+  } catch (error) {
+    console.error('❌ Email gönderilemedi:', error)
+    return { success: false, message: 'Email gönderilemedi' }
+  }
+}
+
+// Server Action: Yardım bildirimi emaili
 export async function sendSightingNotificationEmail(
   to: string, 
   spotTitle: string, 
   spotterName: string,
-  spotId: string,
-  spotOwnerName: string
-): Promise<{ success: boolean; message?: string }> {
+  spotId: string
+) {
   try {
-    console.log(`🎯 Yardım bildirimi: ${to} - "${spotTitle}"`)
-    
-    const transporter = createTransporter()
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://spotitforme.vercel.app'
     
-    const mailOptions = {
-      from: process.env.SMTP_FROM || 'SpotItForMe <noreply@spotitforme.com>',
+    await transporter.sendMail({
+      from: `"SpotItForMe" <${process.env.GMAIL_USER}>`,
       to,
-      subject: `🎯 YARDIM BİLDİRİMİ: "${spotTitle.substring(0, 40)}${spotTitle.length > 40 ? '...' : ''}" ürününüz görüldü!`,
-      html: createEmailTemplate(
-        'Yardım Bildirimi',
-        `
-          <h2 style="color: #1f2937; margin-bottom: 20px;">Merhaba ${spotOwnerName},</h2>
-          
-          <p style="font-size: 18px; color: #059669; font-weight: 600; margin-bottom: 20px;">
-            🎉 MÜJDE! Aradığınız ürün görüldü!
-          </p>
-          
-          <div class="highlight">
-            <p><strong>${spotterName}</strong> adlı topluluk üyemiz, aradığınız <strong>"${spotTitle}"</strong> ürününü gördüğünü bildirdi!</p>
+      subject: `🎯 YENİ YARDIM: "${spotTitle}" için bildirim!`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f5f7fa; padding: 20px;">
+          <div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+            <h1 style="color: white; margin: 0; font-size: 24px;">🎯 YENİ YARDIM BİLDİRİMİ!</h1>
+            <p style="color: white; opacity: 0.9; margin-top: 10px;">Birisi aradığınız ürünü gördü!</p>
           </div>
           
-          <p><strong>🔗 Detaylar:</strong> <a href="${siteUrl}/spots/${spotId}">Spot sayfasında görüntüle</a></p>
-        `,
-        {
-          text: 'Yardım Detaylarını Görüntüle',
-          url: `${siteUrl}/spots/${spotId}`
-        }
-      )
-    }
+          <div style="background: white; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
+            <p>Merhaba,</p>
+            <p><strong>${spotterName}</strong> adlı kullanıcı, <strong>"${spotTitle}"</strong> spot'unuz için yardım bildirimi gönderdi! 🎉</p>
+            
+            <div style="background: #fffbeb; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f59e0b;">
+              <p><strong>🎉 Müjdeli Haber!</strong></p>
+              <p>Bir topluluk üyemiz aradığınız ürünü gördüğünü bildirdi.</p>
+              <p>Hemen spot sayfasına giderek detayları görüntüleyin!</p>
+            </div>
 
-    const info = await transporter.sendMail(mailOptions)
-    console.log('✅ Yardım bildirimi emaili gönderildi:', info.messageId)
-    
-    return { success: true, message: 'Email gönderildi' }
-    
-  } catch (error: any) {
-    console.error('❌ Yardım bildirimi emaili gönderilemedi:', error.message)
-    return { success: false, message: error.message }
-  }
-}
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${siteUrl}/spots/${spotId}" style="background: #f59e0b; color: white; padding: 12px 30px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: bold;">
+                Yardım Detaylarını Görüntüle
+              </a>
+            </div>
 
-// 6. ŞİFRE SIFIRLAMA EMAIL'I
-export async function sendPasswordResetEmail(to: string, resetLink: string, userName?: string): Promise<{ success: boolean; message?: string }> {
-  try {
-    console.log(`🔐 Şifre sıfırlama emaili: ${to}`)
-    
-    const transporter = createTransporter()
-    
-    const mailOptions = {
-      from: process.env.SMTP_FROM || 'SpotItForMe <noreply@spotitforme.com>',
-      to,
-      subject: '🔐 SpotItForMe - Şifre Sıfırlama Talebi',
-      html: createEmailTemplate(
-        'Şifre Sıfırlama',
-        `
-          <h2 style="color: #1f2937; margin-bottom: 20px;">Merhaba ${userName || 'Kullanıcı'},</h2>
-          <p>Şifre sıfırlama talebinde bulundunuz. Aşağıdaki butona tıklayarak yeni şifrenizi oluşturabilirsiniz:</p>
-          
-          <div class="highlight">
-            <p style="font-weight: 600; color: #d97706; margin-bottom: 10px;">⚠️ ÖNEMLİ UYARILAR:</p>
-            <p><strong>• Bu link 1 saat içinde geçerlidir</strong></p>
-            <p><strong>• Linki kimseyle paylaşmayın</strong></p>
+            <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <p><strong>📋 Sonraki Adımlar:</strong></p>
+              <ol style="margin-left: 20px;">
+                <li>Yardım detaylarını inceleyin</li>
+                <li>Gerekirse spotter ile iletişime geçin</li>
+                <li>Ürünü bulduysanız spot durumunu "Bulundu" olarak güncelleyin</li>
+                <li>Yardım eden kullanıcıya teşekkür edin</li>
+              </ol>
+            </div>
+
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;" />
+
+            <p style="font-size: 12px; color: #6b7280; text-align: center;">
+              Topluluğumuzun yardımıyla kayıp ürünlerinizi bulmanızı umuyoruz!<br/>
+              <a href="${siteUrl}" style="color: #6b7280;">${siteUrl}</a>
+            </p>
           </div>
-        `,
-        {
-          text: 'Şifremi Sıfırla',
-          url: resetLink
-        }
-      )
-    }
+        </div>
+      `,
+      text: `Yeni Yardım Bildirimi!\n\n${spotterName}, "${spotTitle}" spot'unuz için yardım bildirimi gönderdi.\n\nDetaylar için: ${siteUrl}/spots/${spotId}\n\nTeşekkür ederiz!`
+    })
 
-    const info = await transporter.sendMail(mailOptions)
-    console.log('✅ Şifre sıfırlama emaili gönderildi:', info.messageId)
-    
+    console.log('✅ Yardım bildirimi emaili gönderildi:', to)
     return { success: true, message: 'Email gönderildi' }
-    
-  } catch (error: any) {
-    console.error('❌ Şifre sıfırlama emaili gönderilemedi:', error.message)
-    return { success: false, message: error.message }
+  } catch (error) {
+    console.error('❌ Yardım bildirimi emaili gönderilemedi:', error)
+    return { success: false, message: 'Email gönderilemedi' }
   }
 }

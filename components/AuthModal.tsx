@@ -1,4 +1,4 @@
-// components/AuthModal.tsx - CLIENT SIDE (nodemailer olmadan)
+// components/AuthModal.tsx
 'use client'
 
 import { useState } from 'react'
@@ -8,9 +8,10 @@ import { sendWelcomeEmail } from '@/lib/email-server' // SERVER ACTION
 interface AuthModalProps {
   isOpen: boolean
   onClose: () => void
+  onSuccess?: () => void  // YENİ PROP
 }
 
-export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
+export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
   const [isLogin, setIsLogin] = useState(true)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -40,7 +41,11 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
         
         setTimeout(() => {
           onClose()
-          window.location.reload()
+          if (onSuccess) {
+            onSuccess() // onSuccess callback'ini çağır
+          } else {
+            window.location.reload()
+          }
         }, 1500)
         
       } else {
@@ -74,7 +79,11 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           
           setTimeout(() => {
             onClose()
-            window.location.href = '/profile'
+            if (onSuccess) {
+              onSuccess() // onSuccess callback'ini çağır
+            } else {
+              window.location.href = '/profile'
+            }
           }, 2000)
         }
       }

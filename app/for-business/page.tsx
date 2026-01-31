@@ -1,10 +1,13 @@
 // app/for-business/page.tsx
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
+import AuthModal from '@/components/AuthModal'
 import { supabase } from '@/lib/supabase'
+import { sendBusinessRegistrationEmail } from '@/lib/email-server'
 
 interface ShopFormData {
   shopName: string
@@ -17,9 +20,16 @@ interface ShopFormData {
   description: string
   businessType: string
   monthlySpots: string
+  acceptTerms: boolean
+  acceptPrivacy: boolean
+  acceptMarketing: boolean
 }
 
 export default function ForBusinessPage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const editMode = searchParams.get('edit') === 'true'
+  
   const [formData, setFormData] = useState<ShopFormData>({
     shopName: '',
     ownerName: '',
@@ -30,71 +40,96 @@ export default function ForBusinessPage() {
     website: '',
     description: '',
     businessType: 'retail',
-    monthlySpots: '20-50'
+    monthlySpots: '20-50',
+    acceptTerms: false,
+    acceptPrivacy: false,
+    acceptMarketing: false
   })
 
   const [loading, setLoading] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+  const [showAuthModal, setShowAuthModal] = useState(false)
+  const [existingShop, setExistingShop] = useState<any>(null)
+  const [user, setUser] = useState<any>(null)
+  const [authSuccessCallback, setAuthSuccessCallback] = useState<() => void>(() => {})
+
+  useEffect(() => {
+    checkUser()
+  }, [])
+
+  const checkUser = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      setUser(user)
+      // Kullanıcının mağazası var mı kontrol et
+      checkExistingShop(user.id)
+      // Forma email ve isim bilgilerini otomatik doldur
+      if (!editMode) {
+        setFormData(prev => ({
+          ...prev,
+          email: user.email || '',
+          ownerName: user.user_metadata?.name || ''
+        }))
+      }
+    }
+  }
+
+  const checkExistingShop = async (userId: string) => {
+    const { data: shop } = await supabase
+      .from('shops')
+      .select('*')
+      .eq('owner_id', userId)
+      .single()
+
+    if (shop) {
+      setExistingShop(shop)
+      if (!editMode) {
+        router.push(`/shop/dashboard`)
+      } else {
+        // Edit modunda formu doldur
+        setFormData({
+          shopName: shop.shop_name || '',
+          ownerName: shop.owner_name || '',
+          email: shop.email || '',
+          phone: shop.phone || '',
+          address: shop.address || '',
+          city: shop.city || '',
+          website: shop.website || '',
+          description: shop.description || '',
+          businessType: shop.business_type || 'retail',
+          monthlySpots: shop.monthly_capacity || '20-50',
+          acceptTerms: true,
+          acceptPrivacy: true,
+          acceptMarketing: false
+        })
+      }
+    }
+  }
 
   const businessTypes = [
-    { id: 'retail', name: 'Perakende Mağaza', icon: '🏪' },
-    { id: 'antique', name: 'Antikacı', icon: '🏺' },
-    { id: 'collector', name: 'Koleksiyoner', icon: '🎨' },
-    { id: 'repair', name: 'Tamir Servisi', icon: '🔧' },
-    { id: 'online', name: 'Online Mağaza', icon: '🛒' },
-    { id: 'other', name: 'Diğer', icon: '🏢' },
+    { id: 'retail', name: 'Perakende Mağaza', icon: '🏪', description: 'Fiziksel veya online mağaza' },
+    { id: 'antique', name: 'Antikacı', icon: '🏺', description: 'Antika ve koleksiyon ürünleri' },
+    { id: 'collector', name: 'Koleksiyoner', icon: '🎨', description: 'Nadir ve koleksiyonluk ürünler' },
+    { id: 'repair', name: 'Tamir Servisi', icon: '🔧', description: 'Onarım ve yedek parça' },
+    { id: 'secondhand', name: '2. El Mağaza', icon: '🔄', description: 'İkinci el ürün satışı' },
+    { id: 'specialty', name: 'Uzman Mağaza', icon: '🎯', description: 'Özel ürünler (hobi, sanat, vs.)' },
+    { id: 'other', name: 'Diğer', icon: '🏢', description: 'Diğer işletme türleri' },
   ]
 
   const spotRanges = [
-    { id: '10-20', name: '10-20 spot/ay' },
-    { id: '20-50', name: '20-50 spot/ay' },
-    { id: '50-100', name: '50-100 spot/ay' },
-    { id: '100+', name: '100+ spot/ay' },
+    { id: '1-10', name: '1-10 spot/ay', description: 'Yeni başlayanlar için' },
+    { id: '10-20', name: '10-20 spot/ay', description: 'Orta ölçekli işletme' },
+    { id: '20-50', name: '20-50 spot/ay', description: 'Aktif mağaza' },
+    { id: '50-100', name: '50-100 spot/ay', description: 'Büyük ölçekli işletme' },
+    { id: '100+', name: '100+ spot/ay', description: 'Çok aktif mağaza' },
   ]
 
-  const packages = [
-    {
-      name: 'ÜCRETSİZ',
-      price: 0,
-      features: [
-        '20 adet ücretsiz resim',
-        'Temel mağaza profili',
-        'Spot oluşturma',
-        'Temel istatistikler',
-        'Email desteği'
-      ],
-      color: 'gray',
-      popular: false
-    },
-    {
-      name: 'PRO',
-      price: 99,
-      features: [
-        '100 adet resim hakkı',
-        'Gelişmiş mağaza profili',
-        'Öne çıkan spot (5 adet)',
-        'Detaylı istatistikler',
-        'Öncelikli destek',
-        'Mağaza haritada gösterim'
-      ],
-      color: 'blue',
-      popular: true
-    },
-    {
-      name: 'BUSINESS',
-      price: 299,
-      features: [
-        '500 adet resim hakkı',
-        'Premium mağaza profili',
-        'Sınırsız öne çıkan spot',
-        'API erişimi',
-        'Özel temsilci',
-        'Özel kategori oluşturma',
-        'Çoklu kullanıcı hesabı'
-      ],
-      color: 'purple',
-      popular: false
-    }
+  const cities = [
+    'İstanbul', 'Ankara', 'İzmir', 'Bursa', 'Antalya', 'Adana', 
+    'Konya', 'Gaziantep', 'Şanlıurfa', 'Mersin', 'Kayseri', 'Eskişehir',
+    'Trabzon', 'Samsun', 'Balıkesir', 'Aydın', 'Muğla', 'Denizli',
+    'Tekirdağ', 'Kocaeli', 'Manisa', 'Hatay', 'Sakarya', 'Diyarbakır',
+    'Van', 'Malatya', 'Elazığ', 'Erzurum', 'Kahramanmaraş', 'Sivas'
   ]
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -102,17 +137,65 @@ export default function ForBusinessPage() {
     setLoading(true)
 
     try {
-      // 1. Kullanıcı kontrolü
-      const { data: { user } } = await supabase.auth.getUser()
-      
+      // Kullanıcı kontrolü
       if (!user) {
-        alert('Lütfen önce giriş yapın veya kayıt olun')
+        // Auth modal'ını aç ve form submit callback'ini kaydet
+        setAuthSuccessCallback(() => () => handleFormSubmit())
+        setShowAuthModal(true)
         setLoading(false)
         return
       }
 
-      // 2. Mağazayı kaydet
-      const { error } = await supabase
+      // Form submit işlemini yap
+      await handleFormSubmit()
+      
+    } catch (error: any) {
+      console.error('Mağaza kaydı hatası:', error)
+      
+      let errorMessage = 'Kayıt sırasında bir hata oluştu. Lütfen tekrar deneyin.'
+      
+      if (error.message?.includes('unique constraint')) {
+        errorMessage = 'Bu email adresiyle zaten bir mağaza kaydı bulunmaktadır.'
+      } else if (error.message?.includes('foreign key constraint')) {
+        errorMessage = 'Kullanıcı bulunamadı. Lütfen tekrar giriş yapın.'
+      }
+      
+      alert(errorMessage)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleFormSubmit = async () => {
+    if (!formData.acceptTerms || !formData.acceptPrivacy) {
+      alert('Lütfen Kullanım Koşulları ve Gizlilik Politikasını kabul edin.')
+      return
+    }
+
+    let result
+
+    if (editMode && existingShop) {
+      // Güncelleme modu
+      result = await supabase
+        .from('shops')
+        .update({
+          shop_name: formData.shopName,
+          description: formData.description,
+          address: formData.address,
+          city: formData.city,
+          phone: formData.phone,
+          website: formData.website || null,
+          email: formData.email,
+          business_type: formData.businessType,
+          monthly_capacity: formData.monthlySpots,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existingShop.id)
+        .select()
+        .single()
+    } else {
+      // Yeni kayıt
+      result = await supabase
         .from('shops')
         .insert({
           owner_id: user.id,
@@ -122,408 +205,646 @@ export default function ForBusinessPage() {
           city: formData.city,
           phone: formData.phone,
           website: formData.website || null,
+          email: formData.email,
+          business_type: formData.businessType,
+          monthly_capacity: formData.monthlySpots,
           subscription_type: 'free',
-          monthly_capacity: formData.monthlySpots
+          is_verified: false,
+          owner_name: formData.ownerName
         })
-
-      if (error) throw error
-
-      // 3. Başarılı
-      setSubmitted(true)
-      
-      // 4. Email gönder (opsiyonel)
-      // await sendBusinessRegistrationEmail(formData.email, formData.shopName)
-
-    } catch (error) {
-      console.error('Mağaza kaydı hatası:', error)
-      alert('Kayıt sırasında bir hata oluştu. Lütfen tekrar deneyin.')
-    } finally {
-      setLoading(false)
+        .select()
+        .single()
     }
+
+    if (result.error) {
+      // Mağaza zaten var mı kontrol et
+      if (result.error.code === '23505') {
+        const { data: existing } = await supabase
+          .from('shops')
+          .select('*')
+          .eq('owner_id', user.id)
+          .single()
+        
+        if (existing) {
+          alert('Zaten bir mağazanız var. Mağaza panelinize yönlendiriliyorsunuz.')
+          router.push(`/shop/dashboard`)
+          return
+        }
+      }
+      throw result.error
+    }
+
+    // Email gönder (yeni kayıt için)
+    if (!editMode) {
+      try {
+        await sendBusinessRegistrationEmail(
+          formData.email, 
+          formData.shopName, 
+          user.id
+        )
+      } catch (emailError) {
+        console.warn('Email gönderilemedi:', emailError)
+        // Email hatası form submit işlemini durdurmaz
+      }
+    }
+
+    // Başarılı
+    setSubmitted(true)
+  }
+
+  const handleAuthSuccess = () => {
+    setShowAuthModal(false)
+    checkUser() // Kullanıcı bilgilerini yenile
+    
+    // Auth başarılı olduktan sonra kaydedilen callback'i çalıştır
+    if (authSuccessCallback) {
+      setTimeout(() => {
+        authSuccessCallback()
+      }, 500) // Kısa bir bekleme süresi
+    }
+  }
+
+  const handleSkipForNow = () => {
+    router.push('/spots')
+  }
+
+  if (submitted) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Header />
+        
+        <main className="container-custom py-12">
+          <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-lg p-8 md:p-12 text-center">
+            <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-3xl mx-auto mb-6">
+              ✅
+            </div>
+            
+            <h1 className="text-3xl font-bold text-gray-900 mb-4">
+              {editMode ? 'Mağaza Bilgileriniz Güncellendi!' : 'Mağaza Kaydınız Alındı!'}
+            </h1>
+            
+            <p className="text-gray-600 mb-8">
+              <strong>{formData.shopName}</strong> mağazanız için {editMode ? 'bilgileriniz güncellendi' : 'kaydınız başarıyla alındı'}! 🎉
+              <br />
+              {!editMode && `Onay email'i ${formData.email} adresinize gönderildi.`}
+            </p>
+            
+            <div className="space-y-4">
+              <button
+                onClick={() => router.push('/shop/dashboard')}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-8 rounded-xl text-lg"
+              >
+                Mağaza Paneline Git
+              </button>
+              
+              <button
+                onClick={() => router.push('/create-spot')}
+                className="w-full bg-white hover:bg-gray-50 text-blue-600 border-2 border-blue-600 font-bold py-4 px-8 rounded-xl text-lg"
+              >
+                İlk Spot'unu Oluştur
+              </button>
+              
+              <button
+                onClick={() => {
+                  setSubmitted(false)
+                  if (editMode) {
+                    router.push('/for-business')
+                  }
+                }}
+                className="w-full text-gray-600 hover:text-gray-800"
+              >
+                {editMode ? 'Başka Bir Mağaza Düzenle' : 'Yeni Mağaza Kaydı Oluştur'}
+              </button>
+            </div>
+          </div>
+        </main>
+
+        <Footer />
+      </div>
+    )
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
       
-      <main className="container-custom py-12">
-        {/* Hero */}
-        <div className="text-center mb-16">
+      <main className="container-custom py-8 md:py-12">
+        {/* Hero Section */}
+        <div className="text-center mb-12 md:mb-16">
           <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
             İşletmeniz İçin <span className="text-blue-600">SpotItForMe</span>
           </h1>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+          
+          <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
             Müşterilerinizin aradığı ürünleri sizde olduğunu anında bildirin, 
             satışlarınızı artırın ve sadık müşteriler kazanın.
           </p>
+          
+          <div className="inline-flex items-center bg-blue-50 text-blue-700 px-4 py-2 rounded-full text-sm font-medium mb-6">
+            🎯 Tamamen Ücretsiz - Sınırsız Spot Oluşturma
+          </div>
+          
+          <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+              <div className="text-3xl mb-4">👁️</div>
+              <h3 className="font-bold text-gray-900 mb-2">Binlerce Potansiyel Müşteri</h3>
+              <p className="text-gray-600 text-sm">Arayan müşteriler doğrudan size ulaşsın</p>
+            </div>
+            
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+              <div className="text-3xl mb-4">⚡</div>
+              <h3 className="font-bold text-gray-900 mb-2">Anında Bildirim</h3>
+              <p className="text-gray-600 text-sm">Müşteri aradığında hemen haberdar olun</p>
+            </div>
+            
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+              <div className="text-3xl mb-4">📈</div>
+              <h3 className="font-bold text-gray-900 mb-2">Satışları Artırın</h3>
+              <p className="text-gray-600 text-sm">Hedefli müşterilerle satış yapın</p>
+            </div>
+          </div>
         </div>
 
-        {!submitted ? (
-          <>
-            {/* Paketler */}
-            <div className="mb-16">
-              <h2 className="text-3xl font-bold text-center mb-12">Paketler</h2>
-              <div className="grid md:grid-cols-3 gap-8">
-                {packages.map((pkg) => (
-                  <div 
-                    key={pkg.name}
-                    className={`bg-white rounded-2xl shadow-lg border-2 ${
-                      pkg.popular 
-                        ? 'border-blue-500 transform -translate-y-2' 
-                        : 'border-gray-200'
-                    }`}
-                  >
-                    {pkg.popular && (
-                      <div className="bg-blue-500 text-white text-center py-2 rounded-t-xl">
-                        🏆 EN POPÜLER
-                      </div>
-                    )}
-                    <div className="p-8">
-                      <div className="text-center mb-6">
-                        <h3 className="text-2xl font-bold text-gray-900 mb-2">{pkg.name}</h3>
-                        <div className="flex items-baseline justify-center">
-                          <span className="text-4xl font-bold text-gray-900">{pkg.price}</span>
-                          <span className="text-gray-500 ml-2">TL/ay</span>
-                        </div>
-                      </div>
-                      
-                      <ul className="space-y-3 mb-8">
-                        {pkg.features.map((feature, idx) => (
-                          <li key={idx} className="flex items-center">
-                            <span className="text-green-500 mr-3">✓</span>
-                            <span>{feature}</span>
-                          </li>
-                        ))}
-                      </ul>
-                      
-                      <button className={`w-full py-3 rounded-lg font-medium ${
-                        pkg.popular
-                          ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                          : 'bg-gray-100 hover:bg-gray-200 text-gray-800'
-                      }`}>
-                        {pkg.price === 0 ? 'Ücretsiz Başla' : 'Satın Al'}
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+        {/* Form Section */}
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+            {/* Form Header */}
+            <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-8">
+              <h2 className="text-3xl font-bold mb-2">
+                {editMode ? 'Mağaza Bilgilerini Güncelle' : 'Ücretsiz Mağaza Kaydı'}
+              </h2>
+              <p className="opacity-90">
+                {editMode 
+                  ? 'Mağaza bilgilerinizi güncelleyin' 
+                  : 'Formu doldurun, 2 dakikada mağazanızı açın'}
+              </p>
             </div>
 
-            {/* Kayıt Formu */}
-            <div className="bg-white rounded-2xl shadow-lg p-8">
-              <h2 className="text-3xl font-bold text-center mb-8">
-                İşletme Kayıt Formu
-              </h2>
+            {/* User Status */}
+            {!user && (
+              <div className="mx-8 my-6 p-6 bg-yellow-50 border border-yellow-200 rounded-xl">
+                <div className="flex items-center">
+                  <div className="text-2xl mr-4">🔒</div>
+                  <div>
+                    <h3 className="font-bold text-gray-900 mb-1">Giriş Yapmanız Gerekiyor</h3>
+                    <p className="text-gray-600 text-sm">
+                      Mağaza kaydı için önce giriş yapmalısınız. Hesabınız yoksa 30 saniyede oluşturabilirsiniz.
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="flex flex-col sm:flex-row gap-3 mt-4">
+                  <button
+                    onClick={() => {
+                      setAuthSuccessCallback(() => () => {}) // Boş callback
+                      setShowAuthModal(true)
+                    }}
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg"
+                  >
+                    Giriş Yap / Kayıt Ol
+                  </button>
+                  
+                  <button
+                    onClick={handleSkipForNow}
+                    className="bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-3 px-6 rounded-lg"
+                  >
+                    Şimdilik Atla
+                  </button>
+                </div>
+              </div>
+            )}
 
-              <form onSubmit={handleSubmit} className="space-y-8">
+            {user && (
+              <div className="mx-8 my-6 p-6 bg-green-50 border border-green-200 rounded-xl">
+                <div className="flex items-center">
+                  <div className="text-2xl mr-4">✅</div>
+                  <div>
+                    <h3 className="font-bold text-gray-900 mb-1">Giriş Yapıldı</h3>
+                    <p className="text-gray-600 text-sm">
+                      {user.email} olarak giriş yaptınız. Mağaza kaydına devam edebilirsiniz.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Form */}
+            <form onSubmit={handleSubmit} className="p-8">
+              <div className="space-y-8">
                 {/* İşletme Bilgileri */}
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      İşletme Adı *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={formData.shopName}
-                      onChange={(e) => setFormData({...formData, shopName: e.target.value})}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg"
-                      placeholder="Örn: Retro Eşya Mağazası"
-                    />
-                  </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-6 pb-3 border-b">
+                    <span className="text-blue-600">🏪</span> İşletme Bilgileri
+                  </h3>
+                  
+                  <div className="grid md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        İşletme Adı *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={formData.shopName}
+                        onChange={(e) => setFormData({...formData, shopName: e.target.value})}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Örn: Retro Eşya Mağazası, Tekno Parça"
+                        disabled={!user && !editMode}
+                      />
+                      <p className="text-gray-500 text-xs mt-2">Müşterilerin göreceği isim</p>
+                    </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Yetkili Kişi Adı *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={formData.ownerName}
-                      onChange={(e) => setFormData({...formData, ownerName: e.target.value})}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg"
-                      placeholder="Ad Soyad"
-                    />
-                  </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Yetkili Kişi Adı *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={formData.ownerName}
+                        onChange={(e) => setFormData({...formData, ownerName: e.target.value})}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Ad Soyad"
+                        disabled={!user && !editMode}
+                      />
+                      <p className="text-gray-500 text-xs mt-2">İletişim için gerekli</p>
+                    </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Email *
-                    </label>
-                    <input
-                      type="email"
-                      required
-                      value={formData.email}
-                      onChange={(e) => setFormData({...formData, email: e.target.value})}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg"
-                      placeholder="iletisim@sirket.com"
-                    />
-                  </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Email Adresi *
+                      </label>
+                      <input
+                        type="email"
+                        required
+                        value={formData.email}
+                        onChange={(e) => setFormData({...formData, email: e.target.value})}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="iletisim@magaza.com"
+                        disabled={!user && !editMode}
+                      />
+                      <p className="text-gray-500 text-xs mt-2">Onay ve bildirimler için</p>
+                    </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Telefon *
-                    </label>
-                    <input
-                      type="tel"
-                      required
-                      value={formData.phone}
-                      onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg"
-                      placeholder="05XX XXX XX XX"
-                    />
-                  </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Telefon *
+                      </label>
+                      <input
+                        type="tel"
+                        required
+                        value={formData.phone}
+                        onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="05XX XXX XX XX"
+                        disabled={!user && !editMode}
+                      />
+                      <p className="text-gray-500 text-xs mt-2">Müşterilerin arayabileceği numara</p>
+                    </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Şehir *
-                    </label>
-                    <select
-                      value={formData.city}
-                      onChange={(e) => setFormData({...formData, city: e.target.value})}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg"
-                    >
-                      <option value="">Seçiniz</option>
-                      {['İstanbul', 'Ankara', 'İzmir', 'Bursa', 'Antalya', 'Adana', 'Konya', 'Trabzon'].map(city => (
-                        <option key={city} value={city}>{city}</option>
-                      ))}
-                    </select>
-                  </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Şehir *
+                      </label>
+                      <select
+                        value={formData.city}
+                        onChange={(e) => setFormData({...formData, city: e.target.value})}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        required
+                        disabled={!user && !editMode}
+                      >
+                        <option value="">Şehir seçin</option>
+                        {cities.map(city => (
+                          <option key={city} value={city}>{city}</option>
+                        ))}
+                      </select>
+                      <p className="text-gray-500 text-xs mt-2">İşletmenizin bulunduğu şehir</p>
+                    </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      İşletme Türü *
-                    </label>
-                    <select
-                      value={formData.businessType}
-                      onChange={(e) => setFormData({...formData, businessType: e.target.value})}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg"
-                    >
-                      {businessTypes.map(type => (
-                        <option key={type.id} value={type.id}>
-                          {type.icon} {type.name}
-                        </option>
-                      ))}
-                    </select>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        İşletme Türü *
+                      </label>
+                      <select
+                        value={formData.businessType}
+                        onChange={(e) => setFormData({...formData, businessType: e.target.value})}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        required
+                        disabled={!user && !editMode}
+                      >
+                        <option value="">Seçiniz</option>
+                        {businessTypes.map(type => (
+                          <option key={type.id} value={type.id}>
+                            {type.icon} {type.name} - {type.description}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-gray-500 text-xs mt-2">Ana faaliyet alanınız</p>
+                    </div>
                   </div>
                 </div>
 
                 {/* Adres */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Adres
-                  </label>
-                  <textarea
-                    value={formData.address}
-                    onChange={(e) => setFormData({...formData, address: e.target.value})}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg"
-                    placeholder="Tam adres bilgisi"
-                    rows={3}
-                  />
-                </div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-4">
+                    <span className="text-blue-600">📍</span> Adres Bilgileri
+                  </h3>
+                  
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Adres
+                    </label>
+                    <textarea
+                      value={formData.address}
+                      onChange={(e) => setFormData({...formData, address: e.target.value})}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Mahalle, cadde, sokak, bina no, daire no..."
+                      rows={3}
+                      disabled={!user && !editMode}
+                    />
+                    <p className="text-gray-500 text-xs mt-2">Müşterilerin bulabilmesi için tam adres</p>
+                  </div>
 
-                {/* Website */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Website (varsa)
-                  </label>
-                  <input
-                    type="url"
-                    value={formData.website}
-                    onChange={(e) => setFormData({...formData, website: e.target.value})}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg"
-                    placeholder="https://www.ornek.com"
-                  />
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Website (varsa)
+                    </label>
+                    <input
+                      type="url"
+                      value={formData.website}
+                      onChange={(e) => setFormData({...formData, website: e.target.value})}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="https://www.ornek.com"
+                      disabled={!user && !editMode}
+                    />
+                    <p className="text-gray-500 text-xs mt-2">Müşterilerin ziyaret edebileceği site</p>
+                  </div>
                 </div>
 
                 {/* Açıklama */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    İşletme Açıklaması *
-                  </label>
-                  <textarea
-                    required
-                    value={formData.description}
-                    onChange={(e) => setFormData({...formData, description: e.target.value})}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg"
-                    placeholder="İşletmenizi tanıtın, uzmanlık alanlarınızı belirtin..."
-                    rows={4}
-                  />
+                  <h3 className="text-xl font-bold text-gray-900 mb-4">
+                    <span className="text-blue-600">📝</span> İşletme Açıklaması
+                  </h3>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Kısa Tanıtım *
+                    </label>
+                    <textarea
+                      required
+                      value={formData.description}
+                      onChange={(e) => setFormData({...formData, description: e.target.value})}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="İşletmenizi kısaca tanıtın. Uzmanlık alanlarınız, ürün yelpazeniz, hizmetleriniz..."
+                      rows={4}
+                      disabled={!user && !editMode}
+                    />
+                    <p className="text-gray-500 text-xs mt-2">
+                      Müşteriler bu açıklamayı görecek. Net ve çekici olun.
+                    </p>
+                  </div>
                 </div>
 
                 {/* Tahmini Spot Sayısı */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-4">
-                    Tahmini Aylık Spot Sayınız *
-                  </label>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {spotRanges.map(range => (
-                      <label 
-                        key={range.id}
-                        className={`cursor-pointer border-2 rounded-lg p-4 text-center ${
-                          formData.monthlySpots === range.id
-                            ? 'border-blue-500 bg-blue-50'
-                            : 'border-gray-200 hover:border-gray-300'
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name="monthlySpots"
-                          value={range.id}
-                          checked={formData.monthlySpots === range.id}
-                          onChange={(e) => setFormData({...formData, monthlySpots: e.target.value})}
-                          className="sr-only"
-                        />
-                        <span className="font-medium">{range.name}</span>
-                      </label>
-                    ))}
+                  <h3 className="text-xl font-bold text-gray-900 mb-4">
+                    <span className="text-blue-600">📊</span> Tahmini Aktivite
+                  </h3>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-4">
+                      Ayda kaç spot oluşturmayı planlıyorsunuz? *
+                    </label>
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                      {spotRanges.map(range => (
+                        <label 
+                          key={range.id}
+                          className={`cursor-pointer border-2 rounded-xl p-4 text-center transition duration-200 ${
+                            formData.monthlySpots === range.id
+                              ? 'border-blue-500 bg-blue-50'
+                              : 'border-gray-200 hover:border-gray-300'
+                          } ${(!user && !editMode) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                          <input
+                            type="radio"
+                            name="monthlySpots"
+                            value={range.id}
+                            checked={formData.monthlySpots === range.id}
+                            onChange={(e) => setFormData({...formData, monthlySpots: e.target.value})}
+                            className="sr-only"
+                            required
+                            disabled={!user && !editMode}
+                          />
+                          <div className="font-bold text-gray-900">{range.name}</div>
+                          <div className="text-xs text-gray-500 mt-1">{range.description}</div>
+                        </label>
+                      ))}
+                    </div>
+                    <p className="text-gray-500 text-xs mt-2">
+                      Size özel öneriler sunabilmemiz için bu bilgi önemlidir.
+                    </p>
                   </div>
                 </div>
 
-                {/* Gizlilik */}
-                <div className="bg-blue-50 p-6 rounded-lg">
-                  <label className="flex items-start">
-                    <input
-                      type="checkbox"
-                      required
-                      className="mt-1 mr-3"
-                    />
-                    <span className="text-sm">
-                      <strong>Kullanım Koşulları</strong> ve <strong>Gizlilik Politikası</strong>'nı okudum ve kabul ediyorum. 
-                      İşletme bilgilerimin platformda yayınlanmasını onaylıyorum.
-                    </span>
-                  </label>
+                {/* Koşullar */}
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-4">
+                    <span className="text-blue-600">📜</span> Koşullar ve Onaylar
+                  </h3>
+                  
+                  <div className="space-y-4">
+                    <label className={`flex items-start ${(!user && !editMode) ? 'opacity-50' : ''}`}>
+                      <input
+                        type="checkbox"
+                        checked={formData.acceptTerms}
+                        onChange={(e) => setFormData({...formData, acceptTerms: e.target.checked})}
+                        className="mt-1 mr-3"
+                        required
+                        disabled={!user && !editMode}
+                      />
+                      <span className="text-sm">
+                        <a 
+                          href="/terms" 
+                          target="_blank"
+                          className="text-blue-600 hover:text-blue-800 font-medium"
+                        >
+                          SpotItForMe Kullanım Koşulları
+                        </a>'nı okudum ve kabul ediyorum. *
+                      </span>
+                    </label>
+                    
+                    <label className={`flex items-start ${(!user && !editMode) ? 'opacity-50' : ''}`}>
+                      <input
+                        type="checkbox"
+                        checked={formData.acceptPrivacy}
+                        onChange={(e) => setFormData({...formData, acceptPrivacy: e.target.checked})}
+                        className="mt-1 mr-3"
+                        required
+                        disabled={!user && !editMode}
+                      />
+                      <span className="text-sm">
+                        <a 
+                          href="/privacy" 
+                          target="_blank"
+                          className="text-blue-600 hover:text-blue-800 font-medium"
+                        >
+                          SpotItForMe Gizlilik Politikası
+                        </a>'nı okudum ve kabul ediyorum. *
+                      </span>
+                    </label>
+                    
+                    <label className={`flex items-start ${(!user && !editMode) ? 'opacity-50' : ''}`}>
+                      <input
+                        type="checkbox"
+                        checked={formData.acceptMarketing}
+                        onChange={(e) => setFormData({...formData, acceptMarketing: e.target.checked})}
+                        className="mt-1 mr-3"
+                        disabled={!user && !editMode}
+                      />
+                      <span className="text-sm">
+                        SpotItForMe'den kampanyalar, indirimler ve güncellemeler hakkında 
+                        email almak istiyorum. (İsteğe bağlı)
+                      </span>
+                    </label>
+                  </div>
                 </div>
 
-                {/* Submit */}
-                <div className="text-center">
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-4 px-12 rounded-xl text-lg disabled:opacity-50"
-                  >
-                    {loading ? 'Kaydediliyor...' : 'Ücretsiz Kayıt Ol'}
-                  </button>
-                  <p className="text-gray-500 text-sm mt-4">
-                    *İşlem tamamlandığında size bir onay email'i göndereceğiz.
+                {/* Submit Buttons */}
+                <div className="pt-8 border-t">
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <button
+                      type="submit"
+                      disabled={loading || !user}
+                      className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-4 px-8 rounded-xl text-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {loading ? (
+                        <span className="flex items-center justify-center">
+                          <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          {editMode ? 'Güncelleniyor...' : 'Kaydediliyor...'}
+                        </span>
+                      ) : editMode ? (
+                        'Mağaza Bilgilerini Güncelle'
+                      ) : user ? (
+                        'Ücretsiz Mağaza Aç'
+                      ) : (
+                        'Önce Giriş Yapın'
+                      )}
+                    </button>
+                    
+                    <button
+                      type="button"
+                      onClick={() => router.push('/')}
+                      className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-4 px-8 rounded-xl"
+                    >
+                      İptal
+                    </button>
+                  </div>
+                  
+                  {!user && (
+                    <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+                      <p className="text-blue-800 text-sm text-center">
+                        Mağaza kaydı için önce giriş yapmalısınız. 
+                        <button
+                          onClick={() => {
+                            setAuthSuccessCallback(() => handleFormSubmit)
+                            setShowAuthModal(true)
+                          }}
+                          className="text-blue-600 hover:text-blue-800 font-medium ml-2 underline"
+                        >
+                          Hemen giriş yapın
+                        </button>
+                      </p>
+                    </div>
+                  )}
+                  
+                  <p className="text-center text-gray-500 text-sm mt-4">
+                    Kayıt işlemi tamamlandığında size bir onay email'i göndereceğiz.
+                    <br />
+                    Ücretsiz paketle başlayın, ileride premium özelliklere geçebilirsiniz.
                   </p>
                 </div>
-              </form>
-            </div>
-          </>
-        ) : (
-          /* Başarılı Kayıt Mesajı */
-          <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-lg p-12 text-center">
-            <div className="w-24 h-24 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-4xl mx-auto mb-6">
-              ✅
-            </div>
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">
-              Kaydınız Alındı!
-            </h2>
-            <p className="text-gray-600 mb-8">
-              <strong>{formData.shopName}</strong> işletmesi için kaydınız başarıyla alındı. 
-              En kısa sürede <strong>{formData.email}</strong> adresinize bir onay email'i göndereceğiz.
-            </p>
-            <div className="space-y-4">
-              <button
-                onClick={() => setSubmitted(false)}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg"
-              >
-                Yeni Kayıt Oluştur
-              </button>
-              <a
-                href="/"
-                className="w-full block bg-gray-100 hover:bg-gray-200 text-gray-800 py-3 rounded-lg"
-              >
-                Ana Sayfaya Dön
-              </a>
-            </div>
-          </div>
-        )}
-
-        {/* Başarı Hikayeleri */}
-        <div className="mt-20">
-          <h2 className="text-3xl font-bold text-center mb-12">Başarı Hikayeleri</h2>
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="bg-white rounded-xl p-6 shadow-lg">
-              <div className="flex items-center mb-4">
-                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 text-xl mr-4">
-                  🏺
-                </div>
-                <div>
-                  <h4 className="font-bold">Retro Antika</h4>
-                  <p className="text-sm text-gray-500">İstanbul / 2 yıldır üyeyiz</p>
-                </div>
               </div>
-              <p className="text-gray-600">
-                "Platform sayesinde aylık satışlarımız %40 arttı. Müşteriler artık doğrudan bizi buluyor."
-              </p>
-            </div>
-
-            <div className="bg-white rounded-xl p-6 shadow-lg">
-              <div className="flex items-center mb-4">
-                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center text-green-600 text-xl mr-4">
-                  📱
-                </div>
-                <div>
-                  <h4 className="font-bold">Tekno Parça</h4>
-                  <p className="text-sm text-gray-500">Ankara / 1 yıldır üyeyiz</p>
-                </div>
-              </div>
-              <p className="text-gray-600">
-                "Eski model telefon parçaları için müşteri bulmak artık çok kolay. 200+ spot çözüldü."
-              </p>
-            </div>
-
-            <div className="bg-white rounded-xl p-6 shadow-lg">
-              <div className="flex items-center mb-4">
-                <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 text-xl mr-4">
-                  📚
-                </div>
-                <div>
-                  <h4 className="font-bold">Nadir Kitap</h4>
-                  <p className="text-sm text-gray-500">İzmir / 8 aydır üyeyiz</p>
-                </div>
-              </div>
-              <p className="text-gray-600">
-                "Koleksiyonerler için nadir kitaplar satıyoruz. SpotItForMe sayesinde hedef kitlemize ulaşıyoruz."
-              </p>
-            </div>
+            </form>
           </div>
         </div>
 
         {/* SSS */}
-        <div className="mt-20">
+        <div className="mt-16">
           <h2 className="text-3xl font-bold text-center mb-12">Sıkça Sorulan Sorular</h2>
           <div className="max-w-3xl mx-auto space-y-6">
             {[
               {
-                q: "İşletme olarak nasıl spot oluşturabilirim?",
-                a: "Kayıt olduktan sonra mağaza panelinizden ürünlerinizi spot olarak ekleyebilirsiniz. Her spot için fotoğraf, açıklama ve fiyat bilgisi girebilirsiniz."
+                q: "Mağaza kaydı ücretsiz mi?",
+                a: "Evet! SpotItForMe'de mağaza kaydı tamamen ücretsizdir. Sınırsız spot oluşturabilir, binlerce potansiyel müşteriye ulaşabilirsiniz."
               },
               {
-                q: "Ücretsiz paketin limitleri neler?",
-                a: "Ücretsiz pakette ayda 20 adet resim yükleme hakkınız var. Bu, ortalama 15-20 spot oluşturmaya denk gelir."
+                q: "Premium paketler ne zaman gelecek?",
+                a: "Premium paketler (PRO, BUSINESS) platform büyüdükçe eklenecek. Şu anda tüm özellikler ücretsiz kullanılabilir."
               },
               {
                 q: "Müşteriler beni nasıl bulacak?",
-                a: "Müşteriler aradıkları ürünü sizde görünce size özel mağaza profilinize yönlendirilecek ve iletişim bilgilerinizi görecek."
+                a: "Müşteriler aradıkları ürünü sizde gördüğünde, mağaza profilinize yönlendirilecek ve iletişim bilgilerinizi görecek."
               },
               {
-                q: "Ödemeler nasıl yapılıyor?",
-                a: "Kredi kartı ile aylık/yıllık ödeme yapabilirsiniz. İlk 14 gün ücretsiz deneme süreniz var."
+                q: "Kaç tane spot oluşturabilirim?",
+                a: "Ücretsiz pakette aylık spot sınırı yok! Ancak resim yükleme için ayda 20 adet ücretsiz hakkınız var."
+              },
+              {
+                q: "Hangi tür işletmeler katılabilir?",
+                a: "Antikacılar, koleksiyonerler, tamir servisleri, ikinci el mağazalar, özel ürün satan tüm işletmeler katılabilir."
               }
             ].map((faq, idx) => (
-              <div key={idx} className="bg-white rounded-xl p-6 shadow">
-                <h4 className="font-bold text-lg mb-3">❓ {faq.q}</h4>
+              <div key={idx} className="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition duration-200">
+                <h4 className="font-bold text-lg mb-3 flex items-center">
+                  <span className="text-blue-600 mr-3">❓</span>
+                  {faq.q}
+                </h4>
                 <p className="text-gray-600">{faq.a}</p>
               </div>
             ))}
           </div>
         </div>
+
+        {/* Call to Action */}
+        <div className="mt-16 text-center">
+          <h3 className="text-2xl font-bold text-gray-900 mb-6">
+            Hala sorularınız mı var?
+          </h3>
+          <p className="text-gray-600 mb-8 max-w-2xl mx-auto">
+            İşletmeniz için SpotItForMe'yi nasıl kullanabileceğinizi konuşalım.
+            Ücretsiz danışmanlık için bize ulaşın.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <a
+              href="mailto:spotitformeweb@gmail.com"
+              className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-8 rounded-lg"
+            >
+              📧 Email Gönder
+            </a>
+            <a
+              href="tel:+905555555555"
+              className="bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-8 rounded-lg"
+            >
+              📞 Ara
+            </a>
+          </div>
+        </div>
       </main>
 
       <Footer />
+
+      {/* Auth Modal */}
+      {showAuthModal && (
+        <AuthModal
+          isOpen={showAuthModal}
+          onClose={() => setShowAuthModal(false)}
+          onSuccess={handleAuthSuccess}
+        />
+      )}
     </div>
   )
 }
