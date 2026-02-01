@@ -2,20 +2,20 @@
 'use client'
 
 import { useState } from 'react'
-import useSimpleGeolocation from '@/hooks/useSimpleGeolocation'
 
-interface LocationPickerProps {
+interface SimpleLocationPickerProps {
   onLocationSelect: (location: {
-    latitude: number | null
-    longitude: number | null
+    lat: number | null
+    lon: number | null
     city: string
   }) => void
 }
 
-export default function SimpleLocationPicker({ onLocationSelect }: LocationPickerProps) {
-  const { latitude, longitude, city, error, loading, getCurrentLocation } = useSimpleGeolocation()
-  const [manualCity, setManualCity] = useState('')
-  const [useGPS, setUseGPS] = useState(false)
+export default function SimpleLocationPicker({ onLocationSelect }: SimpleLocationPickerProps) {
+  const [mode, setMode] = useState<'gps' | 'manual'>('gps')
+  const [selectedCity, setSelectedCity] = useState('')
+  const [isGettingLocation, setIsGettingLocation] = useState(false)
+  const [gpsError, setGpsError] = useState<string | null>(null)
 
   const cities = [
     'İstanbul', 'Ankara', 'İzmir', 'Bursa', 'Antalya', 'Adana', 'Konya',
@@ -24,172 +24,149 @@ export default function SimpleLocationPicker({ onLocationSelect }: LocationPicke
     'Türkiye Geneli', 'Yurt Dışı'
   ]
 
-  const handleGetLocation = async () => {
-    setUseGPS(true)
-    const location = await getCurrentLocation()
-    if (location.latitude) {
-      onLocationSelect({
-        latitude: location.latitude,
-        longitude: location.longitude,
-        city: location.city
-      })
+  const handleGetLocation = () => {
+    if (!navigator.geolocation) {
+      setGpsError('Tarayıcınız konum servisini desteklemiyor')
+      return
     }
+
+    setIsGettingLocation(true)
+    setGpsError(null)
+
+    // BURASI KRİTİK: Direkt çağırıyoruz, tarayıcı otomatik izin isteyecek
+    navigator.geolocation.getCurrentPosition(
+      // Başarılı
+      async (position) => {
+        const lat = position.coords.latitude
+        const lon = position.coords.longitude
+        
+        let city = 'Konum alındı'
+        try {
+          const response = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&accept-language=tr`
+          )
+          const data = await response.json()
+          if (data.address) {
+            city = data.address.city || data.address.town || data.address.county || 'Konum alındı'
+          }
+        } catch {
+          city = `${lat.toFixed(2)}, ${lon.toFixed(2)}`
+        }
+
+        onLocationSelect({ lat, lon, city })
+        setIsGettingLocation(false)
+      },
+      // Hata
+      (error) => {
+        setIsGettingLocation(false)
+        if (error.code === 1) {
+          setGpsError('📍 Konum izni verilmedi. Lütfen tarayıcınızın izin isteğini kabul edin veya şehir seçin.')
+        } else {
+          setGpsError('Konum alınamadı: ' + error.message)
+        }
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
+      }
+    )
   }
 
-  const handleManualSelect = () => {
-    setUseGPS(false)
-    setManualCity('')
-  }
-
-  const handleCityChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const selectedCity = e.target.value
-    setManualCity(selectedCity)
-    if (selectedCity) {
-      onLocationSelect({
-        latitude: null,
-        longitude: null,
-        city: selectedCity
-      })
+  const handleCitySelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const city = e.target.value
+    setSelectedCity(city)
+    if (city) {
+      onLocationSelect({ lat: null, lon: null, city })
     }
   }
 
   return (
     <div className="space-y-6">
-      {/* Konum Tipi Seçimi */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Mod Seçimi */}
+      <div className="grid grid-cols-2 gap-4">
         <button
           type="button"
-          onClick={handleGetLocation}
-          disabled={loading}
-          className={`p-6 rounded-xl border-2 text-center transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
-            useGPS
-              ? 'border-blue-500 bg-blue-50'
-              : 'border-gray-200 hover:border-gray-300'
-          }`}
+          onClick={() => setMode('gps')}
+          className={`p-4 rounded-lg border-2 ${mode === 'gps' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}`}
         >
-          {loading ? (
-            <div className="space-y-3">
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="text-sm text-blue-600">Konumunuz alınıyor...</p>
-            </div>
-          ) : (
-            <>
-              <div className="text-3xl mb-3">📍</div>
-              <h4 className="font-bold text-gray-900 mb-2">Otomatik Konum Al</h4>
-              <p className="text-sm text-gray-600">Telefonunuzdan konum izni istenir</p>
-            </>
-          )}
+          <div className="text-2xl mb-2">📍</div>
+          <p className="font-medium">Konumumu Kullan</p>
+          <p className="text-sm text-gray-600 mt-1">Tarayıcı izin isteyecek</p>
         </button>
 
         <button
           type="button"
-          onClick={handleManualSelect}
-          className={`p-6 rounded-xl border-2 text-center transition-all ${
-            !useGPS
-              ? 'border-blue-500 bg-blue-50'
-              : 'border-gray-200 hover:border-gray-300'
-          }`}
+          onClick={() => setMode('manual')}
+          className={`p-4 rounded-lg border-2 ${mode === 'manual' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}`}
         >
-          <div className="text-3xl mb-3">🏙️</div>
-          <h4 className="font-bold text-gray-900 mb-2">Şehir Seç</h4>
-          <p className="text-sm text-gray-600">Listeden şehir seçin</p>
+          <div className="text-2xl mb-2">🏙️</div>
+          <p className="font-medium">Şehir Seç</p>
+          <p className="text-sm text-gray-600 mt-1">Listeden şehir seçin</p>
         </button>
       </div>
 
-      {/* GPS Sonucu */}
-      {useGPS && (
-        <div className={`p-4 rounded-lg ${
-          error ? 'bg-red-50 border border-red-200' : 
-          city === 'Konum alındı' ? 'bg-green-50 border border-green-200' : 
-          'bg-blue-50 border border-blue-200'
-        }`}>
-          {loading ? (
-            <div className="flex items-center">
-              <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-blue-600 mr-3"></div>
-              <p className="text-blue-700">Konumunuz alınıyor...</p>
-            </div>
-          ) : error ? (
-            <div className="space-y-2">
-              <div className="flex items-center">
-                <span className="text-red-500 text-xl mr-2">❌</span>
-                <p className="font-medium text-red-800">{city}</p>
-              </div>
-              <p className="text-sm text-red-600">
-                Lütfen tarayıcınızın konum iznini açın veya manuel şehir seçin.
-              </p>
+      {/* GPS Modu */}
+      {mode === 'gps' && (
+        <div className="space-y-4">
+          <button
+            onClick={handleGetLocation}
+            disabled={isGettingLocation}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg disabled:opacity-50 flex items-center justify-center"
+          >
+            {isGettingLocation ? (
+              <>
+                <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white mr-3"></div>
+                Konum alınıyor...
+              </>
+            ) : (
+              <>
+                <span className="mr-2">📍</span>
+                Konum İzni İste
+              </>
+            )}
+          </button>
+
+          {gpsError && (
+            <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-red-700">{gpsError}</p>
               <button
-                onClick={handleGetLocation}
-                className="mt-2 text-blue-600 hover:text-blue-800 text-sm"
+                onClick={() => setMode('manual')}
+                className="mt-2 text-red-600 hover:text-red-800 text-sm"
               >
-                Tekrar dene
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <div className="flex items-center">
-                <span className="text-green-500 text-xl mr-2">✅</span>
-                <div>
-                  <p className="font-medium text-green-800">Konumunuz alındı!</p>
-                  <p className="text-sm text-green-700">{city}</p>
-                </div>
-              </div>
-              {latitude && longitude && (
-                <div className="bg-white p-3 rounded border border-green-100">
-                  <p className="text-sm text-gray-600 mb-1">Koordinatlar:</p>
-                  <p className="font-mono text-sm">
-                    {latitude.toFixed(6)}, {longitude.toFixed(6)}
-                  </p>
-                </div>
-              )}
-              <button
-                onClick={handleGetLocation}
-                className="text-sm text-blue-600 hover:text-blue-800"
-              >
-                Konumu yenile
+                Şehir seçmek için tıklayın
               </button>
             </div>
           )}
+
+          {/* Bilgi */}
+          <div className="p-4 bg-blue-50 rounded-lg">
+            <p className="text-sm text-blue-700">
+              <strong>📱 Telefon kullanıcıları:</strong> Ekranın üst kısmında "spotitforme.com konumunuza erişmek istiyor" şeklinde bir izin isteği belirecek. Lütfen <strong>"İzin Ver"</strong> seçeneğini tıklayın.
+            </p>
+          </div>
         </div>
       )}
 
-      {/* Manuel Şehir Seçimi */}
-      {!useGPS && (
+      {/* Manuel Mod */}
+      {mode === 'manual' && (
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-3">
-            Şehir Seçin *
-          </label>
           <select
-            value={manualCity}
-            onChange={handleCityChange}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            required={!useGPS}
+            value={selectedCity}
+            onChange={handleCitySelect}
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+            required
           >
-            <option value="">Şehir seçin</option>
-            {cities.map((city) => (
+            <option value="">Şehir seçin *</option>
+            {cities.map(city => (
               <option key={city} value={city}>{city}</option>
             ))}
           </select>
           <p className="text-sm text-gray-500 mt-2">
-            Daha doğru sonuç için "Otomatik Konum Al" butonunu kullanın
+            Konum izni vermek istemiyorsanız şehir seçebilirsiniz
           </p>
         </div>
       )}
-
-      {/* Telefon için Özel Talimatlar */}
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-        <div className="flex items-start">
-          <span className="text-yellow-600 text-xl mr-3">📱</span>
-          <div>
-            <p className="font-medium text-yellow-800 mb-2">Telefon Kullanıcıları İçin:</p>
-            <ul className="text-sm text-yellow-700 space-y-1">
-              <li>• "Otomatik Konum Al" butonuna tıklayın</li>
-              <li>• Tarayıcının konum izni isteğini kabul edin</li>
-              <li>• Eğer izin vermezseniz, şehir listesinden seçin</li>
-              <li>• <strong>Telefon ayarlarınızdan konum servisinin açık olduğundan emin olun</strong></li>
-            </ul>
-          </div>
-        </div>
-      </div>
     </div>
   )
 }
