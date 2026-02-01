@@ -13,7 +13,7 @@ const transporter = nodemailer.createTransport({
 })
 
 // Server Action: Hoşgeldin emaili gönder
-export async function sendWelcomeEmail(to: string, name: string) {
+export async function sendWelcomeEmail(to: string, name: string): Promise<{ success: boolean; message: string }> {
   try {
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://spotitforme.vercel.app'
     
@@ -76,7 +76,7 @@ export async function sendWelcomeEmail(to: string, name: string) {
 }
 
 // Server Action: Mağaza kayıt emaili gönder
-export async function sendBusinessRegistrationEmail(to: string, shopName: string, ownerId: string) {
+export async function sendBusinessRegistrationEmail(to: string, shopName: string, ownerId: string): Promise<{ success: boolean; message: string }> {
   try {
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://spotitforme.vercel.app'
     
@@ -145,7 +145,7 @@ export async function sendBusinessRegistrationEmail(to: string, shopName: string
   }
 }
 // Server Action: Şifre sıfırlama emaili gönder
-export async function sendPasswordResetEmail(to: string, resetLink: string) {
+export async function sendPasswordResetEmail(to: string, resetLink: string): Promise<{ success: boolean; message: string }> {
   try {
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://spotitforme.vercel.app'
     
@@ -212,7 +212,7 @@ export async function sendPasswordResetEmail(to: string, resetLink: string) {
   }
 }
 // Server Action: Spot oluşturma emaili
-export async function sendSpotCreatedEmail(to: string, spotTitle: string, spotId: string) {
+export async function sendSpotCreatedEmail(to: string, spotTitle: string, spotId: string): Promise<{ success: boolean; message: string }> {
   try {
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://spotitforme.vercel.app'
     
@@ -270,7 +270,7 @@ export async function sendSightingNotificationEmail(
   spotTitle: string, 
   spotterName: string,
   spotId: string
-) {
+): Promise<{ success: boolean; message: string }> {
   try {
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://spotitforme.vercel.app'
     

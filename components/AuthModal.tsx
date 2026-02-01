@@ -1,14 +1,14 @@
-// components/AuthModal.tsx
+// components/AuthModal.tsx - DEBUG VERSİYON
 'use client'
 
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { sendWelcomeEmail } from '@/lib/email-server' // SERVER ACTION
+import { sendWelcomeEmail } from '@/lib/email-server'
 
 interface AuthModalProps {
   isOpen: boolean
   onClose: () => void
-  onSuccess?: () => void  // YENİ PROP
+  onSuccess?: () => void
 }
 
 export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
@@ -19,6 +19,12 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
+  const [debugLog, setDebugLog] = useState<string[]>([])
+
+  const addDebugLog = (message: string) => {
+    console.log(`🔍 DEBUG: ${message}`)
+    setDebugLog(prev => [...prev, `${new Date().toISOString().split('T')[1].split('.')[0]}: ${message}`])
+  }
 
   if (!isOpen) return null
 
@@ -27,22 +33,34 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
     setLoading(true)
     setError('')
     setSuccessMessage('')
+    setDebugLog([])
+
+    addDebugLog('Form submit başladı')
+    addDebugLog(`Mode: ${isLogin ? 'Login' : 'Register'}`)
+    addDebugLog(`Email: ${email}, Name: ${name}`)
 
     try {
       if (isLogin) {
         // GİRİŞ YAP
-        const { error } = await supabase.auth.signInWithPassword({
+        addDebugLog('Supabase signInWithPassword çağrılıyor...')
+        
+        const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         })
+        
+        addDebugLog(`SignIn response: ${error ? 'Error: ' + error.message : 'Success'}`)
+        console.log('SignIn full response:', { data, error })
+        
         if (error) throw error
         
         setSuccessMessage('Başarıyla giriş yaptınız!')
+        addDebugLog('Giriş başarılı, yönlendirme bekleniyor...')
         
         setTimeout(() => {
           onClose()
           if (onSuccess) {
-            onSuccess() // onSuccess callback'ini çağır
+            onSuccess()
           } else {
             window.location.reload()
           }
@@ -50,64 +68,123 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
         
       } else {
         // KAYIT OL
-        const { data, error } = await supabase.auth.signUp({
+        addDebugLog('Kayıt işlemi başlatılıyor...')
+        
+        // 1. Önce auth kaydı
+        addDebugLog('Supabase signUp çağrılıyor...')
+        const { data: authData, error: authError } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            data: {
-              name: name,
-            },
+            data: { name },
+            emailRedirectTo: `${window.location.origin}/auth/callback`,
           },
         })
         
-        if (error) throw error
+        addDebugLog(`Auth signUp response: ${authError ? 'Error: ' + authError.message : 'Success'}`)
+        console.log('Auth signUp full response:', { authData, authError })
         
-        // KAYIT BAŞARILI - SERVER ACTION İLE EMAIL GÖNDER
-        if (data.user) {
+        if (authError) {
+          addDebugLog(`Auth error details: ${JSON.stringify(authError, null, 2)}`)
+          throw authError
+        }
+        
+        if (authData?.user) {
+          addDebugLog(`Auth başarılı! User ID: ${authData.user.id}`)
+          addDebugLog(`User confirmed: ${authData.user.confirmed_at ? 'Evet' : 'Hayır'}`)
+          
+          // 2. user_profiles tablosuna kayıt
           try {
+            addDebugLog('user_profiles tablosuna kayıt yapılıyor...')
+            const { data: profileData, error: profileError } = await supabase
+              .from('user_profiles')
+              .insert({
+                id: authData.user.id,
+                name: name,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              })
+              .select()
+            
+            addDebugLog(`Profile insert response: ${profileError ? 'Error: ' + profileError.message : 'Success'}`)
+            console.log('Profile insert full response:', { profileData, profileError })
+            
+            if (profileError) {
+              addDebugLog(`Profile error (devam ediliyor): ${profileError.message}`)
+              // Profile kaydı başarısız olsa bile devam et
+            } else {
+              addDebugLog('Profile kaydı başarılı!')
+            }
+          } catch (profileErr: any) {
+            addDebugLog(`Profile exception: ${profileErr.message}`)
+            console.warn('Profile kaydı exception:', profileErr)
+          }
+          
+          // 3. Email gönder
+          try {
+            addDebugLog('Welcome email gönderiliyor...')
             const result = await sendWelcomeEmail(email, name)
+            addDebugLog(`Email gönderim sonucu: ${result.success ? 'Başarılı' : 'Başarısız'}`)
             
             if (result.success) {
               setSuccessMessage(`🎉 Hoş geldiniz ${name}! Kaydınız başarıyla oluşturuldu.`)
             } else {
               setSuccessMessage(`✅ Kaydınız başarıyla oluşturuldu ${name}! (Email gönderilemedi)`)
             }
-          } catch (emailError) {
-            console.warn('⚠️ Email gönderilemedi:', emailError)
+          } catch (emailError: any) {
+            addDebugLog(`Email error: ${emailError.message}`)
+            console.warn('Email gönderilemedi:', emailError)
             setSuccessMessage(`✅ Kaydınız başarıyla oluşturuldu ${name}!`)
           }
           
+          addDebugLog('Kayıt tamamlandı, yönlendirme bekleniyor...')
           setTimeout(() => {
             onClose()
             if (onSuccess) {
-              onSuccess() // onSuccess callback'ini çağır
+              onSuccess()
             } else {
               window.location.href = '/profile'
             }
           }, 2000)
+        } else {
+          addDebugLog('Auth data var ama user yok!')
+          throw new Error('Kullanıcı oluşturulamadı')
         }
       }
 
     } catch (err: any) {
-      console.error('Auth error:', err)
+      console.error('Auth error details:', err)
+      addDebugLog(`Catch error: ${err.message}`)
+      addDebugLog(`Error stack: ${err.stack}`)
       
       let errorMessage = err.message || 'Bir hata oluştu'
       
+      // Detaylı hata mesajları
       if (errorMessage.includes('Invalid login credentials')) {
         errorMessage = 'Geçersiz email veya şifre'
       } else if (errorMessage.includes('Email not confirmed')) {
-        errorMessage = 'Lütfen email adresinizi doğrulayın'
+        errorMessage = 'Lütfen email adresinizi doğrulayın (spam klasörünüzü kontrol edin)'
       } else if (errorMessage.includes('User already registered')) {
-        errorMessage = 'Bu email adresi zaten kayıtlı'
+        errorMessage = 'Bu email adresi zaten kayıtlı. Lütfen giriş yapın veya şifrenizi sıfırlayın.'
       } else if (errorMessage.includes('Password should be at least')) {
         errorMessage = 'Şifre en az 6 karakter olmalıdır'
       } else if (errorMessage.includes('Invalid email')) {
-        errorMessage = 'Geçersiz email adresi'
+        errorMessage = 'Geçersiz email adresi formatı'
+      } else if (errorMessage.includes('rate limit')) {
+        errorMessage = 'Çok fazla deneme yaptınız. Lütfen bir süre sonra tekrar deneyin.'
+      } else if (errorMessage.includes('network')) {
+        errorMessage = 'Ağ hatası. Lütfen internet bağlantınızı kontrol edin.'
+      } else if (errorMessage.includes('duplicate key')) {
+        errorMessage = 'Bu kullanıcı zaten kayıtlı'
+      } else if (errorMessage.includes('JWT')) {
+        errorMessage = 'Kimlik doğrulama hatası. Lütfen sayfayı yenileyin.'
       }
       
-      setError(errorMessage)
+      setError(`${errorMessage} (Lütfen browser konsolunu kontrol edin)`)
+      
     } finally {
       setLoading(false)
+      addDebugLog('İşlem tamamlandı (finally)')
     }
   }
 
@@ -117,6 +194,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
     setName('')
     setError('')
     setSuccessMessage('')
+    setDebugLog([])
     onClose()
   }
 
@@ -124,6 +202,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
     setIsLogin(!isLogin)
     setError('')
     setSuccessMessage('')
+    setDebugLog([])
   }
 
   return (
@@ -205,6 +284,20 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
             )}
           </div>
 
+          {/* Debug Log (sadece development'da) */}
+          {process.env.NODE_ENV === 'development' && debugLog.length > 0 && (
+            <div className="bg-gray-900 text-green-400 p-3 rounded-lg border border-gray-700 max-h-40 overflow-y-auto">
+              <div className="text-xs font-mono">
+                <div className="font-bold mb-1">🔍 DEBUG LOG:</div>
+                {debugLog.map((log, index) => (
+                  <div key={index} className="mb-1 border-b border-gray-800 pb-1 last:border-0">
+                    {log}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Başarı Mesajı */}
           {successMessage && (
             <div className="bg-green-50 border border-green-200 text-green-700 p-4 rounded-lg">
@@ -215,7 +308,31 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
           {/* Hata Mesajı */}
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg">
-              {error}
+              <div className="font-medium mb-1">Hata:</div>
+              <div>{error}</div>
+              <div className="mt-2 text-sm">
+                <button
+                  type="button"
+                  onClick={() => {
+                    console.log('DEBUG LOG:', debugLog)
+                    alert(`Debug log konsolda görüntülendi. Lütfen F12 ile konsolu açın.`)
+                  }}
+                  className="text-red-600 hover:text-red-800 underline mr-4"
+                >
+                  Debug Log'u Gör
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const testData = { email, name, isLogin }
+                    console.log('TEST DATA:', testData)
+                    alert(`Test data: ${JSON.stringify(testData)}`)
+                  }}
+                  className="text-blue-600 hover:text-blue-800 underline"
+                >
+                  Test Data'yı Gör
+                </button>
+              </div>
             </div>
           )}
 

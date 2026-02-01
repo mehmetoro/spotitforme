@@ -1,7 +1,7 @@
 // components/SearchFilters.tsx
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
 interface FilterState {
@@ -30,15 +30,28 @@ export default function SearchFilters() {
 
   const [showAdvanced, setShowAdvanced] = useState(false)
 
+  // URL değiştiğinde state'i güncelle
+  useEffect(() => {
+    setFilters({
+      category: searchParams.get('category') || 'all',
+      location: searchParams.get('location') || 'all',
+      status: searchParams.get('status') || 'all',
+      sortBy: searchParams.get('sort') || 'newest',
+      minPrice: searchParams.get('minPrice') || '',
+      maxPrice: searchParams.get('maxPrice') || '',
+      dateRange: searchParams.get('dateRange') || 'all'
+    })
+  }, [searchParams])
+
   const categories = [
-    'Tümü', 'Elektronik', 'Giyim & Aksesuar', 'Ev & Bahçe',
+    'Elektronik', 'Giyim & Aksesuar', 'Ev & Bahçe',
     'Koleksiyon', 'Kitap & Müzik', 'Oyuncak & Oyun',
     'Spor & Outdoor', 'Araç & Parça', 'Diğer'
   ]
 
   const locations = [
-    'Tümü', 'İstanbul', 'Ankara', 'İzmir', 'Bursa', 'Antalya',
-    'Adana', 'Konya', 'İzmir', 'Trabzon', 'Türkiye Geneli', 'Yurt Dışı'
+    'İstanbul', 'Ankara', 'İzmir', 'Bursa', 'Antalya',
+    'Adana', 'Konya', 'Trabzon', 'Türkiye Geneli', 'Yurt Dışı'
   ]
 
   const applyFilters = () => {
@@ -52,7 +65,28 @@ export default function SearchFilters() {
     if (filters.maxPrice) params.set('maxPrice', filters.maxPrice)
     if (filters.dateRange !== 'all') params.set('dateRange', filters.dateRange)
 
+    // URL'i güncelle (sayfa yenileme olmadan)
     router.push(`/spots?${params.toString()}`)
+  }
+
+  const handleInputChange = (key: keyof FilterState, value: string) => {
+    setFilters(prev => ({
+      ...prev,
+      [key]: value
+    }))
+    
+    // Anında filtreleme (debounce eklenebilir)
+    const params = new URLSearchParams(searchParams.toString())
+    if (value && value !== 'all' && value !== '') {
+      params.set(key, value)
+    } else {
+      params.delete(key)
+    }
+    
+    // Bazı filtreler için anında uygula
+    if (['category', 'location', 'status'].includes(key)) {
+      router.push(`/spots?${params.toString()}`)
+    }
   }
 
   const resetFilters = () => {
@@ -71,7 +105,7 @@ export default function SearchFilters() {
   return (
     <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-bold text-gray-900">Detaylı Filtrele</h3>
+        <h3 className="text-lg font-bold text-gray-900">Filtrele</h3>
         <button
           onClick={() => setShowAdvanced(!showAdvanced)}
           className="text-blue-600 hover:text-blue-800 text-sm font-medium"
@@ -89,11 +123,12 @@ export default function SearchFilters() {
           </label>
           <select
             value={filters.category}
-            onChange={(e) => setFilters({...filters, category: e.target.value})}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            onChange={(e) => handleInputChange('category', e.target.value)}
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
+            <option value="all">Tüm Kategoriler</option>
             {categories.map((cat) => (
-              <option key={cat} value={cat === 'Tümü' ? 'all' : cat}>
+              <option key={cat} value={cat}>
                 {cat}
               </option>
             ))}
@@ -107,11 +142,12 @@ export default function SearchFilters() {
           </label>
           <select
             value={filters.location}
-            onChange={(e) => setFilters({...filters, location: e.target.value})}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            onChange={(e) => handleInputChange('location', e.target.value)}
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
+            <option value="all">Tüm Konumlar</option>
             {locations.map((loc) => (
-              <option key={loc} value={loc === 'Tümü' ? 'all' : loc}>
+              <option key={loc} value={loc}>
                 {loc}
               </option>
             ))}
@@ -125,10 +161,10 @@ export default function SearchFilters() {
           </label>
           <select
             value={filters.status}
-            onChange={(e) => setFilters({...filters, status: e.target.value})}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            onChange={(e) => handleInputChange('status', e.target.value)}
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
-            <option value="all">Tümü</option>
+            <option value="all">Tüm Durumlar</option>
             <option value="active">Aktif</option>
             <option value="found">Bulundu</option>
             <option value="urgent">Acil</option>
@@ -205,18 +241,22 @@ export default function SearchFilters() {
       <div className="flex justify-between items-center pt-6 border-t">
         <button
           onClick={resetFilters}
-          className="text-gray-600 hover:text-gray-800 font-medium"
+          className="text-gray-600 hover:text-gray-800 font-medium flex items-center"
         >
-          Filtreleri Temizle
+          <span className="mr-2">🗑️</span>
+          Tüm Filtreleri Temizle
         </button>
         
         <div className="flex space-x-4">
-          <button
-            onClick={applyFilters}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-8 rounded-lg"
-          >
-            Filtrele
-          </button>
+          {(showAdvanced || filters.minPrice || filters.maxPrice || filters.dateRange !== 'all' || filters.sortBy !== 'newest') && (
+            <button
+              onClick={applyFilters}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-8 rounded-lg flex items-center"
+            >
+              <span className="mr-2">🔍</span>
+              Filtrele
+            </button>
+          )}
         </div>
       </div>
     </div>
