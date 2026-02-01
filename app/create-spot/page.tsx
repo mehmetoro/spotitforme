@@ -1,35 +1,27 @@
-// app/create-spot/page.tsx - MOBİL UYUMLU
+// app/create-spot/page.tsx - TELEFON UYUMLU
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
-import MobileLocationPicker from '@/components/MobileLocationPicker'
-import useMobileDetection from '@/hooks/useMobileDetection'
-
-interface SpotLocation {
-  latitude: number | null
-  longitude: number | null
-  city: string
-  address: string
-  accuracy: number
-}
+import SimpleLocationPicker from '@/components/SimpleLocationPicker'
 
 export default function CreateSpotPage() {
   const router = useRouter()
-  const { isMobile } = useMobileDetection()
   
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [category, setCategory] = useState('')
-  const [location, setLocation] = useState<SpotLocation>({
+  const [location, setLocation] = useState<{
+    latitude: number | null
+    longitude: number | null
+    city: string
+  }>({
     latitude: null,
     longitude: null,
-    city: '',
-    address: '',
-    accuracy: 0
+    city: ''
   })
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
@@ -40,7 +32,7 @@ export default function CreateSpotPage() {
     'Kitap & Müzik', 'Oyuncak & Oyun', 'Spor & Outdoor', 'Araç & Parça', 'Diğer'
   ]
 
-  const handleLocationSelect = (loc: SpotLocation) => {
+  const handleLocationSelect = (loc: { latitude: number | null; longitude: number | null; city: string }) => {
     setLocation(loc)
   }
 
@@ -51,8 +43,8 @@ export default function CreateSpotPage() {
 
     try {
       // Validasyon
-      if (!location.city) {
-        throw new Error('Lütfen konum seçin')
+      if (!location.city || location.city === 'Konum belirlenemedi') {
+        throw new Error('Lütfen geçerli bir konum seçin')
       }
       
       if (!title.trim()) {
@@ -100,10 +92,8 @@ export default function CreateSpotPage() {
             description: description.trim(),
             category: category || null,
             location: location.city,
-            location_address: location.address,
             latitude: location.latitude,
             longitude: location.longitude,
-            location_accuracy: location.accuracy,
             image_url: imageUrl || null,
             status: 'active'
           }
@@ -112,13 +102,7 @@ export default function CreateSpotPage() {
 
       if (spotError) throw spotError
 
-      // Başarı mesajı
-      if (isMobile) {
-        alert('✅ Spot başarıyla oluşturuldu! Telefon konumunuz ile daha hızlı yardım alacaksınız.')
-      } else {
-        alert('🎉 Spot başarıyla oluşturuldu!')
-      }
-      
+      alert('🎉 Spot başarıyla oluşturuldu!')
       router.push(`/spots/${spotData[0].id}`)
 
     } catch (err: any) {
@@ -134,26 +118,27 @@ export default function CreateSpotPage() {
       
       <main className="container-custom py-8">
         <div className="max-w-2xl mx-auto">
-          {/* Mobil Banner */}
-          {isMobile && (
-            <div className="mb-6 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-2xl p-6 text-center">
-              <div className="text-3xl mb-3">📱</div>
-              <h2 className="text-xl font-bold mb-2">Telefon Konumunuzu Kullanın</h2>
-              <p className="opacity-90">
-                Spot oluştururken telefonunuzun GPS'i ile tam konumunuzu alın, daha hızlı yardım edin!
-              </p>
+          {/* Mobil Uyarı */}
+          <div className="mb-6 md:hidden">
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+              <div className="flex items-center">
+                <span className="text-blue-600 text-2xl mr-3">📱</span>
+                <div>
+                  <p className="font-medium text-blue-800">Mobil Kullanıcılar</p>
+                  <p className="text-sm text-blue-700">
+                    Konum almak için "Otomatik Konum Al" butonuna tıklayın ve izin verin
+                  </p>
+                </div>
+              </div>
             </div>
-          )}
+          </div>
 
           <div className="text-center mb-8">
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
               Yeni Spot Oluştur
             </h1>
             <p className="text-gray-600">
-              {isMobile 
-                ? 'Telefon konumunuz ile anında yardım alın'
-                : 'Konumunuz ile daha hızlı yardım alın'
-              }
+              Konumunuzu kullanarak daha hızlı yardım alın
             </p>
           </div>
 
@@ -168,7 +153,7 @@ export default function CreateSpotPage() {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                placeholder={isMobile ? "Aradığınız ürünü yazın..." : "Örnek: Vintage Nikon F2 kamera lensi"}
+                placeholder="Örnek: Vintage Nikon F2 kamera lensi"
                 required
                 maxLength={100}
               />
@@ -183,8 +168,8 @@ export default function CreateSpotPage() {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                placeholder={isMobile ? "Ürün detaylarını yazın..." : "Marka, model, renk, durum, özel notlar..."}
-                rows={isMobile ? 3 : 4}
+                placeholder="Marka, model, renk, durum, özel notlar..."
+                rows={4}
                 required
                 maxLength={1000}
               />
@@ -207,7 +192,7 @@ export default function CreateSpotPage() {
               </select>
             </div>
 
-            {/* KONUM PICKER - MOBİL UYUMLU */}
+            {/* KONUM SEÇİCİ */}
             <div>
               <div className="flex items-center justify-between mb-4">
                 <div>
@@ -215,23 +200,25 @@ export default function CreateSpotPage() {
                     Konum *
                   </label>
                   <p className="text-sm text-gray-500">
-                    {isMobile 
-                      ? 'Telefon konumunuzu kullanarak tam konumunuzu alın'
-                      : 'Konumunuz ile daha doğru sonuç alın'
-                    }
+                    Telefonunuzdan konum izni isteyeceğiz
                   </p>
                 </div>
-                {location.city && (
+                {location.city && location.city !== 'Konum belirlenemedi' && (
                   <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">
-                    ✓ {isMobile ? 'GPS Aktif' : location.city}
+                    ✓ {location.city}
                   </span>
                 )}
               </div>
               
-              <MobileLocationPicker 
-                onLocationSelect={handleLocationSelect}
-                initialCity=""
-              />
+              <SimpleLocationPicker onLocationSelect={handleLocationSelect} />
+              
+              {location.city && location.latitude && (
+                <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                  <p className="text-sm text-blue-700">
+                    📍 Konumunuz alındı: {location.city} ({location.latitude.toFixed(4)}, {location.longitude?.toFixed(4)})
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Resim Yükleme */}
@@ -244,20 +231,19 @@ export default function CreateSpotPage() {
                 accept="image/*"
                 onChange={(e) => setImageFile(e.target.files?.[0] || null)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg"
-                capture={isMobile ? "environment" : undefined}
               />
               <p className="text-sm text-gray-500 mt-2">
-                {isMobile 
-                  ? '📷 Telefonunuzla direkt fotoğraf çekin'
-                  : 'Resimli spot\'lar %70 daha hızlı bulunur'
-                }
+                Resimli spot'lar daha hızlı bulunur
               </p>
             </div>
 
             {/* Hata Mesajı */}
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg">
-                {error}
+                <div className="flex items-center">
+                  <span className="mr-2">❌</span>
+                  <span>{error}</span>
+                </div>
               </div>
             )}
 
@@ -265,49 +251,35 @@ export default function CreateSpotPage() {
             <div className="pt-6 border-t">
               <button
                 type="submit"
-                disabled={loading || !location.city}
-                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-4 rounded-xl text-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={loading || !location.city || location.city === 'Konum belirlenemedi'}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl text-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
               >
                 {loading ? (
-                  <div className="flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white mr-3"></div>
+                  <>
+                    <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-white mr-3"></div>
                     Oluşturuluyor...
-                  </div>
-                ) : isMobile ? (
-                  '📱 Spot\'u Oluştur'
+                  </>
                 ) : (
                   'Spot\'u Oluştur'
                 )}
               </button>
-              
-              {!location.city && (
-                <p className="text-center text-sm text-red-600 mt-4">
-                  ⚠️ Konum seçmeden spot oluşturamazsınız
-                </p>
-              )}
+              <p className="text-center text-sm text-gray-500 mt-4">
+                {!location.city ? 'Konum seçmeden spot oluşturamazsınız' : ''}
+              </p>
             </div>
           </form>
 
-          {/* Mobil İpuçları */}
-          {isMobile && (
-            <div className="mt-8 bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-2xl p-6">
-              <h3 className="font-bold text-gray-900 mb-4">📱 Telefon İpuçları</h3>
-              <div className="space-y-3">
-                <div className="flex items-center">
-                  <span className="text-green-600 mr-3">✅</span>
-                  <p className="text-sm">Konum izni verirken "Her Zaman İzin Ver" seçin</p>
-                </div>
-                <div className="flex items-center">
-                  <span className="text-green-600 mr-3">✅</span>
-                  <p className="text-sm">GPS'inizin açık olduğundan emin olun</p>
-                </div>
-                <div className="flex items-center">
-                  <span className="text-green-600 mr-3">✅</span>
-                  <p className="text-sm">Dış mekandaysanız konum daha doğru olur</p>
-                </div>
-              </div>
+          {/* İstatistikler */}
+          <div className="mt-8 grid grid-cols-2 gap-4">
+            <div className="bg-white rounded-lg p-4 text-center shadow">
+              <div className="text-xl font-bold text-blue-600">%94</div>
+              <div className="text-sm text-gray-600">Konumlu spot bulunma</div>
             </div>
-          )}
+            <div className="bg-white rounded-lg p-4 text-center shadow">
+              <div className="text-xl font-bold text-green-600">3x</div>
+              <div className="text-sm text-gray-600">Daha hızlı</div>
+            </div>
+          </div>
         </div>
       </main>
 
