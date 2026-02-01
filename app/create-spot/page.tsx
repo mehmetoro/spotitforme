@@ -1,12 +1,13 @@
-// app/create-spot/page.tsx - KONUM GÜNCELLEMESİ
+// app/create-spot/page.tsx - MOBİL UYUMLU
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
-import LocationPicker from '@/components/LocationPicker'
+import MobileLocationPicker from '@/components/MobileLocationPicker'
+import useMobileDetection from '@/hooks/useMobileDetection'
 
 interface SpotLocation {
   latitude: number | null
@@ -18,6 +19,7 @@ interface SpotLocation {
 
 export default function CreateSpotPage() {
   const router = useRouter()
+  const { isMobile } = useMobileDetection()
   
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -88,7 +90,7 @@ export default function CreateSpotPage() {
         imageUrl = publicUrl
       }
 
-      // Spot'u database'e kaydet (YENİ ALANLAR)
+      // Spot'u database'e kaydet
       const { data: spotData, error: spotError } = await supabase
         .from('spots')
         .insert([
@@ -97,13 +99,11 @@ export default function CreateSpotPage() {
             title: title.trim(),
             description: description.trim(),
             category: category || null,
-            // YENİ KONUM ALANLARI
             location: location.city,
             location_address: location.address,
             latitude: location.latitude,
             longitude: location.longitude,
             location_accuracy: location.accuracy,
-            //
             image_url: imageUrl || null,
             status: 'active'
           }
@@ -112,7 +112,13 @@ export default function CreateSpotPage() {
 
       if (spotError) throw spotError
 
-      alert('🎉 Spot başarıyla oluşturuldu!')
+      // Başarı mesajı
+      if (isMobile) {
+        alert('✅ Spot başarıyla oluşturuldu! Telefon konumunuz ile daha hızlı yardım alacaksınız.')
+      } else {
+        alert('🎉 Spot başarıyla oluşturuldu!')
+      }
+      
       router.push(`/spots/${spotData[0].id}`)
 
     } catch (err: any) {
@@ -126,18 +132,32 @@ export default function CreateSpotPage() {
     <div className="min-h-screen bg-gray-50">
       <Header />
       
-      <main className="container-custom py-12">
+      <main className="container-custom py-8">
         <div className="max-w-2xl mx-auto">
-          <div className="text-center mb-10">
+          {/* Mobil Banner */}
+          {isMobile && (
+            <div className="mb-6 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-2xl p-6 text-center">
+              <div className="text-3xl mb-3">📱</div>
+              <h2 className="text-xl font-bold mb-2">Telefon Konumunuzu Kullanın</h2>
+              <p className="opacity-90">
+                Spot oluştururken telefonunuzun GPS'i ile tam konumunuzu alın, daha hızlı yardım edin!
+              </p>
+            </div>
+          )}
+
+          <div className="text-center mb-8">
             <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
               Yeni Spot Oluştur
             </h1>
             <p className="text-gray-600">
-              Telefonunuzun konumunu kullanarak daha hızlı yardım alın
+              {isMobile 
+                ? 'Telefon konumunuz ile anında yardım alın'
+                : 'Konumunuz ile daha hızlı yardım alın'
+              }
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-lg p-6 md:p-8 space-y-8">
+          <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-lg p-6 space-y-8">
             {/* Başlık */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -148,7 +168,7 @@ export default function CreateSpotPage() {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                placeholder="Örnek: Vintage Nikon F2 kamera lensi"
+                placeholder={isMobile ? "Aradığınız ürünü yazın..." : "Örnek: Vintage Nikon F2 kamera lensi"}
                 required
                 maxLength={100}
               />
@@ -163,8 +183,8 @@ export default function CreateSpotPage() {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                placeholder="Marka, model, renk, durum, özel notlar..."
-                rows={4}
+                placeholder={isMobile ? "Ürün detaylarını yazın..." : "Marka, model, renk, durum, özel notlar..."}
+                rows={isMobile ? 3 : 4}
                 required
                 maxLength={1000}
               />
@@ -187,7 +207,7 @@ export default function CreateSpotPage() {
               </select>
             </div>
 
-            {/* KONUM PICKER - YENİ */}
+            {/* KONUM PICKER - MOBİL UYUMLU */}
             <div>
               <div className="flex items-center justify-between mb-4">
                 <div>
@@ -195,17 +215,20 @@ export default function CreateSpotPage() {
                     Konum *
                   </label>
                   <p className="text-sm text-gray-500">
-                    Telefonunuzun konum servisini kullanarak daha doğru sonuç alın
+                    {isMobile 
+                      ? 'Telefon konumunuzu kullanarak tam konumunuzu alın'
+                      : 'Konumunuz ile daha doğru sonuç alın'
+                    }
                   </p>
                 </div>
                 {location.city && (
                   <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">
-                    ✓ {location.city}
+                    ✓ {isMobile ? 'GPS Aktif' : location.city}
                   </span>
                 )}
               </div>
               
-              <LocationPicker 
+              <MobileLocationPicker 
                 onLocationSelect={handleLocationSelect}
                 initialCity=""
               />
@@ -221,9 +244,13 @@ export default function CreateSpotPage() {
                 accept="image/*"
                 onChange={(e) => setImageFile(e.target.files?.[0] || null)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                capture={isMobile ? "environment" : undefined}
               />
               <p className="text-sm text-gray-500 mt-2">
-                Resimli spot'lar %70 daha hızlı bulunur
+                {isMobile 
+                  ? '📷 Telefonunuzla direkt fotoğraf çekin'
+                  : 'Resimli spot\'lar %70 daha hızlı bulunur'
+                }
               </p>
             </div>
 
@@ -239,15 +266,48 @@ export default function CreateSpotPage() {
               <button
                 type="submit"
                 disabled={loading || !location.city}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl text-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-4 rounded-xl text-lg disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? 'Oluşturuluyor...' : 'Spot\'u Oluştur'}
+                {loading ? (
+                  <div className="flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white mr-3"></div>
+                    Oluşturuluyor...
+                  </div>
+                ) : isMobile ? (
+                  '📱 Spot\'u Oluştur'
+                ) : (
+                  'Spot\'u Oluştur'
+                )}
               </button>
-              <p className="text-center text-sm text-gray-500 mt-4">
-                Konum seçmeden spot oluşturamazsınız
-              </p>
+              
+              {!location.city && (
+                <p className="text-center text-sm text-red-600 mt-4">
+                  ⚠️ Konum seçmeden spot oluşturamazsınız
+                </p>
+              )}
             </div>
           </form>
+
+          {/* Mobil İpuçları */}
+          {isMobile && (
+            <div className="mt-8 bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-2xl p-6">
+              <h3 className="font-bold text-gray-900 mb-4">📱 Telefon İpuçları</h3>
+              <div className="space-y-3">
+                <div className="flex items-center">
+                  <span className="text-green-600 mr-3">✅</span>
+                  <p className="text-sm">Konum izni verirken "Her Zaman İzin Ver" seçin</p>
+                </div>
+                <div className="flex items-center">
+                  <span className="text-green-600 mr-3">✅</span>
+                  <p className="text-sm">GPS'inizin açık olduğundan emin olun</p>
+                </div>
+                <div className="flex items-center">
+                  <span className="text-green-600 mr-3">✅</span>
+                  <p className="text-sm">Dış mekandaysanız konum daha doğru olur</p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </main>
 
