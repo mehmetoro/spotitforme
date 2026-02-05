@@ -1,0 +1,3637 @@
+// components/shop/ShopDashboard.tsx
+'use client'
+
+import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
+import { useRouter } from 'next/navigation'
+import ShopStats from './ShopStats'
+import RecentMatches from './RecentMatches'
+import QuickActions from './QuickActions'
+import InventoryOverview from './InventoryOverview'
+import SearchOverview from './SearchOverview'
+
+interface ShopDashboardProps {
+  shopId: string
+}
+
+export default function ShopDashboard({ shopId }: ShopDashboardProps) {
+  const router = useRouter()
+  const [shop, setShop] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [stats, setStats] = useState({
+    totalProducts: 0,
+    activeSearches: 0,
+    totalMatches: 0,
+    pendingMatches: 0,
+    totalFollowers: 0,
+    revenue: 0
+  })
+
+  useEffect(() => {
+    fetchShopData()
+  }, [shopId])
+
+  const fetchShopData = async () => {
+    try {
+      // Mağaza bilgileri
+      const { data: shopData } = await supabase
+        .from('shops')
+        .select('*')
+        .eq('id', shopId)
+        .single()
+
+      // İstatistikler (paralel olarak)
+      const [
+        { count: productCount },
+        { count: searchCount },
+        { count: matchCount },
+        { count: pendingMatchCount },
+        { count: followerCount },
+        { data: revenueData }
+      ] = await Promise.all([
+        supabase
+          .from('shop_inventory')
+          .select('count', { count: 'exact', head: true })
+          .eq('shop_id', shopId)
+          .eq('status', 'active'),
+        supabase
+          .from('shop_searches')
+          .select('count', { count: 'exact', head: true })
+          .eq('shop_id', shopId)
+          .eq('status', 'active'),
+        supabase
+          .from('shop_search_matches')
+          .select('count', { count: 'exact', head: true })
+          .eq('search_id', shopId),
+        supabase
+          .from('shop_search_matches')
+          .select('count', { count: 'exact', head: true })
+          .eq('search_id', shopId)
+          .eq('status', 'pending'),
+        supabase
+          .from('shop_customer_relationships')
+          .select('count', { count: 'exact', head: true })
+          .eq('shop_id', shopId)
+          .eq('relationship_type', 'follower'),
+        supabase
+          .from('shop_analytics_daily')
+          .select('revenue')
+          .eq('shop_id', shopId)
+          .gte('date', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
+      ])
+
+      const totalRevenue = revenueData?.reduce((sum, day) => sum + (day.revenue || 0), 0) || 0
+
+      setShop(shopData)
+      setStats({
+        totalProducts: productCount || 0,
+        activeSearches: searchCount || 0,
+        totalMatches: matchCount || 0,
+        pendingMatches: pendingMatchCount || 0,
+        totalFollowers: followerCount || 0,
+        revenue: totalRevenue
+      })
+    } catch (error) {
+      console.error('Mağaza verileri yüklenemedi:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="animate-pulse space-y-6">
+        <div className="h-8 bg-gray-200 rounded w-1/4"></div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="h-32 bg-gray-200 rounded-xl"></div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (!shop) {
+    return (
+      <div className="text-center py-12">
+        <div className="text-4xl mb-4">🏪</div>
+        <h3 className="text-xl font-bold text-gray-900 mb-2">Mağaza bulunamadı</h3>
+        <p className="text-gray-600 mb-6">Bu mağaza mevcut değil veya silinmiş</p>
+        <button
+          onClick={() => router.push('/for-business')}
+          className="btn-primary"
+        >
+          Yeni Mağaza Aç
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-8">
+      {/* Header */}
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">{shop.shop_name}</h1>
+          <p className="text-gray-600">
+            {shop.city} • {shop.subscription_type === 'free' ? 'Ücretsiz' : 'Premium'} Mağaza
+          </p>
+        </div>
+        <div className="flex items-center space-x-4">
+          <span className={`px-4 py-2 rounded-full text-sm font-medium ${
+            shop.is_verified 
+              ? 'bg-green-100 text-green-800' 
+              : 'bg-yellow-100 text-yellow-800'
+          }`}>
+            {shop.is_verified ? '✅ Doğrulanmış' : '🔍 Doğrulanmadı'}
+          </span>
+          <button
+            onClick={() => router.push(`/shop/${shop.id}/edit`)}
+            className="btn-secondary"
+          >
+            Mağazayı Düzenle
+          </button>
+        </div>
+      </div>
+
+      {/* Hızlı İstatistikler */}
+      <ShopStats stats={stats} shopId={shopId} />
+
+      {/* Hızlı Aksiyonlar */}
+      <QuickActions 
+        shopId={shopId}
+        onActionComplete={fetchShopData}
+      />
+
+      {/* Grid Layout */}
+      <div className="grid lg:grid-cols-2 gap-8">
+        {/* Sol Kolon */}
+        <div className="space-y-8">
+          {/* Son Eşleşmeler */}
+          <RecentMatches shopId={shopId} />
+          
+          {/* Stok Özeti */}
+          <InventoryOverview shopId={shopId} />
+        </div>
+
+        {/* Sağ Kolon */}
+        <div className="space-y-8">
+          {/* Arama Özeti */}
+          <SearchOverview shopId={shopId} />
+          
+          {/* Hızlı Bağlantılar */}
+          <div className="bg-white rounded-xl shadow p-6">
+            <h3 className="font-bold text-gray-900 mb-4">🚀 Hızlı Bağlantılar</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <button
+                onClick={() => router.push(`/shop/${shopId}/inventory/new`)}
+                className="p-4 border-2 border-dashed border-gray-300 rounded-xl hover:border-blue-400 text-center"
+              >
+                <div className="text-2xl mb-2">📦</div>
+                <div className="font-medium">Yeni Ürün Ekle</div>
+              </button>
+              <button
+                onClick={() => router.push(`/shop/${shopId}/searches/new`)}
+                className="p-4 border-2 border-dashed border-gray-300 rounded-xl hover:border-green-400 text-center"
+              >
+                <div className="text-2xl mb-2">🔍</div>
+                <div className="font-medium">Arama Oluştur</div>
+              </button>
+              <button
+                onClick={() => router.push(`/shop/${shopId}/social/new`)}
+                className="p-4 border-2 border-dashed border-gray-300 rounded-xl hover:border-purple-400 text-center"
+              >
+                <div className="text-2xl mb-2">📢</div>
+                <div className="font-medium">Paylaşım Yap</div>
+              </button>
+              <button
+                onClick={() => router.push(`/shop/${shopId}/analytics`)}
+                className="p-4 border-2 border-dashed border-gray-300 rounded-xl hover:border-orange-400 text-center"
+              >
+                <div className="text-2xl mb-2">📊</div>
+                <div className="font-medium">Analizleri Gör</div>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+
+
+// components/shop/CreateSearchForm.tsx
+'use client'
+
+import { useState } from 'react'
+import { supabase } from '@/lib/supabase'
+import ImageUpload from '../ImageUpload'
+import CategorySelector from './CategorySelector'
+import ConditionSelector from './ConditionSelector'
+import PriceRangeInput from './PriceRangeInput'
+import LocationSelector from './LocationSelector'
+
+interface CreateSearchFormProps {
+  shopId: string
+  onSuccess?: () => void
+  onCancel?: () => void
+  initialData?: any
+}
+
+export default function CreateSearchForm({ 
+  shopId, 
+  onSuccess, 
+  onCancel,
+  initialData 
+}: CreateSearchFormProps) {
+  const [step, setStep] = useState(1)
+  const [loading, setLoading] = useState(false)
+  const [formData, setFormData] = useState({
+    // Temel bilgiler
+    title: initialData?.title || '',
+    description: initialData?.description || '',
+    category: initialData?.category || '',
+    subcategory: initialData?.subcategory || '',
+    
+    // Ürün detayları
+    brand: initialData?.brand || '',
+    model: initialData?.model || '',
+    condition: initialData?.condition || 'any',
+    year_from: initialData?.year_from || '',
+    year_to: initialData?.year_to || '',
+    
+    // Fiyat
+    min_price: initialData?.min_price || '',
+    max_price: initialData?.max_price || '',
+    price_currency: 'TRY',
+    
+    // Konum
+    location: initialData?.location || '',
+    location_radius: initialData?.location_radius || 50, // km
+    accept_shipping: initialData?.accept_shipping ?? true,
+    accept_local_pickup: initialData?.accept_local_pickup ?? true,
+    
+    // Öncelik ve zaman
+    priority_level: initialData?.priority_level || 3,
+    expire_days: initialData?.expire_days || 30,
+    
+    // Görseller ve etiketler
+    images: initialData?.images || [],
+    tags: initialData?.tags || [],
+    
+    // Otomatik eşleşme ayarları
+    auto_notify: initialData?.auto_notify ?? true,
+    match_threshold: initialData?.match_threshold || 70 // % eşleşme eşiği
+  })
+
+  const categories = [
+    { value: 'electronics', label: 'Elektronik', subcategories: ['Phone', 'Laptop', 'Camera', 'Audio', 'Gaming'] },
+    { value: 'fashion', label: 'Giyim & Aksesuar', subcategories: ['Clothing', 'Shoes', 'Bags', 'Watches', 'Jewelry'] },
+    { value: 'home', label: 'Ev & Bahçe', subcategories: ['Furniture', 'Decor', 'Kitchen', 'Garden', 'Tools'] },
+    { value: 'vehicle', label: 'Araç & Parça', subcategories: ['Car', 'Motorcycle', 'Bicycle', 'Parts', 'Accessories'] },
+    { value: 'collectible', label: 'Koleksiyon', subcategories: ['Coins', 'Stamps', 'Cards', 'Antiques', 'Art'] }
+  ]
+
+  const handleSubmit = async () => {
+    setLoading(true)
+    try {
+      // 1. Resimleri yükle
+      const imageUrls: string[] = []
+      for (const file of formData.images) {
+        if (typeof file === 'string') {
+          // Zaten URL ise
+          imageUrls.push(file)
+        } else {
+          // File ise yükle
+          const fileExt = file.name.split('.').pop()
+          const fileName = `${shopId}/searches/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
+          
+          const { error: uploadError } = await supabase.storage
+            .from('shop-media')
+            .upload(fileName, file)
+
+          if (uploadError) throw uploadError
+
+          const { data: { publicUrl } } = supabase.storage
+            .from('shop-media')
+            .getPublicUrl(fileName)
+
+          imageUrls.push(publicUrl)
+        }
+      }
+
+      // 2. Arama kaydını oluştur
+      const { error } = await supabase
+        .from('shop_searches')
+        .insert({
+          shop_id: shopId,
+          title: formData.title,
+          description: formData.description,
+          category: formData.category,
+          subcategory: formData.subcategory,
+          brand: formData.brand,
+          model: formData.model,
+          condition: formData.condition !== 'any' ? formData.condition : null,
+          year_from: formData.year_from || null,
+          year_to: formData.year_to || null,
+          min_price: formData.min_price || null,
+          max_price: formData.max_price || null,
+          price_currency: formData.price_currency,
+          location: formData.location,
+          location_radius: formData.location_radius,
+          accept_shipping: formData.accept_shipping,
+          accept_local_pickup: formData.accept_local_pickup,
+          priority_level: formData.priority_level,
+          expire_date: new Date(Date.now() + formData.expire_days * 24 * 60 * 60 * 1000).toISOString(),
+          images: imageUrls,
+          tags: formData.tags,
+          status: 'active'
+        })
+
+      if (error) throw error
+
+      // 3. Hemen eşleşme kontrolü başlat
+      await triggerMatchCheck()
+
+      // 4. Başarılı
+      alert('✅ Arama başarıyla oluşturuldu! Sistem otomatik eşleşmeleri kontrol ediyor.')
+      
+      if (onSuccess) onSuccess()
+
+    } catch (error) {
+      console.error('Arama oluşturma hatası:', error)
+      alert('Bir hata oluştu. Lütfen tekrar deneyin.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const triggerMatchCheck = async () => {
+    try {
+      // Background job başlat (API endpoint'i çağır)
+      await fetch('/api/shop/match-check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shopId, trigger: 'new_search' })
+      })
+    } catch (error) {
+      console.error('Match check tetiklenemedi:', error)
+    }
+  }
+
+  const calculatePriorityColor = (level: number) => {
+    switch(level) {
+      case 1: return 'bg-gray-100 text-gray-800'
+      case 2: return 'bg-blue-100 text-blue-800'
+      case 3: return 'bg-green-100 text-green-800'
+      case 4: return 'bg-orange-100 text-orange-800'
+      case 5: return 'bg-red-100 text-red-800'
+      default: return 'bg-gray-100 text-gray-800'
+    }
+  }
+
+  return (
+    <div className="bg-white rounded-xl shadow-lg p-6">
+      <div className="mb-8">
+        <h2 className="text-2xl font-bold text-gray-900">
+          {initialData ? 'Aramayı Düzenle' : 'Yeni Arama Oluştur'}
+        </h2>
+        <p className="text-gray-600">
+          Aradığınız ürünü detaylı tanımlayın, sistem otomatik eşleşmeleri bulsun
+        </p>
+        
+        {/* Step indicator */}
+        <div className="flex mt-6">
+          {[1, 2, 3, 4].map((stepNum) => (
+            <div key={stepNum} className="flex-1">
+              <div className={`h-2 rounded-full ${
+                step >= stepNum ? 'bg-blue-600' : 'bg-gray-200'
+              }`}></div>
+              <p className="text-xs text-center mt-2">
+                {stepNum === 1 ? 'Temel' : stepNum === 2 ? 'Detay' : stepNum === 3 ? 'Fiyat' : 'Özet'}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Form Content */}
+      <div className="space-y-6">
+        {step === 1 && (
+          <div className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Arama Başlığı *
+              </label>
+              <input
+                type="text"
+                value={formData.title}
+                onChange={(e) => setFormData({...formData, title: e.target.value})}
+                placeholder="Örn: Vintage Nikon F2 Kamera, Eski Model Rolex Saat"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                required
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                Açık ve net bir başlık yazın. Bu, eşleşme kalitesini artırır.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Detaylı Açıklama
+              </label>
+              <textarea
+                value={formData.description}
+                onChange={(e) => setFormData({...formData, description: e.target.value})}
+                placeholder="Aradığınız ürünle ilgili tüm detayları yazın. Özel notlar, istekler, önemli özellikler..."
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 h-32"
+                rows={4}
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                Ne kadar detaylı olursa o kadar iyi eşleşme bulunur.
+              </p>
+            </div>
+
+            <CategorySelector
+              categories={categories}
+              selectedCategory={formData.category}
+              selectedSubcategory={formData.subcategory}
+              onCategoryChange={(cat) => setFormData({...formData, category: cat, subcategory: ''})}
+              onSubcategoryChange={(subcat) => setFormData({...formData, subcategory: subcat})}
+            />
+          </div>
+        )}
+
+        {step === 2 && (
+          <div className="space-y-6">
+            <div className="grid md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Marka
+                </label>
+                <input
+                  type="text"
+                  value={formData.brand}
+                  onChange={(e) => setFormData({...formData, brand: e.target.value})}
+                  placeholder="Örn: Nikon, Rolex, Arçelik"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Model
+                </label>
+                <input
+                  type="text"
+                  value={formData.model}
+                  onChange={(e) => setFormData({...formData, model: e.target.value})}
+                  placeholder="Örn: F2, Datejust 1601, K2712"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                />
+              </div>
+            </div>
+
+            <ConditionSelector
+              value={formData.condition}
+              onChange={(condition) => setFormData({...formData, condition})}
+              includeAny={true}
+            />
+
+            <div className="grid md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Üretim Yılı (Başlangıç)
+                </label>
+                <input
+                  type="number"
+                  min="1900"
+                  max={new Date().getFullYear()}
+                  value={formData.year_from}
+                  onChange={(e) => setFormData({...formData, year_from: e.target.value})}
+                  placeholder="Örn: 1970"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Üretim Yılı (Bitiş)
+                </label>
+                <input
+                  type="number"
+                  min="1900"
+                  max={new Date().getFullYear()}
+                  value={formData.year_to}
+                  onChange={(e) => setFormData({...formData, year_to: e.target.value})}
+                  placeholder="Örn: 1980"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                />
+              </div>
+            </div>
+
+            {/* Örnek Görseller */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Örnek Görseller (Opsiyonel)
+              </label>
+              <p className="text-sm text-gray-500 mb-3">
+                Aradığınız ürünün benzer görsellerini ekleyin, eşleşme kalitesini artırın
+              </p>
+              <ImageUpload
+                onImagesChange={(files) => setFormData({...formData, images: files})}
+                maxImages={5}
+                currentImages={formData.images}
+              />
+            </div>
+          </div>
+        )}
+
+        {step === 3 && (
+          <div className="space-y-6">
+            <PriceRangeInput
+              minPrice={formData.min_price}
+              maxPrice={formData.max_price}
+              currency={formData.price_currency}
+              onMinPriceChange={(price) => setFormData({...formData, min_price: price})}
+              onMaxPriceChange={(price) => setFormData({...formData, max_price: price})}
+              showCurrencySelector={false}
+            />
+
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <h4 className="font-medium text-blue-800 mb-2">💡 Fiyat İpuçları</h4>
+              <ul className="text-sm text-blue-700 space-y-1">
+                <li>• Esnek bir fiyat aralığı daha çok eşleşme bulmanızı sağlar</li>
+                <li>• Pazarlık yapılabilir ürünler için maksimum fiyat belirleyin</li>
+                <li>• Nadir ürünler için fiyat aralığını geniş tutun</li>
+              </ul>
+            </div>
+
+            <LocationSelector
+              value={formData.location}
+              radius={formData.location_radius}
+              onLocationChange={(location) => setFormData({...formData, location})}
+              onRadiusChange={(radius) => setFormData({...formData, location_radius: radius})}
+            />
+
+            <div className="grid md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Kargo Tercihleri
+                </label>
+                <div className="space-y-3">
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={formData.accept_shipping}
+                      onChange={(e) => setFormData({...formData, accept_shipping: e.target.checked})}
+                      className="w-4 h-4 text-blue-600 mr-3"
+                    />
+                    <span>Kargo kabul ediyorum</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={formData.accept_local_pickup}
+                      onChange={(e) => setFormData({...formData, accept_local_pickup: e.target.checked})}
+                      className="w-4 h-4 text-blue-600 mr-3"
+                    />
+                    <span>Yerinden teslim alabilirim</span>
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Öncelik Seviyesi
+                </label>
+                <div className="flex items-center space-x-2">
+                  {[1, 2, 3, 4, 5].map((level) => (
+                    <button
+                      key={level}
+                      type="button"
+                      onClick={() => setFormData({...formData, priority_level: level})}
+                      className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${
+                        calculatePriorityColor(level)
+                      } ${formData.priority_level === level ? 'ring-2 ring-offset-2 ring-blue-500' : ''}`}
+                    >
+                      {level}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-sm text-gray-500 mt-2">
+                  {formData.priority_level === 1 && 'Düşük - Zaman önemli değil'}
+                  {formData.priority_level === 2 && 'Orta - Yakında bulunsa iyi olur'}
+                  {formData.priority_level === 3 && 'Normal - Aktif olarak arıyorum'}
+                  {formData.priority_level === 4 && 'Yüksek - Acil ihtiyacım var'}
+                  {formData.priority_level === 5 && 'Çok Yüksek - En yüksek öncelik'}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {step === 4 && (
+          <div className="space-y-6">
+            {/* Özet */}
+            <div className="bg-gray-50 rounded-xl p-6">
+              <h4 className="font-bold text-gray-900 mb-4">📋 Arama Özeti</h4>
+              
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-gray-600">Başlık:</p>
+                  <p className="font-medium">{formData.title}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Kategori:</p>
+                  <p className="font-medium">
+                    {categories.find(c => c.value === formData.category)?.label || 'Belirtilmemiş'}
+                    {formData.subcategory && ` › ${formData.subcategory}`}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Marka/Model:</p>
+                  <p className="font-medium">
+                    {formData.brand || 'Belirtilmemiş'}
+                    {formData.model && ` ${formData.model}`}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Fiyat Aralığı:</p>
+                  <p className="font-medium">
+                    {formData.min_price || formData.max_price 
+                      ? `${formData.min_price || '0'} - ${formData.max_price || 'Sınırsız'} ${formData.price_currency}`
+                      : 'Belirtilmemiş'
+                    }
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Konum:</p>
+                  <p className="font-medium">
+                    {formData.location || 'Herhangi bir yer'}
+                    {formData.location_radius && ` (${formData.location_radius} km)`}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Öncelik:</p>
+                  <p className="font-medium">
+                    Seviye {formData.priority_level} - 
+                    <span className={`ml-2 px-2 py-1 rounded-full text-xs ${calculatePriorityColor(formData.priority_level)}`}>
+                      {formData.priority_level === 5 ? 'ÇOK ACİL' : 
+                       formData.priority_level === 4 ? 'ACİL' : 
+                       formData.priority_level === 3 ? 'NORMAL' : 
+                       formData.priority_level === 2 ? 'DÜŞÜK' : 'ÇOK DÜŞÜK'}
+                    </span>
+                  </p>
+                </div>
+              </div>
+
+              {/* Otomatik eşleşme bilgisi */}
+              <div className="mt-6 bg-gradient-to-r from-green-50 to-emerald-50 p-4 rounded-lg">
+                <div className="flex items-center">
+                  <div className="text-2xl mr-3">🤖</div>
+                  <div>
+                    <p className="font-medium text-green-800">Otomatik Eşleşme Sistemi Aktif</p>
+                    <p className="text-sm text-green-700">
+                      Sistem otomatik olarak eşleşmeleri bulacak ve sizi bilgilendirecek.
+                      Ortalama ilk eşleşme 24 saat içinde gelir.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Tahmini eşleşme bilgisi */}
+            <div className="bg-blue-50 p-6 rounded-xl">
+              <h4 className="font-bold text-gray-900 mb-3">📈 Tahmini Eşleşme Potansiyeli</h4>
+              
+              <div className="space-y-4">
+                <div>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="text-gray-700">Kategori eşleşmesi:</span>
+                    <span className="font-medium">Yüksek</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className="bg-green-500 h-2 rounded-full" style={{ width: '85%' }}></div>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="text-gray-700">Fiyat aralığı uyumu:</span>
+                    <span className="font-medium">
+                      {formData.min_price || formData.max_price ? 'Orta' : 'Yüksek'}
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-yellow-500 h-2 rounded-full" 
+                      style={{ width: formData.min_price || formData.max_price ? '60%' : '95%' }}
+                    ></div>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="text-gray-700">Detaylandırma seviyesi:</span>
+                    <span className="font-medium">
+                      {formData.description.length > 100 ? 'Yüksek' : 
+                       formData.description.length > 50 ? 'Orta' : 'Düşük'}
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-blue-500 h-2 rounded-full" 
+                      style={{ 
+                        width: formData.description.length > 100 ? '90%' : 
+                               formData.description.length > 50 ? '65%' : '30%' 
+                      }}
+                    ></div>
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-sm text-gray-600 mt-4">
+                📊 Detaylandırma seviyenizi artırarak eşleşme kalitesini %40'a kadar artırabilirsiniz.
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Form Footer */}
+      <div className="mt-8 pt-6 border-t flex justify-between">
+        <button
+          onClick={step === 1 ? onCancel : () => setStep(step - 1)}
+          className="px-6 py-3 text-gray-700 hover:text-gray-900 font-medium"
+        >
+          {step === 1 ? 'İptal' : 'Geri'}
+        </button>
+
+        <div className="flex space-x-4">
+          {step < 4 && (
+            <button
+              onClick={() => setStep(step + 1)}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg"
+            >
+              Devam Et
+            </button>
+          )}
+          
+          {step === 4 && (
+            <button
+              onClick={handleSubmit}
+              disabled={loading || !formData.title}
+              className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold py-3 px-8 rounded-lg disabled:opacity-50"
+            >
+              {loading ? (
+                <span className="flex items-center">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                  Oluşturuluyor...
+                </span>
+              ) : (
+                `Aramayı Oluştur (${formData.priority_level >= 4 ? '⏰ ACİL' : ''})`
+              )}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+
+
+// app/api/shop/match-check/route.ts - DÜZELTİLMİŞ
+import { NextRequest, NextResponse } from 'next/server'
+import { supabase } from '@/lib/supabase'
+
+interface MatchCriteria {
+  category?: string
+  subcategory?: string
+  minPrice?: number
+  maxPrice?: number
+  location?: string
+  radius?: number
+  brand?: string
+  model?: string
+  condition?: string
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json() // Değişiklik burada
+    const { shopId, searchId, trigger } = body // Body'den al
+
+    if (!shopId) {
+      return NextResponse.json(
+        { error: 'Shop ID is required' },
+        { status: 400 }
+      )
+    }
+
+    // 1. Aktif aramaları getir
+    const { data: activeSearches, error: searchesError } = await supabase
+      .from('shop_searches')
+      .select('*')
+      .eq('shop_id', shopId)
+      .eq('status', 'active')
+
+    if (searchesError) throw searchesError
+
+    let totalMatches = 0
+    let newMatches = 0
+
+    // 2. Her arama için eşleşme kontrolü yap
+    for (const search of activeSearches) {
+      const matches = await findMatchesForSearch(search)
+      totalMatches += matches.length
+
+      // 3. Yeni eşleşmeleri kaydet
+      for (const match of matches) {
+        const { error: insertError } = await supabase
+          .from('shop_search_matches')
+          .upsert({
+            search_id: search.id,
+            inventory_id: match.inventoryId,
+            spot_id: match.spotId,
+            match_score: match.score,
+            match_reasons: match.reasons,
+            status: 'pending'
+          }, {
+            onConflict: 'search_id, inventory_id, spot_id'
+          })
+
+        if (!insertError) {
+          newMatches++
+          
+          // 4. Yüksek skorlu eşleşmeler için bildirim gönder
+          if (match.score >= 80 && search.auto_notify !== false) {
+            await sendMatchNotification(search, match)
+          }
+        }
+      }
+    }
+
+    // 5. Mağaza analytics güncelle
+    await updateShopAnalytics(shopId, newMatches)
+
+    return NextResponse.json({
+      success: true,
+      message: `Match check completed for shop ${shopId}`,
+      stats: {
+        totalSearchesChecked: activeSearches.length,
+        totalMatchesFound: totalMatches,
+        newMatchesAdded: newMatches,
+        timestamp: new Date().toISOString()
+      }
+    })
+
+  } catch (error: any) {
+    console.error('Match check error:', error)
+    return NextResponse.json(
+      { 
+        error: 'Internal server error',
+        message: error.message 
+      },
+      { status: 500 }
+    )
+  }
+}
+
+async function findMatchesForSearch(search: any): Promise<any[]> {
+  const matches: any[] = []
+  const criteria = buildMatchCriteria(search)
+
+  // 1. Diğer mağazaların envanterinde ara
+  const { data: inventoryMatches } = await supabase
+    .from('shop_inventory')
+    .select('*, shop:shops(*)')
+    .eq('status', 'active')
+    .neq('shop_id', search.shop_id) // Kendi mağazasını hariç tut
+    .or(buildInventoryWhereClause(criteria))
+    .limit(20)
+
+  if (inventoryMatches) {
+    for (const item of inventoryMatches) {
+      const score = calculateMatchScore(search, item, 'inventory')
+      if (score >= 50) { // %50 eşleşme eşiği
+        matches.push({
+          inventoryId: item.id,
+          score,
+          reasons: getMatchReasons(search, item)
+        })
+      }
+    }
+  }
+
+  // 2. Spot'larda ara (kullanıcıların aradığı ürünler)
+  const { data: spotMatches } = await supabase
+    .from('spots')
+    .select('*')
+    .eq('status', 'active')
+    .or(buildSpotWhereClause(criteria))
+
+  if (spotMatches) {
+    for (const spot of spotMatches) {
+      const score = calculateMatchScore(search, spot, 'spot')
+      if (score >= 60) { // Spot'lar için daha yüksek eşik
+        matches.push({
+          spotId: spot.id,
+          score,
+          reasons: getMatchReasons(search, spot)
+        })
+      }
+    }
+  }
+
+  return matches.sort((a, b) => b.score - a.score) // Yüksek skordan düşüğe sırala
+}
+
+function buildMatchCriteria(search: any): MatchCriteria {
+  return {
+    category: search.category,
+    subcategory: search.subcategory,
+    minPrice: search.min_price,
+    maxPrice: search.max_price,
+    location: search.location,
+    radius: search.location_radius,
+    brand: search.brand,
+    model: search.model,
+    condition: search.condition
+  }
+}
+
+function buildInventoryWhereClause(criteria: MatchCriteria): string {
+  const conditions: string[] = []
+
+  if (criteria.category) {
+    conditions.push(`category.eq.${criteria.category}`)
+  }
+
+  if (criteria.brand) {
+    conditions.push(`brand.ilike.%${criteria.brand}%`)
+  }
+
+  if (criteria.model) {
+    conditions.push(`model.ilike.%${criteria.model}%`)
+  }
+
+  // Fiyat aralığı
+  if (criteria.minPrice || criteria.maxPrice) {
+    let priceCondition = ''
+    if (criteria.minPrice && criteria.maxPrice) {
+      priceCondition = `price.gte.${criteria.minPrice},price.lte.${criteria.maxPrice}`
+    } else if (criteria.minPrice) {
+      priceCondition = `price.gte.${criteria.minPrice}`
+    } else if (criteria.maxPrice) {
+      priceCondition = `price.lte.${criteria.maxPrice}`
+    }
+    conditions.push(priceCondition)
+  }
+
+  return conditions.join(',')
+}
+
+function buildSpotWhereClause(criteria: MatchCriteria): string {
+  const conditions: string[] = []
+
+  if (criteria.category) {
+    conditions.push(`category.eq.${criteria.category}`)
+  }
+
+  // Spot başlığında marka/model ara
+  if (criteria.brand || criteria.model) {
+    const searchTerms = []
+    if (criteria.brand) searchTerms.push(criteria.brand)
+    if (criteria.model) searchTerms.push(criteria.model)
+    
+    conditions.push(`title.ilike.%${searchTerms.join('%')}%`)
+  }
+
+  return conditions.join(',')
+}
+
+function calculateMatchScore(search: any, item: any, type: 'inventory' | 'spot'): number {
+  let score = 0
+  const reasons: string[] = []
+
+  // 1. Kategori eşleşmesi (%30)
+  if (search.category && item.category === search.category) {
+    score += 30
+    reasons.push('category_match')
+    
+    // Alt kategori eşleşmesi (+%10)
+    if (search.subcategory && item.subcategory === search.subcategory) {
+      score += 10
+      reasons.push('subcategory_match')
+    }
+  }
+
+  // 2. Marka/Model eşleşmesi (%40)
+  if (search.brand || search.model) {
+    const title = (item.title || '').toLowerCase()
+    const description = (item.description || '').toLowerCase()
+    const brand = (search.brand || '').toLowerCase()
+    const model = (search.model || '').toLowerCase()
+
+    if (brand && (title.includes(brand) || description.includes(brand))) {
+      score += 20
+      reasons.push('brand_match')
+    }
+
+    if (model && (title.includes(model) || description.includes(model))) {
+      score += 20
+      reasons.push('model_match')
+    }
+  }
+
+  // 3. Fiyat uyumu (%20)
+  if (type === 'inventory' && item.price) {
+    if (search.min_price && search.max_price) {
+      if (item.price >= search.min_price && item.price <= search.max_price) {
+        score += 20
+        reasons.push('price_perfect_match')
+      } else if (item.price <= search.max_price * 1.2) { // %20'ye kadar fazla olabilir
+        score += 10
+        reasons.push('price_close_match')
+      }
+    } else if (search.max_price && item.price <= search.max_price) {
+      score += 15
+      reasons.push('price_within_max')
+    }
+  }
+
+  // 4. Konum uyumu (%10)
+  if (search.location && item.location) {
+    if (search.location === item.location) {
+      score += 10
+      reasons.push('exact_location_match')
+    } else if (search.location.includes(item.location) || item.location.includes(search.location)) {
+      score += 5
+      reasons.push('partial_location_match')
+    }
+  }
+
+  // 5. Durum eşleşmesi (%5)
+  if (search.condition && item.condition === search.condition) {
+    score += 5
+    reasons.push('condition_match')
+  }
+
+  // 6. Görsel benzerliği bonusu (%15)
+  if (item.images && item.images.length > 0 && search.images && search.images.length > 0) {
+    // Burada görsel benzerlik algoritması eklenebilir
+    score += 5 // Basit bonus
+    reasons.push('has_images')
+  }
+
+  return Math.min(100, score) // Maksimum 100
+}
+
+function getMatchReasons(search: any, item: any): string[] {
+  const reasons: string[] = []
+  
+  if (search.category && item.category === search.category) {
+    reasons.push('Kategori eşleşmesi')
+  }
+  
+  if (search.brand && item.brand === search.brand) {
+    reasons.push('Marka eşleşmesi')
+  }
+  
+  if (item.price && search.max_price && item.price <= search.max_price) {
+    reasons.push('Bütçe aralığında')
+  }
+  
+  return reasons
+}
+
+async function sendMatchNotification(search: any, match: any) {
+  // Mağaza sahibine email/notification gönder
+  try {
+    await fetch('/api/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        to: await getShopOwnerEmail(search.shop_id),
+        template: 'shop-match-found',
+        data: {
+          search_title: search.title,
+          match_score: match.score,
+          match_reasons: match.reasons.join(', '),
+          match_link: `/shop/${search.shop_id}/matches/${match.inventoryId || match.spotId}`
+        }
+      })
+    })
+
+    // In-app notification
+    await supabase.from('shop_notifications').insert({
+      shop_id: search.shop_id,
+      type: 'new_match',
+      title: 'Yeni eşleşme bulundu!',
+      message: `"${search.title}" aramanız için %${match.score} eşleşme bulundu.`,
+      action_url: `/shop/${search.shop_id}/matches`,
+      metadata: {
+        search_id: search.id,
+        match_id: match.inventoryId || match.spotId,
+        score: match.score
+      }
+    })
+
+  } catch (error) {
+    console.error('Notification gönderilemedi:', error)
+  }
+}
+
+async function getShopOwnerEmail(shopId: string): Promise<string> {
+  const { data: shop } = await supabase
+    .from('shops')
+    .select('owner_id')
+    .eq('id', shopId)
+    .single()
+
+  if (!shop) throw new Error('Shop not found')
+
+  const { data: owner } = await supabase
+    .from('user_profiles')
+    .select('email')
+    .eq('id', shop.owner_id)
+    .single()
+
+  return owner?.email || 'admin@spotitforme.com'
+}
+
+async function updateShopAnalytics(shopId: string, newMatches: number) {
+  const today = new Date().toISOString().split('T')[0]
+
+  await supabase
+    .from('shop_analytics_daily')
+    .upsert({
+      shop_id: shopId,
+      date: today,
+      matches_found: newMatches,
+      updated_at: new Date().toISOString()
+    }, {
+      onConflict: 'shop_id,date'
+    })
+}
+
+async function sendErrorNotification(errorMessage: string, shopId?: string) {
+  try {
+    await fetch('/api/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        to: process.env.ADMIN_EMAIL,
+        template: 'system-error',
+        data: {
+          error: errorMessage,
+          shop_id: shopId,
+          timestamp: new Date().toISOString()
+        }
+      })
+    })
+  } catch (err) {
+    console.error('Error notification failed:', err)
+  }
+}
+
+
+// app/shop/[id]/page.tsx - GÜNCELLENMİŞ TAM KOD
+'use client'
+
+import { useState, useEffect } from 'react'
+import { useParams, useRouter } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
+import Header from '@/components/Header'
+import Footer from '@/components/Footer'
+import ShopHeader from '@/components/shop/ShopHeader'
+import ShopTabs from '@/components/shop/ShopTabs'
+import InventoryGrid from '@/components/shop/InventoryGrid'
+import ActiveSearches from '@/components/shop/ActiveSearches'
+import ShopSocialFeed from '@/components/shop/ShopSocialFeed'
+import ShopStatsPublic from '@/components/shop/ShopStatsPublic'
+
+export default function ShopPage() {
+  const params = useParams()
+  const router = useRouter()
+  const shopId = params.id as string
+  
+  const [shop, setShop] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState<'products' | 'searches' | 'social' | 'about'>('products')
+  const [followersCount, setFollowersCount] = useState(0)
+  const [isFollowing, setIsFollowing] = useState(false)
+
+  useEffect(() => {
+    fetchShopData()
+    checkIfFollowing()
+  }, [shopId])
+
+  const fetchShopData = async () => {
+    try {
+      // 1. Mağaza bilgilerini al
+      const { data: shopData, error: shopError } = await supabase
+        .from('shops')
+        .select('*, owner:user_profiles(*)')
+        .eq('id', shopId)
+        .single()
+
+      if (shopError) {
+        console.error('Shop load error:', shopError)
+        setLoading(false)
+        return
+      }
+
+      // 2. Takipçi sayısını al (ayrı query)
+      const { count: followersCount, error: countError } = await supabase
+        .from('shop_customer_relationships')
+        .select('*', { count: 'exact', head: true })
+        .eq('shop_id', shopId)
+        .eq('relationship_type', 'follower')
+
+      if (countError) {
+        console.error('Followers count error:', countError)
+        // Hata olsa bile devam et
+      }
+
+      setShop(shopData)
+      setFollowersCount(followersCount || 0) // count null olabilir
+      
+    } catch (error) {
+      console.error('Shop data fetch error:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const checkIfFollowing = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { data: follow, error } = await supabase
+        .from('shop_customer_relationships')
+        .select('id')
+        .eq('shop_id', shopId)
+        .eq('customer_id', user.id)
+        .eq('relationship_type', 'follower')
+        .single()
+
+      // Error handling: Eğer kayıt yoksa error gelir, bu normal
+      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+        console.error('Follow check error:', error)
+        return
+      }
+
+      setIsFollowing(!!follow)
+    } catch (error) {
+      console.error('Follow check exception:', error)
+    }
+  }
+
+  const handleFollowToggle = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        router.push('/login?redirect=' + window.location.pathname)
+        return
+      }
+
+      if (isFollowing) {
+        // Takibi bırak
+        const { error } = await supabase
+          .from('shop_customer_relationships')
+          .delete()
+          .eq('shop_id', shopId)
+          .eq('customer_id', user.id)
+          .eq('relationship_type', 'follower')
+
+        if (error) throw error
+
+        setFollowersCount(prev => Math.max(0, prev - 1))
+        setIsFollowing(false)
+      } else {
+        // Takip et
+        const { error } = await supabase
+          .from('shop_customer_relationships')
+          .insert({
+            shop_id: shopId,
+            customer_id: user.id,
+            relationship_type: 'follower'
+          })
+
+        if (error) throw error
+
+        setFollowersCount(prev => prev + 1)
+        setIsFollowing(true)
+
+        // Notification (opsiyonel)
+        try {
+          await supabase.from('shop_notifications').insert({
+            shop_id: shopId,
+            type: 'new_follower',
+            title: 'Yeni takipçiniz var!',
+            message: `Bir kullanıcı mağazanızı takip etmeye başladı.`,
+            action_url: `/shop/${shopId}/followers`
+          })
+        } catch (notifError) {
+          console.error('Notification error:', notifError)
+          // Notification hatası işlemi durdurmasın
+        }
+      }
+    } catch (error) {
+      console.error('Follow toggle error:', error)
+      alert('İşlem sırasında bir hata oluştu. Lütfen tekrar deneyin.')
+    }
+  }
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Header />
+        <div className="container-custom py-8">
+          <div className="animate-pulse">
+            <div className="h-48 bg-gray-200 rounded-xl mb-6"></div>
+            <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
+            <div className="h-4 bg-gray-200 rounded w-1/2 mb-8"></div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {[...Array(8)].map((_, i) => (
+                <div key={i} className="h-64 bg-gray-200 rounded-lg"></div>
+              ))}
+            </div>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    )
+  }
+
+  // Shop not found
+  if (!shop) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Header />
+        <div className="container-custom py-12 text-center">
+          <div className="text-4xl mb-4">🏪</div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-4">Mağaza bulunamadı</h1>
+          <p className="text-gray-600 mb-8">Bu mağaza mevcut değil veya kaldırılmış olabilir.</p>
+          <button
+            onClick={() => router.push('/')}
+            className="btn-primary"
+          >
+            Ana Sayfaya Dön
+          </button>
+        </div>
+        <Footer />
+      </div>
+    )
+  }
+
+  // Main render
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Header />
+      
+      <div className="container-custom py-8">
+        {/* Mağaza Header */}
+        <ShopHeader
+          shop={shop}
+          followersCount={followersCount}
+          isFollowing={isFollowing}
+          onFollowToggle={handleFollowToggle}
+          onContact={() => console.log('contact')}
+          onShare={() => console.log('share')}
+        />
+
+        {/* İstatistikler */}
+        <ShopStatsPublic shopId={shopId} />
+
+        {/* Tab Navigation */}
+        <ShopTabs
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          shopId={shopId}
+        />
+
+        {/* Tab Content */}
+        <div className="mt-8">
+          {activeTab === 'products' && (
+            <InventoryGrid 
+              shopId={shopId}
+              limit={12}
+              showFilters={true}
+            />
+          )}
+
+          {activeTab === 'searches' && (
+            <ActiveSearches 
+              shopId={shopId}
+              showCreateButton={false}
+            />
+          )}
+
+          {activeTab === 'social' && (
+            <ShopSocialFeed 
+              shopId={shopId}
+              limit={9}
+            />
+          )}
+
+          {activeTab === 'about' && (
+            <div className="bg-white rounded-xl shadow p-8">
+              <h3 className="text-2xl font-bold text-gray-900 mb-6">Mağaza Hakkında</h3>
+              
+              <div className="prose max-w-none">
+                {shop.description ? (
+                  <div className="text-gray-700 whitespace-pre-line">
+                    {shop.description}
+                  </div>
+                ) : (
+                  <p className="text-gray-500 italic">
+                    Mağaza henüz bir açıklama eklememiş.
+                  </p>
+                )}
+              </div>
+
+              {/* İletişim bilgileri */}
+              <div className="mt-8 grid md:grid-cols-2 gap-6">
+                <div>
+                  <h4 className="font-bold text-gray-900 mb-3">📞 İletişim</h4>
+                  <div className="space-y-2">
+                    {shop.phone && (
+                      <div className="flex items-center">
+                        <span className="mr-3">📱</span>
+                        <span>{shop.phone}</span>
+                      </div>
+                    )}
+                    {shop.email && (
+                      <div className="flex items-center">
+                        <span className="mr-3">📧</span>
+                        <span>{shop.email}</span>
+                      </div>
+                    )}
+                    {shop.website && (
+                      <div className="flex items-center">
+                        <span className="mr-3">🌐</span>
+                        <a 
+                          href={shop.website.startsWith('http') ? shop.website : `https://${shop.website}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-800"
+                        >
+                          {shop.website}
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="font-bold text-gray-900 mb-3">📍 Lokasyon</h4>
+                  <div className="space-y-2">
+                    {shop.address && (
+                      <div className="flex items-start">
+                        <span className="mr-3">🏠</span>
+                        <span>{shop.address}</span>
+                      </div>
+                    )}
+                    {shop.city && (
+                      <div className="flex items-center">
+                        <span className="mr-3">🏙️</span>
+                        <span>{shop.city}</span>
+                      </div>
+                    )}
+                    <div className="mt-4">
+                      <button className="text-blue-600 hover:text-blue-800 font-medium">
+                        Haritada Göster →
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Çalışma saatleri */}
+              <div className="mt-8">
+                <h4 className="font-bold text-gray-900 mb-3">🕒 Çalışma Saatleri</h4>
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <p className="text-gray-600">
+                    {shop.business_hours || 'Pazartesi - Cumartesi: 09:00 - 19:00'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Call to Action */}
+        <div className="mt-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl p-8 text-white text-center">
+          <h3 className="text-2xl font-bold mb-4">Bu mağazada aradığınız ürün mü var?</h3>
+          <p className="mb-6 opacity-90">
+            Direkt iletişime geçin veya mağazanın aradığı ürünler listesine göz atın
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <button
+              onClick={() => setActiveTab('searches')}
+              className="bg-white text-blue-600 hover:bg-gray-100 font-bold py-3 px-6 rounded-lg"
+            >
+              Mağazanın Aradıkları
+            </button>
+            <button
+              onClick={() => console.log('contact shop')}
+              className="bg-transparent border-2 border-white hover:bg-white hover:bg-opacity-20 font-bold py-3 px-6 rounded-lg"
+            >
+              İletişime Geç
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <Footer />
+    </div>
+  )
+}
+
+
+// components/shop/mobile/ShopMobileView.tsx
+'use client'
+
+import { useState } from 'react'
+import ShopMobileHeader from './ShopMobileHeader'
+import ShopMobileProducts from './ShopMobileProducts'
+import ShopMobileSearches from './ShopMobileSearches'
+import ShopMobileActions from './ShopMobileActions'
+
+export default function ShopMobileView({ shopId }: { shopId: string }) {
+  const [activeView, setActiveView] = useState<'products' | 'searches' | 'info'>('products')
+
+  return (
+    <div className="md:hidden">
+      {/* Fixed Header */}
+      <ShopMobileHeader 
+        shopId={shopId}
+        activeView={activeView}
+        onViewChange={setActiveView}
+      />
+
+      {/* Content */}
+      <div className="pt-16 pb-20"> {/* Header ve bottom nav için padding */}
+        {activeView === 'products' && <ShopMobileProducts shopId={shopId} />}
+        {activeView === 'searches' && <ShopMobileSearches shopId={shopId} />}
+        {activeView === 'info' && (
+          <div className="p-4">
+            {/* Shop info */}
+          </div>
+        )}
+      </div>
+
+      {/* Fixed Bottom Actions */}
+      <ShopMobileActions 
+        shopId={shopId}
+        onContact={() => console.log('contact')}
+        onFollow={() => console.log('follow')}
+        onShare={() => console.log('share')}
+      />
+    </div>
+  )
+}
+
+
+
+// lib/shop/optimizations.ts
+export const shopOptimizations = {
+  // Cache strategies
+  CACHE_KEYS: {
+    SHOP_PROFILE: (shopId: string) => `shop:${shopId}:profile`,
+    SHOP_INVENTORY: (shopId: string) => `shop:${shopId}:inventory`,
+    SHOP_SEARCHES: (shopId: string) => `shop:${shopId}:searches`,
+    SHOP_MATCHES: (shopId: string) => `shop:${shopId}:matches`
+  },
+
+  // Pagination
+  PAGINATION: {
+    INVENTORY_PER_PAGE: 12,
+    SEARCHES_PER_PAGE: 10,
+    MATCHES_PER_PAGE: 20
+  },
+
+  // Image optimization
+  IMAGE_SIZES: {
+    THUMBNAIL: 'w_300,h_300,c_fill',
+    PRODUCT: 'w_800,h_800,c_limit',
+    GALLERY: 'w_1200,h_1200,c_limit'
+  },
+
+  // Search/match optimization
+  MATCH_ALGORITHM: {
+    BATCH_SIZE: 100,
+    MIN_SCORE: 50,
+    REINDEX_HOURS: 24
+  }
+}
+
+
+
+// lib/shop/analytics.ts
+export const shopAnalyticsEvents = {
+  // Mağaza görüntüleme
+  SHOP_VIEWED: 'shop_viewed',
+  PRODUCT_VIEWED: 'product_viewed',
+  SEARCH_VIEWED: 'search_viewed',
+  
+  // Engagement
+  SHOP_FOLLOWED: 'shop_followed',
+  PRODUCT_INQUIRY: 'product_inquiry',
+  SEARCH_MATCH_CLICKED: 'search_match_clicked',
+  
+  // Conversion
+  CONTACT_CLICKED: 'contact_clicked',
+  DIRECT_MESSAGE_SENT: 'direct_message_sent',
+  
+  // Monetization
+  PREMIUM_UPGRADE: 'premium_upgrade',
+  FEATURED_PRODUCT: 'featured_product_purchased',
+  PROMOTION_PURCHASED: 'promotion_purchased'
+}
+
+// Premium özellikler
+export const shopPremiumFeatures = {
+  BASIC: {
+    price: 0,
+    features: [
+      '5 aktif arama',
+      '50 ürün listesi',
+      'Temel eşleşme sistemi',
+      'Email bildirimleri'
+    ]
+  },
+  PRO: {
+    price: 99,
+    features: [
+      '20 aktif arama',
+      '200 ürün listesi',
+      'Gelişmiş eşleşme algoritması',
+      'Öncelikli destek',
+      'Analytics dashboard',
+      'Özel mağaza teması'
+    ]
+  },
+  BUSINESS: {
+    price: 299,
+    features: [
+      '100 aktif arama',
+      '1000 ürün listesi',
+      'AI destekli eşleşme',
+      'API erişimi',
+      'Çoklu kullanıcı hesabı',
+      'Özel entegrasyonlar'
+    ]
+  }
+}
+
+
+
+// components/shop/ShopHeader.tsx
+'use client'
+
+interface ShopHeaderProps {
+  shop: any
+  followersCount: number
+  isFollowing: boolean
+  onFollowToggle: () => void
+  onContact: () => void
+  onShare: () => void
+}
+
+export default function ShopHeader({
+  shop,
+  followersCount,
+  isFollowing,
+  onFollowToggle,
+  onContact,
+  onShare
+}: ShopHeaderProps) {
+  return (
+    <div className="bg-white rounded-xl shadow-lg overflow-hidden mb-8">
+      {/* Cover Image */}
+      <div className="h-48 bg-gradient-to-r from-blue-500 to-purple-600 relative">
+        {shop.cover_image ? (
+          <img 
+            src={shop.cover_image} 
+            alt="Cover" 
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <span className="text-white text-4xl opacity-50">🏪</span>
+          </div>
+        )}
+        
+        {/* Verified Badge */}
+        {shop.is_verified && (
+          <div className="absolute top-4 right-4 bg-white text-green-600 px-3 py-1 rounded-full text-sm font-medium flex items-center">
+            <span className="mr-1">✅</span>
+            Doğrulanmış Mağaza
+          </div>
+        )}
+      </div>
+
+      {/* Shop Info */}
+      <div className="p-6">
+        <div className="flex items-start justify-between">
+          <div className="flex items-start space-x-6">
+            {/* Avatar */}
+            <div className="relative -mt-16">
+              <div className="w-32 h-32 rounded-2xl border-4 border-white bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white text-4xl font-bold shadow-lg">
+                {shop.shop_name?.[0] || 'M'}
+              </div>
+            </div>
+
+            {/* Details */}
+            <div className="pt-4">
+              <h1 className="text-3xl font-bold text-gray-900">{shop.shop_name}</h1>
+              <p className="text-gray-600 mt-2">{shop.description || 'Açıklama yok'}</p>
+              
+              <div className="flex items-center space-x-6 mt-4">
+                <div className="flex items-center space-x-2">
+                  <span className="text-gray-500">📍</span>
+                  <span>{shop.city || 'Konum belirtilmemiş'}</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-gray-500">👥</span>
+                  <span>{followersCount} takipçi</span>
+                </div>
+                {shop.owner && (
+                  <div className="flex items-center space-x-2">
+                    <span className="text-gray-500">👤</span>
+                    <span>{shop.owner.name || 'Mağaza sahibi'}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={onFollowToggle}
+              className={`px-6 py-3 rounded-lg font-medium ${
+                isFollowing
+                  ? 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+              }`}
+            >
+              {isFollowing ? '✓ Takip Ediliyor' : '👥 Takip Et'}
+            </button>
+            
+            <button
+              onClick={onContact}
+              className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium"
+            >
+              📞 İletişim
+            </button>
+            
+            <button
+              onClick={onShare}
+              className="p-3 bg-gray-100 hover:bg-gray-200 rounded-lg"
+              title="Paylaş"
+            >
+              📤
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+
+
+// components/shop/ShopTabs.tsx
+'use client'
+
+interface ShopTabsProps {
+  activeTab: 'products' | 'searches' | 'social' | 'about'
+  onTabChange: (tab: 'products' | 'searches' | 'social' | 'about') => void
+  shopId: string
+}
+
+export default function ShopTabs({ activeTab, onTabChange, shopId }: ShopTabsProps) {
+  const tabs = [
+    { id: 'products', label: '📦 Ürünler', countKey: 'products' },
+    { id: 'searches', label: '🔍 Aradıklarım', countKey: 'searches' },
+    { id: 'social', label: '📱 Paylaşımlar', countKey: 'social' },
+    { id: 'about', label: 'ℹ️ Hakkında', countKey: 'about' }
+  ]
+
+  return (
+    <div className="bg-white rounded-xl shadow p-2">
+      <div className="flex overflow-x-auto">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => onTabChange(tab.id as any)}
+            className={`flex-1 whitespace-nowrap px-6 py-3 text-center font-medium rounded-lg transition ${
+              activeTab === tab.id
+                ? 'bg-blue-600 text-white'
+                : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+
+
+// components/shop/InventoryGrid.tsx - DÜZELTİLMİŞ
+'use client'
+
+import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
+import ProductCard from './ProductCard' // Bu satırı düzelt
+
+interface InventoryGridProps {
+  shopId: string
+  limit?: number
+  showFilters?: boolean
+}
+
+export default function InventoryGrid({ 
+  shopId, 
+  limit = 12, 
+  showFilters = false 
+}: InventoryGridProps) {
+  const [products, setProducts] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [filters, setFilters] = useState({
+    category: '',
+    minPrice: '',
+    maxPrice: '',
+    condition: '',
+    sortBy: 'newest'
+  })
+
+  useEffect(() => {
+    fetchProducts()
+  }, [shopId, filters])
+
+  const fetchProducts = async () => {
+    setLoading(true)
+    try {
+      let query = supabase
+        .from('shop_inventory')
+        .select('*')
+        .eq('shop_id', shopId)
+        .eq('status', 'active')
+
+      // Filtreler
+      if (filters.category) {
+        query = query.eq('category', filters.category)
+      }
+      if (filters.condition) {
+        query = query.eq('condition', filters.condition)
+      }
+      if (filters.minPrice) {
+        query = query.gte('price', parseFloat(filters.minPrice))
+      }
+      if (filters.maxPrice) {
+        query = query.lte('price', parseFloat(filters.maxPrice))
+      }
+
+      // Sıralama
+      switch (filters.sortBy) {
+        case 'price_low':
+          query = query.order('price', { ascending: true })
+          break
+        case 'price_high':
+          query = query.order('price', { ascending: false })
+          break
+        case 'popular':
+          query = query.order('view_count', { ascending: false })
+          break
+        default:
+          query = query.order('created_at', { ascending: false })
+      }
+
+      query = query.limit(limit)
+
+      const { data, error } = await query
+
+      if (error) throw error
+      setProducts(data || [])
+    } catch (error) {
+      console.error('Products yüklenemedi:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Geri kalan kod aynı...
+  return (
+    <div>
+      {/* Filtreler */}
+      {showFilters && (
+        <div className="mb-6 bg-white rounded-xl shadow p-4">
+          {/* Filtre UI */}
+        </div>
+      )}
+
+      {/* Grid */}
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {[...Array(limit)].map((_, i) => (
+            <div key={i} className="animate-pulse bg-gray-200 rounded-xl h-64"></div>
+          ))}
+        </div>
+      ) : products.length === 0 ? (
+        <div className="text-center py-12">
+          <div className="text-4xl mb-4">📭</div>
+          <h3 className="text-xl font-bold text-gray-900 mb-2">Henüz ürün yok</h3>
+          <p className="text-gray-600">Bu mağaza henüz ürün eklememiş</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {products.map((product) => (
+            <ProductCard 
+              key={product.id} 
+              product={product} 
+              shopId={shopId}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+
+// components/shop/ProductCard.tsx
+'use client'
+
+import { useState } from 'react'
+import Link from 'next/link'
+
+interface ProductCardProps {
+  product: {
+    id: string
+    title: string
+    description?: string
+    price: number
+    currency: string
+    images: string[]
+    condition: string
+    location?: string
+    view_count: number
+    created_at: string
+  }
+  shopId: string
+}
+
+export default function ProductCard({ product, shopId }: ProductCardProps) {
+  const [imageLoaded, setImageLoaded] = useState(false)
+
+  const getConditionText = (condition: string) => {
+    const conditions: Record<string, string> = {
+      'new': 'Yeni',
+      'like_new': 'Yeni Gibi',
+      'used_good': 'İyi Durumda',
+      'used_fair': 'Orta Durumda',
+      'for_parts': 'Parça İçin'
+    }
+    return conditions[condition] || condition
+  }
+
+  const getConditionColor = (condition: string) => {
+    const colors: Record<string, string> = {
+      'new': 'bg-green-100 text-green-800',
+      'like_new': 'bg-blue-100 text-blue-800',
+      'used_good': 'bg-yellow-100 text-yellow-800',
+      'used_fair': 'bg-orange-100 text-orange-800',
+      'for_parts': 'bg-red-100 text-red-800'
+    }
+    return colors[condition] || 'bg-gray-100 text-gray-800'
+  }
+
+  return (
+    <Link href={`/shop/${shopId}/products/${product.id}`}>
+      <div className="bg-white rounded-xl shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden group cursor-pointer">
+        {/* Image */}
+        <div className="relative h-48 bg-gray-100 overflow-hidden">
+          {product.images && product.images.length > 0 ? (
+            <>
+              <img
+                src={product.images[0]}
+                alt={product.title}
+                className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 ${
+                  imageLoaded ? 'opacity-100' : 'opacity-0'
+                }`}
+                onLoad={() => setImageLoaded(true)}
+              />
+              {!imageLoaded && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
+              <div className="text-center">
+                <span className="text-3xl text-gray-400">📦</span>
+                <p className="text-sm text-gray-500 mt-2">Resim Yok</p>
+              </div>
+            </div>
+          )}
+          
+          {/* Condition badge */}
+          <div className="absolute top-3 left-3">
+            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getConditionColor(product.condition)}`}>
+              {getConditionText(product.condition)}
+            </span>
+          </div>
+          
+          {/* View count */}
+          {product.view_count > 0 && (
+            <div className="absolute top-3 right-3 bg-black bg-opacity-60 text-white px-2 py-1 rounded-full text-xs">
+              👁️ {product.view_count}
+            </div>
+          )}
+        </div>
+
+        {/* Content */}
+        <div className="p-4">
+          <h3 className="font-bold text-gray-900 mb-2 line-clamp-1 group-hover:text-blue-600">
+            {product.title}
+          </h3>
+          
+          {product.description && (
+            <p className="text-gray-600 text-sm mb-3 line-clamp-2">
+              {product.description}
+            </p>
+          )}
+
+          <div className="flex items-center justify-between">
+            <div className="font-bold text-lg text-gray-900">
+              {product.price.toLocaleString('tr-TR')} {product.currency}
+            </div>
+            
+            {product.location && (
+              <div className="text-sm text-gray-500 flex items-center">
+                <span className="mr-1">📍</span>
+                {product.location.split(',')[0]}
+              </div>
+            )}
+          </div>
+
+          {/* Timestamp */}
+          <div className="mt-3 pt-3 border-t border-gray-100">
+            <p className="text-xs text-gray-500">
+              {new Date(product.created_at).toLocaleDateString('tr-TR')}
+            </p>
+          </div>
+        </div>
+      </div>
+    </Link>
+  )
+}
+
+
+
+// components/shop/ActiveSearches.tsx
+'use client'
+
+import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
+import Link from 'next/link'
+
+interface ActiveSearchesProps {
+  shopId: string
+  showCreateButton?: boolean
+  limit?: number
+}
+
+export default function ActiveSearches({ 
+  shopId, 
+  showCreateButton = true,
+  limit = 6 
+}: ActiveSearchesProps) {
+  const [searches, setSearches] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchActiveSearches()
+  }, [shopId])
+
+  const fetchActiveSearches = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('shop_searches')
+        .select('*')
+        .eq('shop_id', shopId)
+        .eq('status', 'active')
+        .order('priority_level', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(limit)
+
+      if (error) throw error
+      setSearches(data || [])
+    } catch (error) {
+      console.error('Aramalar yüklenemedi:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const getPriorityColor = (level: number) => {
+    switch(level) {
+      case 1: return 'bg-gray-100 text-gray-800'
+      case 2: return 'bg-blue-100 text-blue-800'
+      case 3: return 'bg-green-100 text-green-800'
+      case 4: return 'bg-orange-100 text-orange-800'
+      case 5: return 'bg-red-100 text-red-800'
+      default: return 'bg-gray-100 text-gray-800'
+    }
+  }
+
+  const getPriorityText = (level: number) => {
+    switch(level) {
+      case 1: return 'Çok Düşük'
+      case 2: return 'Düşük'
+      case 3: return 'Normal'
+      case 4: return 'Yüksek'
+      case 5: return 'Çok Yüksek'
+      default: return 'Belirtilmemiş'
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="bg-white rounded-xl shadow p-6">
+        <div className="animate-pulse space-y-4">
+          <div className="h-6 bg-gray-200 rounded w-1/4"></div>
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="h-20 bg-gray-200 rounded-lg"></div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="bg-white rounded-xl shadow-lg">
+      <div className="p-6 border-b">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-bold text-gray-900">🔍 Aktif Aramalar</h3>
+            <p className="text-sm text-gray-600">{searches.length} aktif arama</p>
+          </div>
+          {showCreateButton && (
+            <Link
+              href={`/shop/${shopId}/searches/new`}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg text-sm"
+            >
+              + Yeni Arama
+            </Link>
+          )}
+        </div>
+      </div>
+
+      {searches.length === 0 ? (
+        <div className="p-8 text-center">
+          <div className="text-4xl mb-4">🔍</div>
+          <h4 className="font-bold text-gray-900 mb-2">Henüz aktif aramanız yok</h4>
+          <p className="text-gray-600 mb-6">Aradığınız ürünleri listeleyin, otomatik eşleşmeleri bulalım</p>
+          {showCreateButton && (
+            <Link
+              href={`/shop/${shopId}/searches/new`}
+              className="btn-primary inline-block"
+            >
+              İlk Aramayı Oluşturun
+            </Link>
+          )}
+        </div>
+      ) : (
+        <div className="divide-y divide-gray-100">
+          {searches.map((search) => (
+            <div key={search.id} className="p-6 hover:bg-gray-50">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center space-x-3 mb-2">
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${getPriorityColor(search.priority_level)}`}>
+                      {getPriorityText(search.priority_level)}
+                    </span>
+                    <span className="text-sm text-gray-500">
+                      {search.match_count || 0} eşleşme
+                    </span>
+                  </div>
+                  
+                  <h4 className="font-bold text-gray-900 mb-1">{search.title}</h4>
+                  
+                  {search.description && (
+                    <p className="text-gray-600 text-sm line-clamp-2 mb-3">
+                      {search.description}
+                    </p>
+                  )}
+
+                  <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500">
+                    {search.category && (
+                      <span className="bg-gray-100 px-2 py-1 rounded">
+                        {search.category}
+                      </span>
+                    )}
+                    {search.brand && (
+                      <span className="flex items-center">
+                        <span className="mr-1">🏷️</span>
+                        {search.brand}
+                      </span>
+                    )}
+                    {(search.min_price || search.max_price) && (
+                      <span className="flex items-center">
+                        <span className="mr-1">💰</span>
+                        {search.min_price || 0} - {search.max_price || '∞'} TL
+                      </span>
+                    )}
+                    {search.location && (
+                      <span className="flex items-center">
+                        <span className="mr-1">📍</span>
+                        {search.location}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <Link
+                  href={`/shop/${shopId}/searches/${search.id}`}
+                  className="ml-4 text-blue-600 hover:text-blue-800 text-sm font-medium whitespace-nowrap"
+                >
+                  Detay →
+                </Link>
+              </div>
+
+              {/* Progress bar for days left */}
+              {search.expire_date && (
+                <div className="mt-4">
+                  <div className="flex justify-between text-xs mb-1">
+                    <span className="text-gray-600">
+                      {Math.ceil((new Date(search.expire_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24))} gün kaldı
+                    </span>
+                    <span className="font-medium">Sona eriyor: {new Date(search.expire_date).toLocaleDateString('tr-TR')}</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="h-2 rounded-full bg-gradient-to-r from-blue-500 to-purple-600"
+                      style={{ 
+                        width: `${Math.min(100, 
+                          (1 - (new Date(search.expire_date).getTime() - Date.now()) / (30 * 24 * 60 * 60 * 1000)) * 100
+                        )}%` 
+                      }}
+                    ></div>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {searches.length > 0 && showCreateButton && (
+        <div className="p-6 border-t text-center">
+          <Link
+            href={`/shop/${shopId}/searches`}
+            className="text-blue-600 hover:text-blue-800 font-medium"
+          >
+            Tüm Aramaları Gör →
+          </Link>
+        </div>
+      )}
+    </div>
+  )
+}
+
+
+
+
+
+// components/shop/ShopSocialFeed.tsx
+'use client'
+
+import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
+import Link from 'next/link'
+
+interface ShopSocialFeedProps {
+  shopId: string
+  limit?: number
+  compact?: boolean
+}
+
+export default function ShopSocialFeed({ 
+  shopId, 
+  limit = 9,
+  compact = false 
+}: ShopSocialFeedProps) {
+  const [posts, setPosts] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchSocialPosts()
+  }, [shopId])
+
+  const fetchSocialPosts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('shop_social_posts')
+        .select('*')
+        .eq('shop_id', shopId)
+        .eq('status', 'published')
+        .order('publish_at', { ascending: false })
+        .limit(limit)
+
+      if (error) throw error
+      setPosts(data || [])
+    } catch (error) {
+      console.error('Sosyal paylaşımlar yüklenemedi:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const getPostIcon = (type: string) => {
+    switch(type) {
+      case 'product_showcase': return '📦'
+      case 'new_arrival': return '🆕'
+      case 'sale': return '🏷️'
+      case 'behind_scenes': return '🎬'
+      case 'customer_review': return '⭐'
+      case 'looking_for': return '🔍'
+      default: return '📢'
+    }
+  }
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24))
+    
+    if (diffDays === 0) return 'Bugün'
+    if (diffDays === 1) return 'Dün'
+    if (diffDays < 7) return `${diffDays} gün önce`
+    
+    return date.toLocaleDateString('tr-TR', { 
+      day: 'numeric', 
+      month: 'short' 
+    })
+  }
+
+  if (loading) {
+    return (
+      <div className="bg-white rounded-xl shadow p-6">
+        <div className="animate-pulse">
+          <div className="h-6 bg-gray-200 rounded w-1/4 mb-4"></div>
+          <div className="grid grid-cols-3 gap-3">
+            {[...Array(limit)].map((_, i) => (
+              <div key={i} className="aspect-square bg-gray-200 rounded-lg"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (compact) {
+    return (
+      <div className="bg-white rounded-xl shadow p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-bold text-gray-900">📱 Son Paylaşımlar</h3>
+          <Link
+            href={`/shop/${shopId}/social`}
+            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+          >
+            Tümü →
+          </Link>
+        </div>
+
+        {posts.length === 0 ? (
+          <div className="text-center py-4">
+            <p className="text-gray-600">Henüz paylaşım yapılmamış</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-3 gap-3">
+            {posts.slice(0, 6).map((post) => (
+              <Link
+                key={post.id}
+                href={`/shop/${shopId}/social/${post.id}`}
+                className="group relative aspect-square rounded-lg overflow-hidden bg-gray-100"
+              >
+                {post.images && post.images.length > 0 ? (
+                  <img
+                    src={post.images[0]}
+                    alt={post.title || 'Post image'}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-3xl">
+                    {getPostIcon(post.type)}
+                  </div>
+                )}
+                
+                {/* Overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-2">
+                  <span className="text-white text-xs truncate">
+                    {post.title || 'Paylaşım'}
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div className="bg-white rounded-xl shadow-lg">
+      <div className="p-6 border-b">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-bold text-gray-900">📱 Sosyal Paylaşımlar</h3>
+            <p className="text-sm text-gray-600">Mağazanın son aktiviteleri</p>
+          </div>
+          <Link
+            href={`/shop/${shopId}/social/new`}
+            className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-medium py-2 px-4 rounded-lg text-sm"
+          >
+            + Paylaşım Yap
+          </Link>
+        </div>
+      </div>
+
+      {posts.length === 0 ? (
+        <div className="p-8 text-center">
+          <div className="text-4xl mb-4">📱</div>
+          <h4 className="font-bold text-gray-900 mb-2">Henüz paylaşım yok</h4>
+          <p className="text-gray-600 mb-6">Mağazanızın hikayesini paylaşın, takipçilerinizle bağlantı kurun</p>
+          <Link
+            href={`/shop/${shopId}/social/new`}
+            className="btn-primary inline-block"
+          >
+            İlk Paylaşımı Yapın
+          </Link>
+        </div>
+      ) : (
+        <div className="divide-y divide-gray-100">
+          {posts.map((post) => (
+            <div key={post.id} className="p-6 hover:bg-gray-50">
+              <div className="flex items-start space-x-4">
+                {/* Post icon */}
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center text-xl">
+                  {getPostIcon(post.type)}
+                </div>
+
+                {/* Content */}
+                <div className="flex-1">
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <h4 className="font-bold text-gray-900">{post.title}</h4>
+                      <div className="flex items-center space-x-3 text-sm text-gray-500">
+                        <span>{formatDate(post.publish_at || post.created_at)}</span>
+                        {post.like_count > 0 && (
+                          <span className="flex items-center">
+                            ❤️ {post.like_count}
+                          </span>
+                        )}
+                        {post.comment_count > 0 && (
+                          <span className="flex items-center">
+                            💬 {post.comment_count}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <Link
+                      href={`/shop/${shopId}/social/${post.id}`}
+                      className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                    >
+                      Görüntüle →
+                    </Link>
+                  </div>
+
+                  {post.content && (
+                    <p className="text-gray-700 mb-4 line-clamp-3">
+                      {post.content}
+                    </p>
+                  )}
+
+                  {/* Images */}
+                  {post.images && post.images.length > 0 && (
+                    <div className="grid grid-cols-3 gap-3 mb-4">
+                      {post.images.slice(0, 3).map((image: string, index: number) => (
+                        <div
+                          key={index}
+                          className="aspect-square rounded-lg overflow-hidden bg-gray-100"
+                        >
+                          <img
+                            src={image}
+                            alt={`Post image ${index + 1}`}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      ))}
+                      {post.images.length > 3 && (
+                        <div className="aspect-square rounded-lg bg-gray-800 text-white flex items-center justify-center text-lg font-bold">
+                          +{post.images.length - 3}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Hashtags */}
+                  {post.hashtags && post.hashtags.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {post.hashtags.map((tag: string, index: number) => (
+                        <span
+                          key={index}
+                          className="text-blue-600 hover:text-blue-800 text-sm"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {posts.length > 0 && (
+        <div className="p-6 border-t text-center">
+          <Link
+            href={`/shop/${shopId}/social`}
+            className="text-blue-600 hover:text-blue-800 font-medium"
+          >
+            Tüm Paylaşımları Gör →
+          </Link>
+        </div>
+      )}
+    </div>
+  )
+}
+
+
+
+
+
+// components/shop/ShopStatsPublic.tsx
+'use client'
+
+import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
+
+interface ShopStatsPublicProps {
+  shopId: string
+}
+
+export default function ShopStatsPublic({ shopId }: ShopStatsPublicProps) {
+  const [stats, setStats] = useState({
+    productCount: 0,
+    searchCount: 0,
+    followerCount: 0,
+    matchCount: 0,
+    rating: 0,
+    responseTime: 0
+  })
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchStats()
+  }, [shopId])
+
+  const fetchStats = async () => {
+    try {
+      const [
+        { count: productCount },
+        { count: searchCount },
+        { count: followerCount },
+        { count: matchCount },
+        { data: reviewsData }
+      ] = await Promise.all([
+        supabase
+          .from('shop_inventory')
+          .select('count', { count: 'exact', head: true })
+          .eq('shop_id', shopId)
+          .eq('status', 'active'),
+        supabase
+          .from('shop_searches')
+          .select('count', { count: 'exact', head: true })
+          .eq('shop_id', shopId)
+          .eq('status', 'active'),
+        supabase
+          .from('shop_customer_relationships')
+          .select('count', { count: 'exact', head: true })
+          .eq('shop_id', shopId)
+          .eq('relationship_type', 'follower'),
+        supabase
+          .from('shop_search_matches')
+          .select('count', { count: 'exact', head: true })
+          .eq('search_id', shopId)
+          .eq('status', 'pending'),
+        supabase
+          .from('shop_reviews')
+          .select('rating, response_time')
+          .eq('shop_id', shopId)
+          .limit(50)
+      ])
+
+      // Calculate average rating and response time
+      const reviews = reviewsData || []
+      const avgRating = reviews.length > 0 
+        ? reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / reviews.length 
+        : 0
+      
+      const avgResponseTime = reviews.length > 0
+        ? reviews.reduce((sum, r) => sum + (r.response_time || 0), 0) / reviews.length
+        : 0
+
+      setStats({
+        productCount: productCount || 0,
+        searchCount: searchCount || 0,
+        followerCount: followerCount || 0,
+        matchCount: matchCount || 0,
+        rating: avgRating,
+        responseTime: avgResponseTime
+      })
+    } catch (error) {
+      console.error('Mağaza istatistikleri yüklenemedi:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const formatResponseTime = (minutes: number) => {
+    if (minutes < 60) return `${Math.round(minutes)} dk`
+    if (minutes < 1440) return `${Math.round(minutes / 60)} saat`
+    return `${Math.round(minutes / 1440)} gün`
+  }
+
+  if (loading) {
+    return (
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="animate-pulse bg-gray-200 rounded-xl h-24"></div>
+        ))}
+      </div>
+    )
+  }
+
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-8">
+      <div className="bg-white rounded-xl shadow p-4 text-center hover:shadow-md transition-shadow">
+        <div className="text-2xl font-bold text-blue-600 mb-1">
+          {stats.productCount}
+        </div>
+        <div className="text-sm text-gray-600">Ürün</div>
+        <div className="text-xs text-gray-400 mt-1">Stokta</div>
+      </div>
+
+      <div className="bg-white rounded-xl shadow p-4 text-center hover:shadow-md transition-shadow">
+        <div className="text-2xl font-bold text-green-600 mb-1">
+          {stats.searchCount}
+        </div>
+        <div className="text-sm text-gray-600">Arama</div>
+        <div className="text-xs text-gray-400 mt-1">Aktif</div>
+      </div>
+
+      <div className="bg-white rounded-xl shadow p-4 text-center hover:shadow-md transition-shadow">
+        <div className="text-2xl font-bold text-purple-600 mb-1">
+          {stats.followerCount}
+        </div>
+        <div className="text-sm text-gray-600">Takipçi</div>
+        <div className="text-xs text-gray-400 mt-1">Toplam</div>
+      </div>
+
+      <div className="bg-white rounded-xl shadow p-4 text-center hover:shadow-md transition-shadow">
+        <div className="text-2xl font-bold text-orange-600 mb-1">
+          {stats.matchCount}
+        </div>
+        <div className="text-sm text-gray-600">Eşleşme</div>
+        <div className="text-xs text-gray-400 mt-1">Bekleyen</div>
+      </div>
+
+      <div className="bg-white rounded-xl shadow p-4 text-center hover:shadow-md transition-shadow">
+        <div className="text-2xl font-bold text-yellow-600 mb-1">
+          {stats.rating.toFixed(1)}
+        </div>
+        <div className="text-sm text-gray-600">Puan</div>
+        <div className="text-xs text-gray-400 mt-1">Ortalama</div>
+      </div>
+
+      <div className="bg-white rounded-xl shadow p-4 text-center hover:shadow-md transition-shadow">
+        <div className="text-2xl font-bold text-teal-600 mb-1">
+          {formatResponseTime(stats.responseTime)}
+        </div>
+        <div className="text-sm text-gray-600">Yanıt</div>
+        <div className="text-xs text-gray-400 mt-1">Ortalama</div>
+      </div>
+    </div>
+  )
+}
+
+
+
+
+// components/shop/QuickActions.tsx
+'use client'
+
+import { useRouter } from 'next/navigation'
+
+interface QuickActionsProps {
+  shopId: string
+  onActionComplete?: () => void
+}
+
+export default function QuickActions({ shopId, onActionComplete }: QuickActionsProps) {
+  const router = useRouter()
+
+  const quickActions = [
+    {
+      title: 'Ürün Ekle',
+      description: 'Yeni ürün listele',
+      icon: '📦',
+      color: 'bg-blue-100 text-blue-600',
+      action: () => router.push(`/shop/${shopId}/inventory/new`)
+    },
+    {
+      title: 'Arama Oluştur',
+      description: 'Aradığınızı bulun',
+      icon: '🔍',
+      color: 'bg-green-100 text-green-600',
+      action: () => router.push(`/shop/${shopId}/searches/new`)
+    },
+    {
+      title: 'Paylaşım Yap',
+      description: 'Toplulukla paylaş',
+      icon: '📢',
+      color: 'bg-purple-100 text-purple-600',
+      action: () => router.push(`/shop/${shopId}/social/new`)
+    },
+    {
+      title: 'Rapor Al',
+      description: 'Performans analizi',
+      icon: '📈',
+      color: 'bg-orange-100 text-orange-600',
+      action: () => router.push(`/shop/${shopId}/analytics`)
+    }
+  ]
+
+  return (
+    <div className="bg-white rounded-xl shadow-lg p-6">
+      <h3 className="text-lg font-bold text-gray-900 mb-6">🚀 Hızlı İşlemler</h3>
+      
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {quickActions.map((action, index) => (
+          <button
+            key={index}
+            onClick={() => {
+              action.action()
+              if (onActionComplete) onActionComplete()
+            }}
+            className={`${action.color} rounded-xl p-6 text-center hover:opacity-90 transition-opacity`}
+          >
+            <div className="text-3xl mb-3">{action.icon}</div>
+            <div className="font-bold text-gray-900 mb-1">{action.title}</div>
+            <div className="text-sm text-gray-700">{action.description}</div>
+          </button>
+        ))}
+      </div>
+
+      {/* Premium özellikler banner */}
+      <div className="mt-8 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-xl p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h4 className="font-bold text-gray-900 mb-2">🚀 Premium'a Yükseltin</h4>
+            <p className="text-gray-600 text-sm">
+              Daha fazla ürün, gelişmiş eşleşme sistemi ve premium özellikler için yükseltin
+            </p>
+          </div>
+          <button
+            onClick={() => router.push(`/shop/${shopId}/upgrade`)}
+            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium py-2 px-6 rounded-lg"
+          >
+            Yükselt
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+
+// components/shop/InventoryOverview.tsx
+'use client'
+
+import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
+import { useRouter } from 'next/navigation'
+
+interface InventoryOverviewProps {
+  shopId: string
+}
+
+export default function InventoryOverview({ shopId }: InventoryOverviewProps) {
+  const router = useRouter()
+  const [inventory, setInventory] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [stats, setStats] = useState({
+    active: 0,
+    draft: 0,
+    outOfStock: 0,
+    total: 0
+  })
+
+  useEffect(() => {
+    fetchInventory()
+  }, [shopId])
+
+  const fetchInventory = async () => {
+    try {
+      const { data } = await supabase
+        .from('shop_inventory')
+        .select('*')
+        .eq('shop_id', shopId)
+        .order('created_at', { ascending: false })
+        .limit(5)
+
+      const { count: activeCount } = await supabase
+        .from('shop_inventory')
+        .select('id', { count: 'exact', head: true })
+        .eq('shop_id', shopId)
+        .eq('status', 'active')
+
+      const { count: draftCount } = await supabase
+        .from('shop_inventory')
+        .select('id', { count: 'exact', head: true })
+        .eq('shop_id', shopId)
+        .eq('status', 'draft')
+
+      const { count: outOfStockCount } = await supabase
+        .from('shop_inventory')
+        .select('id', { count: 'exact', head: true })
+        .eq('shop_id', shopId)
+        .eq('status', 'out_of_stock')
+
+      const { count: totalCount } = await supabase
+        .from('shop_inventory')
+        .select('id', { count: 'exact', head: true })
+        .eq('shop_id', shopId)
+
+      setInventory(data || [])
+      setStats({
+        active: activeCount || 0,
+        draft: draftCount || 0,
+        outOfStock: outOfStockCount || 0,
+        total: totalCount || 0
+      })
+    } catch (error) {
+      console.error('Inventory yüklenemedi:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const getStatusColor = (status: string) => {
+    switch(status) {
+      case 'active': return 'bg-green-100 text-green-800'
+      case 'draft': return 'bg-gray-100 text-gray-800'
+      case 'out_of_stock': return 'bg-red-100 text-red-800'
+      default: return 'bg-gray-100 text-gray-800'
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="bg-white rounded-xl shadow p-6">
+        <div className="animate-pulse">
+          <div className="h-6 bg-gray-200 rounded w-1/4 mb-4"></div>
+          <div className="space-y-3">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="h-16 bg-gray-200 rounded"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="bg-white rounded-xl shadow p-6">
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="font-bold text-gray-900">📦 Envanter Özeti</h3>
+        <button
+          onClick={() => router.push(`/shop/${shopId}/inventory`)}
+          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+        >
+          Tümünü Gör →
+        </button>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="text-center p-3 bg-blue-50 rounded-lg">
+          <div className="text-xl font-bold text-blue-600">{stats.active}</div>
+          <div className="text-sm text-gray-600">Aktif</div>
+        </div>
+        <div className="text-center p-3 bg-gray-50 rounded-lg">
+          <div className="text-xl font-bold text-gray-600">{stats.draft}</div>
+          <div className="text-sm text-gray-600">Taslak</div>
+        </div>
+        <div className="text-center p-3 bg-red-50 rounded-lg">
+          <div className="text-xl font-bold text-red-600">{stats.outOfStock}</div>
+          <div className="text-sm text-gray-600">Stok Yok</div>
+        </div>
+        <div className="text-center p-3 bg-green-50 rounded-lg">
+          <div className="text-xl font-bold text-green-600">{stats.total}</div>
+          <div className="text-sm text-gray-600">Toplam</div>
+        </div>
+      </div>
+
+      {/* Recent Items */}
+      <div className="space-y-3">
+        {inventory.length === 0 ? (
+          <div className="text-center py-8">
+            <div className="text-4xl mb-4">📭</div>
+            <h4 className="font-bold text-gray-900 mb-2">Henüz ürün eklenmemiş</h4>
+            <p className="text-gray-600 mb-4">İlk ürününüzü ekleyerek başlayın</p>
+            <button
+              onClick={() => router.push(`/shop/${shopId}/inventory/new`)}
+              className="btn-primary"
+            >
+              İlk Ürünü Ekle
+            </button>
+          </div>
+        ) : (
+          <>
+            {inventory.map((item) => (
+              <div 
+                key={item.id}
+                className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg cursor-pointer"
+                onClick={() => router.push(`/shop/${shopId}/inventory/${item.id}`)}
+              >
+                <div className="flex items-center space-x-3">
+                  {item.images && item.images.length > 0 ? (
+                    <div className="w-12 h-12 bg-gray-100 rounded-lg overflow-hidden">
+                      <img
+                        src={item.images[0]}
+                        alt={item.title}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                      <span className="text-gray-400">📦</span>
+                    </div>
+                  )}
+                  
+                  <div>
+                    <h4 className="font-medium text-gray-900 line-clamp-1">
+                      {item.title}
+                    </h4>
+                    <p className="text-sm text-gray-600">
+                      {item.price.toLocaleString('tr-TR')} {item.currency}
+                    </p>
+                  </div>
+                </div>
+                
+                <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusColor(item.status)}`}>
+                  {item.status === 'active' ? 'Aktif' : 
+                   item.status === 'draft' ? 'Taslak' : 
+                   item.status === 'out_of_stock' ? 'Stok Yok' : item.status}
+                </span>
+              </div>
+            ))}
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+
+
+// components/shop/SearchOverview.tsx
+'use client'
+
+import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
+import { useRouter } from 'next/navigation'
+
+interface SearchOverviewProps {
+  shopId: string
+}
+
+export default function SearchOverview({ shopId }: SearchOverviewProps) {
+  const router = useRouter()
+  const [searches, setSearches] = useState<any[]>([])
+  const [stats, setStats] = useState({
+    active: 0,
+    totalMatches: 0,
+    highPriority: 0,
+    recentMatches: 0
+  })
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchSearchesData()
+  }, [shopId])
+
+  const fetchSearchesData = async () => {
+    try {
+      // Aktif aramaları getir
+      const { data: searchesData, error } = await supabase
+        .from('shop_searches')
+        .select('*, matches:shop_search_matches(count)')
+        .eq('shop_id', shopId)
+        .eq('status', 'active')
+        .order('priority_level', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(5)
+
+      if (error) throw error
+
+      // İstatistikleri hesapla
+      const activeSearches = searchesData?.length || 0
+      const highPriority = searchesData?.filter(s => s.priority_level >= 4).length || 0
+      
+      // Toplam eşleşme sayısını hesapla
+      const { count: totalMatchesCount } = await supabase
+        .from('shop_search_matches')
+        .select('*', { count: 'exact', head: true })
+        .eq('search_id', shopId)
+
+      // Son 7 gündeki eşleşmeler
+      const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+      const { count: recentMatchesCount } = await supabase
+        .from('shop_search_matches')
+        .select('*', { count: 'exact', head: true })
+        .eq('search_id', shopId)
+        .gte('created_at', weekAgo)
+
+      setSearches(searchesData || [])
+      setStats({
+        active: activeSearches,
+        totalMatches: totalMatchesCount || 0,
+        highPriority,
+        recentMatches: recentMatchesCount || 0
+      })
+    } catch (error) {
+      console.error('Arama verileri yüklenemedi:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const getPriorityColor = (level: number) => {
+    switch(level) {
+      case 5: return 'bg-red-100 text-red-800'
+      case 4: return 'bg-orange-100 text-orange-800'
+      case 3: return 'bg-green-100 text-green-800'
+      case 2: return 'bg-blue-100 text-blue-800'
+      case 1: return 'bg-gray-100 text-gray-800'
+      default: return 'bg-gray-100 text-gray-800'
+    }
+  }
+
+  const getPriorityText = (level: number) => {
+    switch(level) {
+      case 5: return 'ÇOK ACİL'
+      case 4: return 'ACİL'
+      case 3: return 'NORMAL'
+      case 2: return 'DÜŞÜK'
+      case 1: return 'ÇOK DÜŞÜK'
+      default: return 'BELİRSİZ'
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="bg-white rounded-xl shadow p-6">
+        <div className="animate-pulse">
+          <div className="h-6 bg-gray-200 rounded w-1/4 mb-4"></div>
+          <div className="h-4 bg-gray-200 rounded w-1/2 mb-6"></div>
+          <div className="space-y-4">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="h-16 bg-gray-200 rounded-lg"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="bg-white rounded-xl shadow p-6">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h3 className="text-lg font-bold text-gray-900">🔍 Aktif Aramalar</h3>
+          <p className="text-sm text-gray-600">{stats.active} aktif arama</p>
+        </div>
+        <button
+          onClick={() => router.push(`/shop/${shopId}/searches`)}
+          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+        >
+          Tümünü Gör →
+        </button>
+      </div>
+
+      {/* İstatistikler */}
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        <div className="bg-blue-50 rounded-lg p-4 text-center">
+          <div className="text-2xl font-bold text-blue-700">{stats.active}</div>
+          <div className="text-sm text-blue-600">Aktif Arama</div>
+        </div>
+        <div className="bg-green-50 rounded-lg p-4 text-center">
+          <div className="text-2xl font-bold text-green-700">{stats.totalMatches}</div>
+          <div className="text-sm text-green-600">Toplam Eşleşme</div>
+        </div>
+        <div className="bg-orange-50 rounded-lg p-4 text-center">
+          <div className="text-2xl font-bold text-orange-700">{stats.highPriority}</div>
+          <div className="text-sm text-orange-600">Acil Arama</div>
+        </div>
+        <div className="bg-purple-50 rounded-lg p-4 text-center">
+          <div className="text-2xl font-bold text-purple-700">{stats.recentMatches}</div>
+          <div className="text-sm text-purple-600">Son 7 Gün</div>
+        </div>
+      </div>
+
+      {/* Aramalar Listesi */}
+      <div className="space-y-4">
+        {searches.length === 0 ? (
+          <div className="text-center py-8">
+            <div className="text-4xl mb-4">🔍</div>
+            <p className="text-gray-600 mb-4">Henüz aktif aramanız yok</p>
+            <button
+              onClick={() => router.push(`/shop/${shopId}/searches/new`)}
+              className="btn-primary"
+            >
+              İlk Arama Oluştur
+            </button>
+          </div>
+        ) : (
+          searches.map((search) => (
+            <div 
+              key={search.id}
+              className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 cursor-pointer"
+              onClick={() => router.push(`/shop/${shopId}/searches/${search.id}`)}
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <h4 className="font-medium text-gray-900 mb-1 line-clamp-1">
+                    {search.title}
+                  </h4>
+                  <div className="flex items-center space-x-3 text-sm text-gray-600">
+                    <span>{search.category}</span>
+                    {search.brand && <span>• {search.brand}</span>}
+                    {search.min_price && search.max_price && (
+                      <span>• {search.min_price} - {search.max_price} ₺</span>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="flex items-center space-x-3">
+                  <div className="text-right">
+                    <div className="font-bold text-gray-900">
+                      {search.matches?.[0]?.count || 0}
+                    </div>
+                    <div className="text-xs text-gray-500">eşleşme</div>
+                  </div>
+                  
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(search.priority_level)}`}>
+                    {getPriorityText(search.priority_level)}
+                  </span>
+                </div>
+              </div>
+              
+              {/* Match progress bar */}
+              <div className="mt-3">
+                <div className="flex justify-between text-xs mb-1">
+                  <span className="text-gray-600">Eşleşme oranı</span>
+                  <span className="font-medium">
+                    {Math.round(((search.matches?.[0]?.count || 0) / 10) * 100)}%
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    className="bg-green-500 h-2 rounded-full"
+                    style={{ 
+                      width: `${Math.min(100, ((search.matches?.[0]?.count || 0) / 10) * 100)}%` 
+                    }}
+                  ></div>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Yeni arama butonu */}
+      <div className="mt-6 pt-6 border-t">
+        <button
+          onClick={() => router.push(`/shop/${shopId}/searches/new`)}
+          className="w-full py-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-blue-400 hover:text-blue-600"
+        >
+          + Yeni Arama Oluştur
+        </button>
+      </div>
+    </div>
+  )
+}
+
+
+// components/shop/RecentMatches.tsx - DÜZELTİLMİŞ VERSİYON
+'use client'
+
+import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
+import { useRouter } from 'next/navigation'
+
+interface RecentMatchesProps {
+  shopId: string
+  limit?: number
+}
+
+export default function RecentMatches({ shopId, limit = 5 }: RecentMatchesProps) {
+  const router = useRouter()
+  const [matches, setMatches] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchRecentMatches()
+  }, [shopId])
+
+  const fetchRecentMatches = async () => {
+    try {
+      const { data } = await supabase
+        .from('shop_search_matches')
+        .select(`
+          *,
+          search:shop_searches(*),
+          inventory:shop_inventory(*),
+          spot:spots(*)
+        `)
+        .eq('search_id', shopId)
+        .order('created_at', { ascending: false })
+        .limit(limit)
+
+      setMatches(data || [])
+    } catch (error) {
+      console.error('Recent matches yüklenemedi:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const getMatchType = (match: any) => {
+    if (match.inventory_id) return 'inventory'
+    if (match.spot_id) return 'spot'
+    return 'unknown'
+  }
+
+  const getMatchSource = (match: any) => {
+    if (match.inventory) return 'Başka Mağaza'
+    if (match.spot) return 'Kullanıcı Spot\'u'
+    return 'Bilinmeyen'
+  }
+
+  if (loading) {
+    return (
+      <div className="bg-white rounded-xl shadow p-6">
+        <div className="animate-pulse">
+          <div className="h-6 bg-gray-200 rounded w-1/4 mb-4"></div>
+          <div className="space-y-3">
+            {[...Array(limit)].map((_, i) => (
+              <div key={i} className="h-16 bg-gray-200 rounded"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (matches.length === 0) {
+    return (
+      <div className="bg-white rounded-xl shadow p-6">
+        <h3 className="font-bold text-gray-900 mb-6">✅ Son Eşleşmeler</h3>
+        <div className="text-center py-8">
+          <div className="text-4xl mb-4">🤝</div>
+          <h4 className="font-bold text-gray-900 mb-2">Henüz eşleşme yok</h4>
+          <p className="text-gray-600">
+            Arama oluşturduğunuzda eşleşmeler burada görünecek
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="bg-white rounded-xl shadow p-6">
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="font-bold text-gray-900">✅ Son Eşleşmeler</h3>
+        <button
+          onClick={() => router.push(`/shop/${shopId}/matches`)}
+          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+        >
+          Tümünü Gör →
+        </button>
+      </div>
+
+      <div className="space-y-4">
+        {matches.map((match) => (
+          <div 
+            key={match.id}
+            className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer"
+            onClick={() => {
+              if (match.inventory_id) {
+                router.push(`/shop/${shopId}/matches/inventory/${match.inventory_id}`)
+              } else if (match.spot_id) {
+                router.push(`/spots/${match.spot_id}`)
+              }
+            }}
+          >
+            <div className="flex-1">
+              <div className="flex items-center space-x-3 mb-2">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                  match.match_score >= 80 ? 'bg-green-100 text-green-600' :
+                  match.match_score >= 60 ? 'bg-yellow-100 text-yellow-600' :
+                  'bg-blue-100 text-blue-600'
+                }`}>
+                  {match.match_score >= 80 ? '🔥' :
+                   match.match_score >= 60 ? '✅' : '🔍'}
+                </div>
+                <div>
+                  <h4 className="font-medium text-gray-900">
+                    {match.search?.title || 'Arama'}
+                  </h4>
+                  <p className="text-sm text-gray-600">
+                    {getMatchSource(match)} • %{match.match_score} eşleşme
+                  </p>
+                </div>
+              </div>
+
+              {match.match_reasons && match.match_reasons.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {match.match_reasons.slice(0, 3).map((reason: string, idx: number) => (
+                    <span key={idx} className="px-2 py-1 bg-white text-gray-700 text-xs rounded-full border">
+                      {reason}
+                    </span>
+                  ))}
+                  {match.match_reasons.length > 3 && (
+                    <span className="px-2 py-1 bg-white text-gray-500 text-xs rounded-full border">
+                      +{match.match_reasons.length - 3}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="text-right">
+              <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                match.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                match.status === 'notified' ? 'bg-blue-100 text-blue-800' :
+                match.status === 'contacted' ? 'bg-green-100 text-green-800' :
+                'bg-gray-100 text-gray-800'
+              }`}>
+                {match.status === 'pending' ? 'Bekliyor' :
+                 match.status === 'notified' ? 'Bildirildi' :
+                 match.status === 'contacted' ? 'İletişimde' : match.status}
+              </span>
+              <div className="text-xs text-gray-500 mt-1">
+                {new Date(match.created_at).toLocaleDateString('tr-TR')}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+
+
+// components/shop/mobile/ShopMobileHeader.tsx - DÜZELTİLMİŞ
+'use client'
+
+interface ShopMobileHeaderProps {
+  shopId: string
+  activeView: 'products' | 'searches' | 'info'
+  onViewChange: (view: 'products' | 'searches' | 'info') => void
+}
+
+export default function ShopMobileHeader({ 
+  shopId, 
+  activeView, 
+  onViewChange 
+}: ShopMobileHeaderProps) {
+  // Geri kalan kod aynı...
+  return (
+    <div className="fixed top-0 left-0 right-0 bg-white border-b z-40">
+      {/* Header içeriği */}
+      <div className="flex justify-around py-3">
+        {(['products', 'searches', 'info'] as const).map((view) => (
+          <button
+            key={view}
+            onClick={() => onViewChange(view)}
+            className={`px-4 py-2 font-medium ${
+              activeView === view 
+                ? 'text-blue-600 border-b-2 border-blue-600' 
+                : 'text-gray-600'
+            }`}
+          >
+            {view === 'products' ? '📦 Ürünler' :
+             view === 'searches' ? '🔍 Aramalar' : 'ℹ️ Bilgi'}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+
+
+// components/shop/ShopStats.tsx
+'use client'
+
+interface ShopStatsProps {
+  stats: {
+    totalProducts: number
+    activeSearches: number
+    totalMatches: number
+    pendingMatches: number
+    totalFollowers: number
+    revenue: number
+  }
+  shopId: string
+}
+
+export default function ShopStats({ stats, shopId }: ShopStatsProps) {
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('tr-TR', {
+      style: 'currency',
+      currency: 'TRY',
+      minimumFractionDigits: 0
+    }).format(amount)
+  }
+
+  const getGrowthColor = (current: number, previous: number) => {
+    if (previous === 0) return 'text-green-600'
+    const growth = ((current - previous) / previous) * 100
+    if (growth > 20) return 'text-green-600'
+    if (growth > 0) return 'text-yellow-600'
+    return 'text-red-600'
+  }
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* Ürünler */}
+      <div className="bg-white rounded-xl shadow p-6 hover:shadow-lg transition-shadow">
+        <div className="flex items-center justify-between mb-4">
+          <div className="text-gray-500">📦</div>
+          <div className={`text-sm font-medium ${getGrowthColor(stats.totalProducts, stats.totalProducts * 0.9)}`}>
+            +12%
+          </div>
+        </div>
+        <div className="text-3xl font-bold text-gray-900 mb-2">
+          {stats.totalProducts}
+        </div>
+        <div className="text-sm text-gray-600">Aktif Ürün</div>
+        <div className="mt-4 h-2 bg-gray-200 rounded-full">
+          <div 
+            className="h-2 rounded-full bg-gradient-to-r from-blue-500 to-blue-600"
+            style={{ width: `${Math.min(100, (stats.totalProducts / 100) * 100)}%` }}
+          ></div>
+        </div>
+      </div>
+
+      {/* Aramalar */}
+      <div className="bg-white rounded-xl shadow p-6 hover:shadow-lg transition-shadow">
+        <div className="flex items-center justify-between mb-4">
+          <div className="text-gray-500">🔍</div>
+          <div className={`text-sm font-medium ${getGrowthColor(stats.activeSearches, stats.activeSearches * 0.8)}`}>
+            +8%
+          </div>
+        </div>
+        <div className="text-3xl font-bold text-gray-900 mb-2">
+          {stats.activeSearches}
+        </div>
+        <div className="text-sm text-gray-600">Aktif Arama</div>
+        <div className="mt-4 h-2 bg-gray-200 rounded-full">
+          <div 
+            className="h-2 rounded-full bg-gradient-to-r from-green-500 to-green-600"
+            style={{ width: `${Math.min(100, (stats.activeSearches / 20) * 100)}%` }}
+          ></div>
+        </div>
+      </div>
+
+      {/* Eşleşmeler */}
+      <div className="bg-white rounded-xl shadow p-6 hover:shadow-lg transition-shadow">
+        <div className="flex items-center justify-between mb-4">
+          <div className="text-gray-500">🤝</div>
+          <div className={`text-sm font-medium ${getGrowthColor(stats.totalMatches, stats.totalMatches * 0.7)}`}>
+            +24%
+          </div>
+        </div>
+        <div className="text-3xl font-bold text-gray-900 mb-2">
+          {stats.totalMatches}
+        </div>
+        <div className="text-sm text-gray-600">Toplam Eşleşme</div>
+        <div className="mt-4 flex items-center text-sm">
+          <span className="text-green-600 font-medium">
+            {stats.pendingMatches} yeni
+          </span>
+          <span className="mx-2 text-gray-400">•</span>
+          <span className="text-gray-600">
+            {(stats.totalMatches > 0 ? (stats.pendingMatches / stats.totalMatches * 100).toFixed(0) : 0)}% bekliyor
+          </span>
+        </div>
+      </div>
+
+      {/* Takipçiler */}
+      <div className="bg-white rounded-xl shadow p-6 hover:shadow-lg transition-shadow">
+        <div className="flex items-center justify-between mb-4">
+          <div className="text-gray-500">👥</div>
+          <div className={`text-sm font-medium ${getGrowthColor(stats.totalFollowers, stats.totalFollowers * 0.85)}`}>
+            +15%
+          </div>
+        </div>
+        <div className="text-3xl font-bold text-gray-900 mb-2">
+          {stats.totalFollowers}
+        </div>
+        <div className="text-sm text-gray-600">Takipçi</div>
+        <div className="mt-4">
+          <div className="flex -space-x-2">
+            {[...Array(Math.min(5, stats.totalFollowers))].map((_, i) => (
+              <div 
+                key={i}
+                className="w-8 h-8 rounded-full border-2 border-white bg-gradient-to-br from-purple-400 to-pink-500"
+              ></div>
+            ))}
+            {stats.totalFollowers > 5 && (
+              <div className="w-8 h-8 rounded-full border-2 border-white bg-gray-300 flex items-center justify-center text-xs font-medium">
+                +{stats.totalFollowers - 5}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Gelir */}
+      <div className="bg-white rounded-xl shadow p-6 hover:shadow-lg transition-shadow">
+        <div className="flex items-center justify-between mb-4">
+          <div className="text-gray-500">💰</div>
+          <div className={`text-sm font-medium ${getGrowthColor(stats.revenue, stats.revenue * 0.6)}`}>
+            +42%
+          </div>
+        </div>
+        <div className="text-3xl font-bold text-gray-900 mb-2">
+          {formatCurrency(stats.revenue)}
+        </div>
+        <div className="text-sm text-gray-600">Toplam Gelir</div>
+        <div className="mt-4">
+          <div className="text-xs text-gray-500">
+            Bu ay: {formatCurrency(stats.revenue * 0.3)}
+          </div>
+        </div>
+      </div>
+
+      {/* Dönüşüm Oranı */}
+      <div className="bg-white rounded-xl shadow p-6 hover:shadow-lg transition-shadow">
+        <div className="flex items-center justify-between mb-4">
+          <div className="text-gray-500">📊</div>
+          <div className="text-sm font-medium text-green-600">
+            +5%
+          </div>
+        </div>
+        <div className="text-3xl font-bold text-gray-900 mb-2">
+          {stats.totalProducts > 0 ? ((stats.totalMatches / stats.totalProducts) * 100).toFixed(1) : '0'}%
+        </div>
+        <div className="text-sm text-gray-600">Dönüşüm Oranı</div>
+        <div className="mt-4">
+          <div className="flex items-center text-sm">
+            <span className="text-gray-600 mr-2">Hedef:</span>
+            <span className="font-medium text-green-600">%25</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+
+
+

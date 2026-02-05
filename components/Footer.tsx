@@ -1,12 +1,15 @@
+// components/Footer.tsx - GÜNCELLENMİŞ
 import Link from 'next/link'
 
 export default function Footer() {
+  const currentYear = new Date().getFullYear()
+
   return (
-    <footer className="bg-gray-900 text-white pt-12 pb-8">
+    <footer className="bg-gray-900 text-white pt-12 pb-8 mt-16">
       <div className="container-custom">
-        <div className="grid md:grid-cols-4 gap-8 mb-8">
+        <div className="grid md:grid-cols-5 gap-8 mb-8">
           {/* Logo & Description */}
-          <div>
+          <div className="md:col-span-2">
             <div className="flex items-center mb-4">
               <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center mr-3">
                 <span className="text-white font-bold text-xl">S</span>
@@ -15,7 +18,7 @@ export default function Footer() {
             </div>
             <p className="text-gray-400 mb-6">
               Topluluk gücüyle kayıp ürünleri bulma platformu. 
-              Herkesin yardımıyla, her şeyi bulun.
+              Keşfet, bul, paylaş, kazan!
             </p>
             <div className="flex space-x-4">
               <button className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-gray-700">
@@ -30,15 +33,10 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* Quick Links */}
+          {/* Spot & Keşfet */}
           <div>
-            <h3 className="text-lg font-bold mb-4">Hızlı Erişim</h3>
+            <h3 className="text-lg font-bold mb-4">Spot & Keşfet</h3>
             <ul className="space-y-3">
-              <li>
-                <Link href="/" className="text-gray-400 hover:text-white">
-                  Ana Sayfa
-                </Link>
-              </li>
               <li>
                 <Link href="/spots" className="text-gray-400 hover:text-white">
                   Tüm Spot'lar
@@ -50,25 +48,40 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/success-stories" className="text-gray-400 hover:text-white">
-                  Başarı Hikayeleri
+                <Link href="/discovery" className="text-gray-400 hover:text-white">
+                  Keşfet
+                </Link>
+              </li>
+              <li>
+                <Link href="/leaderboard" className="text-gray-400 hover:text-white">
+                  Lider Tablosu
+                </Link>
+              </li>
+              <li>
+                <Link href="/challenges" className="text-gray-400 hover:text-white">
+                  Günlük Hedefler
                 </Link>
               </li>
             </ul>
           </div>
 
-          {/* For Businesses */}
+          {/* Mağazalar */}
           <div>
-            <h3 className="text-lg font-bold mb-4">İşletmeler İçin</h3>
+            <h3 className="text-lg font-bold mb-4">Mağazalar</h3>
             <ul className="space-y-3">
               <li>
-                <Link href="/for-business" className="text-gray-400 hover:text-white">
-                  Mağaza Kaydı
+                <Link href="/shops" className="text-gray-400 hover:text-white">
+                  Mağazaları Keşfet
                 </Link>
               </li>
               <li>
-                <Link href="/advertise" className="text-gray-400 hover:text-white">
-                  Reklam Ver
+                <Link href="/for-business" className="text-gray-400 hover:text-white">
+                  İşletme Kaydı
+                </Link>
+              </li>
+              <li>
+                <Link href="/shop-dashboard" className="text-gray-400 hover:text-white">
+                  Mağaza Paneli
                 </Link>
               </li>
               <li>
@@ -76,15 +89,10 @@ export default function Footer() {
                   Premium Paketler
                 </Link>
               </li>
-              <li>
-                <Link href="/partners" className="text-gray-400 hover:text-white">
-                  İş Ortakları
-                </Link>
-              </li>
             </ul>
           </div>
 
-          {/* Help & Support */}
+          {/* Yardım & Destek */}
           <div>
             <h3 className="text-lg font-bold mb-4">Yardım & Destek</h3>
             <ul className="space-y-3">
@@ -108,38 +116,62 @@ export default function Footer() {
                   Gizlilik Politikası
                 </Link>
               </li>
+              <li>
+                <Link href="/terms" className="text-gray-400 hover:text-white">
+                  Kullanım Koşulları
+                </Link>
+              </li>
             </ul>
           </div>
         </div>
 
-        {/* Newsletter */}
+        {/* Newsletter - YENİ */}
         <div className="border-t border-gray-800 pt-8 mb-8">
           <div className="max-w-xl mx-auto text-center">
-            <h3 className="text-xl font-bold mb-4">Bültenimize Abone Olun</h3>
+            <h3 className="text-xl font-bold mb-4">📬 Bültenimize Abone Olun</h3>
             <p className="text-gray-400 mb-6">
               Yeni özellikler, başarı hikayeleri ve özel fırsatlardan haberdar olun.
             </p>
-            <div className="flex">
+            <form className="flex">
               <input
                 type="email"
                 placeholder="E-posta adresiniz"
                 className="flex-grow px-6 py-3 rounded-l-lg bg-gray-800 text-white border-0 focus:ring-2 focus:ring-blue-500 focus:outline-none"
               />
-              <button className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-8 py-3 rounded-r-lg">
+              <button 
+                type="submit"
+                className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-8 py-3 rounded-r-lg"
+              >
                 Abone Ol
               </button>
-            </div>
+            </form>
           </div>
         </div>
 
         {/* Copyright */}
         <div className="border-t border-gray-800 pt-8 text-center">
           <p className="text-gray-400">
-            © 2024 SpotItForMe. Tüm hakları saklıdır.
+            © {currentYear} SpotItForMe. Tüm hakları saklıdır.
           </p>
           <p className="text-gray-500 text-sm mt-2">
-            Made with ❤️ for people who search
+            Made with ❤️ for people who search | v2.0
           </p>
+          
+          {/* Yeni Özellikler Badge */}
+          <div className="mt-4 flex flex-wrap justify-center gap-2">
+            <span className="px-3 py-1 bg-blue-900 text-blue-200 rounded-full text-xs">
+              🔥 Yeni: Keşfet
+            </span>
+            <span className="px-3 py-1 bg-green-900 text-green-200 rounded-full text-xs">
+              🏆 Puan Sistemi
+            </span>
+            <span className="px-3 py-1 bg-purple-900 text-purple-200 rounded-full text-xs">
+              🏪 Mağaza 2.0
+            </span>
+            <span className="px-3 py-1 bg-yellow-900 text-yellow-200 rounded-full text-xs">
+              👁️ Nadir Gördüm
+            </span>
+          </div>
         </div>
       </div>
     </footer>

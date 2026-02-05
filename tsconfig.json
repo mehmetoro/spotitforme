@@ -1,4 +1,4 @@
-// tsconfig.json
+// tsconfig.json (güncelle)
 {
   "compilerOptions": {
     "target": "es5",
@@ -21,7 +21,11 @@
     ],
     "paths": {
       "@/*": ["./*"]
-    }
+    },
+    // Bu satırları ekleyin:
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noImplicitReturns": false
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
   "exclude": ["node_modules"]
