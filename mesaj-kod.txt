@@ -1,0 +1,1230 @@
+// lib/messaging/disclaimer.ts
+export const MESSAGING_DISCLAIMERS = {
+  // Tüm mesajlaşmalarda gösterilecek uyarı
+  GENERAL_DISCLAIMER: {
+    title: "⚠️ Önemli Güvenlik Uyarısı",
+    content: `SpotItForMe bir mesajlaşma platformu sağlar ancak:
+
+1. 🚫 **Platform dışı ödemelerden sorumlu değiliz**
+2. 🛡️ Kişisel bilgilerinizi (TCKN, kredi kartı, şifre) paylaşmayın
+3. 🔍 Karşı tarafı doğrulamak için profil bilgilerini kontrol edin
+4. 📞 Şüpheli durumlarda bize bildirin
+
+Platformumuz sadece iletişim amaçlıdır. Tüm alışveriş işlemleri tarafların sorumluluğundadır.`
+  },
+
+  // Mutabakat formu disclaimer'ı
+  TRADE_AGREEMENT_DISCLAIMER: `**SORUMLULUK REDDİ BEYANI**
+
+Bu mutabakat formu SpotItForMe platformu tarafından sağlanan bir araçtır. Ancak:
+
+1. SpotItForMe bu anlaşmanın tarafları DEĞİLDİR
+2. Ödeme, teslimat veya anlaşmazlıklarda arabuluculuk YAPMAYIZ
+3. Taraflar kendi aralarında güvenli işlem yapmakla YÜKÜMLÜDÜR
+4. Platform sadece iletişim ve belge kaydı sağlar
+
+✅ Bu formu kabul ederek yukarıdaki şartları kabul etmiş olursunuz.`,
+
+  // Güvenlik ipuçları
+  SAFETY_TIPS: [
+    "Yerel buluşmaları halka açık, güvenli yerlerde yapın",
+    "Ön ödeme talep edenlere dikkat edin",
+    "Ürünü görmeden, teslimat almadan ödeme yapmayın",
+    "Resmi fatura veya garanti belgesi isteyin",
+    "Şüpheli durumları platform@spotitforme.com'a bildirin"
+  ]
+}
+
+// Güvenlik kontrol fonksiyonları
+export class MessagingSecurity {
+  // Kullanıcıları otomatik olarak şüpheli içerik için tarar
+  static scanMessageForRisks(content: string): {
+    riskLevel: 'low' | 'medium' | 'high'
+    warnings: string[]
+    blocked: boolean
+  } {
+    const warnings: string[] = []
+    let riskLevel: 'low' | 'medium' | 'high' = 'low'
+    
+    const riskyPatterns = [
+      { pattern: /\b(TCKN|kimlik|numara)\b/i, warning: 'Kişisel bilgi paylaşımı' },
+      { pattern: /\b(kredi.?kartı|kart.?numarası)\b/i, warning: 'Finansal bilgi paylaşımı' },
+      { pattern: /\b(ön.?ödeme|havale|eft)\b.*\b(acil|hemen|şimdi)\b/i, warning: 'Acil ödeme talebi' },
+      { pattern: /\b(dışarıda|sokakta|ıssız)\b.*\b(buluş|teslim)\b/i, warning: 'Güvensiz buluşma önerisi' },
+      { pattern: /(http|https):\/\/[^\s]+(bank|ödeme|transfer)/i, warning: 'Şüpheli ödeme linki' }
+    ]
+    
+    for (const { pattern, warning } of riskyPatterns) {
+      if (pattern.test(content)) {
+        warnings.push(warning)
+        riskLevel = riskLevel === 'low' ? 'medium' : 'high'
+      }
+    }
+    
+    // Çok sayıda uyarı varsa blokla
+    const blocked = warnings.length >= 3
+    
+    return { riskLevel, warnings, blocked }
+  }
+  
+  // Kullanıcı güvenlik skoru
+  static calculateUserTrustScore(userId: string): Promise<number> {
+    // Bu fonksiyon kullanıcının:
+    // - Doğrulanmış email/telefon
+    // - Profil tamamlama oranı
+    // - Geçmiş işlemleri
+    // - Diğer kullanıcılardan aldığı puanlar
+    // baz alınarak hesaplanır
+    
+    return Promise.resolve(70) // Örnek değer
+  }
+}
+
+
+
+// components/messaging/MessagingLayout.tsx
+'use client'
+
+import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
+import { useRouter } from 'next/navigation'
+import ThreadList from './ThreadList'
+import MessageThread from './MessageThread'
+import NewMessageModal from './NewMessageModal'
+import SecurityDisclaimer from './SecurityDisclaimer'
+
+interface MessagingLayoutProps {
+  initialThreadId?: string
+  userId: string
+}
+
+export default function MessagingLayout({ initialThreadId, userId }: MessagingLayoutProps) {
+  const router = useRouter()
+  const [selectedThread, setSelectedThread] = useState<string | null>(initialThreadId || null)
+  const [threads, setThreads] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [showNewMessageModal, setShowNewMessageModal] = useState(false)
+  const [unreadCount, setUnreadCount] = useState(0)
+  
+  // Realtime subscription için
+  const [subscription, setSubscription] = useState<any>(null)
+
+  useEffect(() => {
+    fetchThreads()
+    setupRealtimeSubscription()
+    
+    return () => {
+      if (subscription) {
+        supabase.removeChannel(subscription)
+      }
+    }
+  }, [userId])
+
+  const fetchThreads = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('active_conversations')
+        .select('*')
+        .or(`participant1_id.eq.${userId},participant2_id.eq.${userId}`)
+        .order('last_message_at', { ascending: false })
+
+      if (error) throw error
+
+      setThreads(data || [])
+      
+      // Okunmamış mesaj sayısını hesapla
+      const totalUnread = (data || []).reduce((sum, thread) => {
+        if (thread.participant1_id === userId) {
+          return sum + (thread.unread_count_p1 || 0)
+        } else {
+          return sum + (thread.unread_count_p2 || 0)
+        }
+      }, 0)
+      
+      setUnreadCount(totalUnread)
+    } catch (error) {
+      console.error('Threads yüklenemedi:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const setupRealtimeSubscription = () => {
+    const channel = supabase
+      .channel('message-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `receiver_id=eq.${userId}`
+        },
+        (payload) => {
+          console.log('Yeni mesaj geldi:', payload)
+          fetchThreads() // Thread listesini yenile
+          
+          // Bildirim göster (native browser notification)
+          if (Notification.permission === 'granted') {
+            new Notification('Yeni Mesaj', {
+              body: payload.new.content?.substring(0, 50) || 'Yeni mesajınız var',
+              icon: '/logo.png'
+            })
+          }
+        }
+      )
+      .subscribe()
+
+    setSubscription(channel)
+  }
+
+  const handleNewMessage = async (receiverId: string, content: string, threadType: string) => {
+    try {
+      // Önce thread var mı kontrol et
+      let threadId = selectedThread
+      
+      if (!threadId) {
+        // Yeni thread oluştur
+        const { data: thread, error: threadError } = await supabase
+          .from('message_threads')
+          .insert({
+            participant1_id: userId,
+            participant2_id: receiverId,
+            thread_type: threadType,
+            status: 'active'
+          })
+          .select()
+          .single()
+
+        if (threadError) throw threadError
+        threadId = thread.id
+      }
+
+      // Mesajı gönder
+      const { error: messageError } = await supabase
+        .from('messages')
+        .insert({
+          thread_id: threadId,
+          sender_id: userId,
+          receiver_id: receiverId,
+          content: content
+        })
+
+      if (messageError) throw messageError
+
+      // Thread'i seç ve modal'ı kapat
+      setSelectedThread(threadId)
+      setShowNewMessageModal(false)
+      
+      // Thread listesini güncelle
+      fetchThreads()
+
+    } catch (error) {
+      console.error('Mesaj gönderme hatası:', error)
+      alert('Mesaj gönderilemedi. Lütfen tekrar deneyin.')
+    }
+  }
+
+  const handleDeleteThread = async (threadId: string) => {
+    if (!confirm('Bu konuşmayı silmek istediğinize emin misiniz?')) return
+
+    try {
+      const { error } = await supabase
+        .from('message_threads')
+        .update({ status: 'archived' })
+        .eq('id', threadId)
+
+      if (error) throw error
+
+      // Eğer silinen thread seçiliyse, seçimi temizle
+      if (selectedThread === threadId) {
+        setSelectedThread(null)
+      }
+
+      // Listeyi güncelle
+      fetchThreads()
+
+    } catch (error) {
+      console.error('Thread silme hatası:', error)
+      alert('Konuşma silinemedi.')
+    }
+  }
+
+  return (
+    <div className="flex h-[calc(100vh-200px)] bg-white rounded-xl shadow-lg overflow-hidden">
+      {/* Sol sidebar - Thread listesi */}
+      <div className="w-full md:w-96 border-r border-gray-200 flex flex-col">
+        <div className="p-4 border-b">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold text-gray-900">Mesajlar</h2>
+            <div className="flex items-center space-x-2">
+              {unreadCount > 0 && (
+                <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+                  {unreadCount}
+                </span>
+              )}
+              <button
+                onClick={() => setShowNewMessageModal(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-lg"
+                title="Yeni mesaj"
+              >
+                +
+              </button>
+            </div>
+          </div>
+          
+          {/* Güvenlik uyarısı (küçük) */}
+          <div className="mt-3">
+            <SecurityDisclaimer variant="mini" />
+          </div>
+        </div>
+
+        <ThreadList
+          threads={threads}
+          selectedThread={selectedThread}
+          onSelectThread={setSelectedThread}
+          onDeleteThread={handleDeleteThread}
+          loading={loading}
+          userId={userId}
+        />
+      </div>
+
+      {/* Sağ taraf - Mesajlaşma ekranı */}
+      <div className="flex-1 flex flex-col">
+        {selectedThread ? (
+          <MessageThread
+            threadId={selectedThread}
+            userId={userId}
+            onBack={() => setSelectedThread(null)}
+          />
+        ) : (
+          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+            <div className="text-4xl mb-4">💬</div>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">
+              Bir konuşma seçin
+            </h3>
+            <p className="text-gray-600 mb-6 max-w-md">
+              Mevcut konuşmalarınızı soldan seçebilir veya yeni bir mesaj başlatabilirsiniz.
+            </p>
+            <button
+              onClick={() => setShowNewMessageModal(true)}
+              className="btn-primary"
+            >
+              Yeni Mesaj Başlat
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Yeni Mesaj Modal'ı */}
+      <NewMessageModal
+        isOpen={showNewMessageModal}
+        onClose={() => setShowNewMessageModal(false)}
+        onSendMessage={handleNewMessage}
+        currentUserId={userId}
+      />
+    </div>
+  )
+}
+
+
+
+// components/messaging/SecurityDisclaimer.tsx
+'use client'
+
+import { useState } from 'react'
+import { MESSAGING_DISCLAIMERS } from '@/lib/messaging/disclaimer'
+
+interface SecurityDisclaimerProps {
+  variant?: 'full' | 'mini' | 'inline'
+  onAccept?: () => void
+  showAcceptButton?: boolean
+}
+
+export default function SecurityDisclaimer({ 
+  variant = 'full', 
+  onAccept,
+  showAcceptButton = false 
+}: SecurityDisclaimerProps) {
+  const [accepted, setAccepted] = useState(false)
+  const [showDetails, setShowDetails] = useState(false)
+
+  const handleAccept = () => {
+    setAccepted(true)
+    if (onAccept) onAccept()
+  }
+
+  if (variant === 'mini') {
+    return (
+      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+        <div className="flex items-start">
+          <span className="text-yellow-600 mr-2">⚠️</span>
+          <p className="text-sm text-yellow-800">
+            <strong>Güvenlik Uyarısı:</strong> Platform dışı ödemelerden sorumlu değiliz.
+            <button 
+              onClick={() => setShowDetails(!showDetails)}
+              className="ml-2 text-yellow-700 underline text-xs"
+            >
+              Detaylar
+            </button>
+          </p>
+        </div>
+        
+        {showDetails && (
+          <div className="mt-2 pl-6 border-l-2 border-yellow-300">
+            <ul className="text-xs text-yellow-700 space-y-1">
+              {MESSAGING_DISCLAIMERS.SAFETY_TIPS.slice(0, 3).map((tip, i) => (
+                <li key={i}>• {tip}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  if (variant === 'inline') {
+    return (
+      <div className="text-sm text-gray-600 italic">
+        ⚠️ Ödemeler platform dışında yapılır. Güvenli alışveriş için dikkatli olun.
+      </div>
+    )
+  }
+
+  // Full variant
+  return (
+    <div className="bg-gradient-to-br from-yellow-50 to-orange-50 border-2 border-yellow-300 rounded-xl p-6 mb-6">
+      <div className="flex items-start mb-4">
+        <div className="bg-yellow-100 p-3 rounded-lg mr-4">
+          <span className="text-2xl">🛡️</span>
+        </div>
+        <div>
+          <h3 className="text-lg font-bold text-gray-900 mb-2">
+            {MESSAGING_DISCLAIMERS.GENERAL_DISCLAIMER.title}
+          </h3>
+          <div className="prose prose-sm max-w-none text-gray-700">
+            {MESSAGING_DISCLAIMERS.GENERAL_DISCLAIMER.content.split('\n').map((line, i) => (
+              <p key={i} className={i === 0 ? 'font-medium' : ''}>
+                {line}
+              </p>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Güvenlik ipuçları */}
+      <div className="mt-6">
+        <h4 className="font-bold text-gray-900 mb-3">🔒 Güvenli Alışveriş İpuçları:</h4>
+        <div className="grid md:grid-cols-2 gap-3">
+          {MESSAGING_DISCLAIMERS.SAFETY_TIPS.map((tip, i) => (
+            <div key={i} className="flex items-start bg-white bg-opacity-50 p-3 rounded-lg">
+              <span className="text-green-600 mr-2 mt-1">✓</span>
+              <span className="text-sm">{tip}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Kabul butonu (isteğe bağlı) */}
+      {showAcceptButton && !accepted && (
+        <div className="mt-6 pt-6 border-t border-yellow-300">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="acceptDisclaimer"
+                checked={accepted}
+                onChange={(e) => setAccepted(e.target.checked)}
+                className="w-4 h-4 text-blue-600 mr-3"
+              />
+              <label htmlFor="acceptDisclaimer" className="text-sm font-medium text-gray-900">
+                Yukarıdaki güvenlik uyarılarını okudum ve kabul ediyorum
+              </label>
+            </div>
+            <button
+              onClick={handleAccept}
+              disabled={!accepted}
+              className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-medium py-2 px-6 rounded-lg"
+            >
+              Devam Et
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Şüpheli durum bildirimi */}
+      <div className="mt-6 text-center">
+        <p className="text-sm text-gray-600">
+          Şüpheli bir mesaj veya kullanıcı gördünüz mü?
+        </p>
+        <button className="mt-2 text-sm text-red-600 hover:text-red-800 font-medium">
+          🚨 Hemen Bildir
+        </button>
+      </div>
+    </div>
+  )
+}
+
+
+
+// components/messaging/TradeAgreementForm.tsx
+'use client'
+
+import { useState } from 'react'
+import { supabase } from '@/lib/supabase'
+import { MESSAGING_DISCLAIMERS } from '@/lib/messaging/disclaimer'
+
+interface TradeAgreementFormProps {
+  threadId: string
+  buyerId: string
+  sellerId: string
+  productTitle?: string
+  onAgreementCreated?: (agreementId: string) => void
+  onCancel?: () => void
+}
+
+export default function TradeAgreementForm({
+  threadId,
+  buyerId,
+  sellerId,
+  productTitle = '',
+  onAgreementCreated,
+  onCancel
+}: TradeAgreementFormProps) {
+  const [step, setStep] = useState(1)
+  const [loading, setLoading] = useState(false)
+  const [formData, setFormData] = useState({
+    // Ürün bilgileri
+    productDescription: productTitle,
+    agreedPrice: '',
+    priceCurrency: 'TRY',
+    
+    // Teslimat
+    deliveryMethod: 'local_pickup',
+    deliveryAddress: '',
+    meetingLocation: '',
+    meetingTime: '',
+    
+    // Ödeme
+    paymentMethod: 'cash',
+    paymentDetails: '',
+    
+    // Garanti
+    warrantyDays: '0',
+    returnPolicy: 'Satın alınan ürün orijinal durumunda iade edilebilir.',
+    
+    // Kabul
+    disclaimerAccepted: false
+  })
+
+  const handleSubmit = async () => {
+    setLoading(true)
+    try {
+      // 1. Mutabakat formunu oluştur
+      const { data: agreement, error } = await supabase
+        .from('trade_agreements')
+        .insert({
+          thread_id: threadId,
+          buyer_id: buyerId,
+          seller_id: sellerId,
+          product_description: formData.productDescription,
+          agreed_price: parseFloat(formData.agreedPrice),
+          price_currency: formData.priceCurrency,
+          delivery_method: formData.deliveryMethod,
+          delivery_address: formData.deliveryMethod === 'cargo' ? formData.deliveryAddress : null,
+          meeting_location: formData.meetingLocation,
+          meeting_time: formData.meetingTime ? new Date(formData.meetingTime).toISOString() : null,
+          payment_method: formData.paymentMethod,
+          payment_details: formData.paymentDetails,
+          warranty_days: parseInt(formData.warrantyDays),
+          return_policy: formData.returnPolicy,
+          disclaimer_accepted: true,
+          disclaimer_text: MESSAGING_DISCLAIMERS.TRADE_AGREEMENT_DISCLAIMER,
+          status: 'pending'
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+
+      // 2. Thread'e sistem mesajı ekle
+      await supabase
+        .from('messages')
+        .insert({
+          thread_id: threadId,
+          sender_id: buyerId, // Formu başlatan kişi
+          receiver_id: sellerId,
+          content: `📄 Mutabakat formu oluşturuldu. Lütfen inceleyin ve kabul edin.`,
+          content_type: 'agreement',
+          is_system_message: true,
+          system_message_type: 'agreement_created',
+          metadata: { agreement_id: agreement.id }
+        })
+
+      // 3. Başarılı
+      alert('✅ Mutabakat formu başarıyla oluşturuldu! Karşı taraf onayı bekleniyor.')
+      
+      if (onAgreementCreated) {
+        onAgreementCreated(agreement.id)
+      }
+
+    } catch (error) {
+      console.error('Mutabakat formu oluşturma hatası:', error)
+      alert('Form oluşturulurken bir hata oluştu.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const deliveryMethods = [
+    { value: 'cargo', label: '🚚 Kargo', description: 'Kargo ile gönderim' },
+    { value: 'local_pickup', label: '🏪 Mağazadan Teslim', description: 'Mağazadan teslim alım' },
+    { value: 'meetup', label: '🤝 Yerinde Buluşma', description: 'Halka açık yerde buluşma' },
+    { value: 'other', label: '📦 Diğer', description: 'Diğer teslimat yöntemi' }
+  ]
+
+  const paymentMethods = [
+    { value: 'cash', label: '💵 Nakit', description: 'Yüz yüze nakit ödeme' },
+    { value: 'bank_transfer', label: '🏦 Banka Havalesi', description: 'Banka havalesi/EFT' },
+    { value: 'eft', label: '💳 EFT', description: 'Elektronik fon transferi' },
+    { value: 'credit_card', label: '💳 Kredi Kartı', description: 'Kredi kartı ile ödeme' },
+    { value: 'other', label: '📄 Diğer', description: 'Diğer ödeme yöntemi' }
+  ]
+
+  return (
+    <div className="bg-white rounded-xl shadow-lg p-6 max-w-2xl mx-auto">
+      {/* Header */}
+      <div className="mb-8">
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">🤝 Alışveriş Mutabakat Formu</h2>
+        <p className="text-gray-600">
+          Güvenli alışveriş için tüm detayları belgeleyin. Bu form yasal bağlayıcılığı olmayan bir kayıttır.
+        </p>
+        
+        {/* Step indicator */}
+        <div className="flex mt-6">
+          {[1, 2, 3, 4].map((stepNum) => (
+            <div key={stepNum} className="flex-1">
+              <div className={`h-2 rounded-full ${
+                step >= stepNum ? 'bg-green-600' : 'bg-gray-200'
+              }`}></div>
+              <p className="text-xs text-center mt-2">
+                {stepNum === 1 ? 'Ürün' : stepNum === 2 ? 'Teslimat' : stepNum === 3 ? 'Ödeme' : 'Özet'}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Form Content */}
+      <div className="space-y-6">
+        {step === 1 && (
+          <div className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Ürün Açıklaması *
+              </label>
+              <textarea
+                value={formData.productDescription}
+                onChange={(e) => setFormData({...formData, productDescription: e.target.value})}
+                placeholder="Satın alınacak ürünün detaylı açıklaması..."
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg h-32"
+                required
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                Mümkün olduğunca detaylı yazın: marka, model, durum, varsa kusurlar...
+              </p>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Anlaşılan Fiyat (TL) *
+                </label>
+                <input
+                  type="number"
+                  value={formData.agreedPrice}
+                  onChange={(e) => setFormData({...formData, agreedPrice: e.target.value})}
+                  placeholder="Örn: 1500"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Garanti Süresi (gün)
+                </label>
+                <select
+                  value={formData.warrantyDays}
+                  onChange={(e) => setFormData({...formData, warrantyDays: e.target.value})}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                >
+                  <option value="0">Garanti yok</option>
+                  <option value="7">7 gün</option>
+                  <option value="14">14 gün</option>
+                  <option value="30">30 gün</option>
+                  <option value="90">90 gün</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {step === 2 && (
+          <div className="space-y-6">
+            <div>
+              <h3 className="font-bold text-gray-900 mb-4">Teslimat Yöntemi</h3>
+              <div className="grid grid-cols-2 gap-4">
+                {deliveryMethods.map((method) => (
+                  <label 
+                    key={method.value}
+                    className={`cursor-pointer border-2 rounded-lg p-4 ${
+                      formData.deliveryMethod === method.value
+                        ? 'border-green-500 bg-green-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="deliveryMethod"
+                      value={method.value}
+                      checked={formData.deliveryMethod === method.value}
+                      onChange={(e) => setFormData({...formData, deliveryMethod: e.target.value})}
+                      className="sr-only"
+                    />
+                    <div className="text-lg mb-2">{method.label}</div>
+                    <div className="text-sm text-gray-600">{method.description}</div>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Teslimat detayları */}
+            {formData.deliveryMethod === 'cargo' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Teslimat Adresi *
+                </label>
+                <textarea
+                  value={formData.deliveryAddress}
+                  onChange={(e) => setFormData({...formData, deliveryAddress: e.target.value})}
+                  placeholder="Tam teslimat adresi..."
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                  rows={3}
+                  required
+                />
+              </div>
+            )}
+
+            {formData.deliveryMethod === 'meetup' && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Buluşma Yeri *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.meetingLocation}
+                    onChange={(e) => setFormData({...formData, meetingLocation: e.target.value})}
+                    placeholder="Örn: İstiklal Caddesi Starbucks, Kadıköy Rıhtım"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                    required
+                  />
+                  <p className="text-sm text-gray-500 mt-1">
+                    Halka açık, güvenli ve kameralı bir yer seçin.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Buluşma Zamanı
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={formData.meetingTime}
+                    onChange={(e) => setFormData({...formData, meetingTime: e.target.value})}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {step === 3 && (
+          <div className="space-y-6">
+            <div>
+              <h3 className="font-bold text-gray-900 mb-4">Ödeme Yöntemi</h3>
+              <div className="grid grid-cols-2 gap-4">
+                {paymentMethods.map((method) => (
+                  <label 
+                    key={method.value}
+                    className={`cursor-pointer border-2 rounded-lg p-4 ${
+                      formData.paymentMethod === method.value
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value={method.value}
+                      checked={formData.paymentMethod === method.value}
+                      onChange={(e) => setFormData({...formData, paymentMethod: e.target.value})}
+                      className="sr-only"
+                    />
+                    <div className="text-lg mb-2">{method.label}</div>
+                    <div className="text-sm text-gray-600">{method.description}</div>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Ödeme detayları */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Ödeme Detayları
+              </label>
+              <textarea
+                value={formData.paymentDetails}
+                onChange={(e) => setFormData({...formData, paymentDetails: e.target.value})}
+                placeholder={
+                  formData.paymentMethod === 'bank_transfer' 
+                    ? 'Banka adı, IBAN, alıcı adı...' 
+                    : formData.paymentMethod === 'cash'
+                    ? 'Ödeme yapılacak miktar ve para birimi...'
+                    : 'Diğer ödeme detayları...'
+                }
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                rows={3}
+              />
+            </div>
+
+            {/* İade politikası */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                İade Politikası
+              </label>
+              <textarea
+                value={formData.returnPolicy}
+                onChange={(e) => setFormData({...formData, returnPolicy: e.target.value})}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                rows={3}
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                İade koşullarını açıkça belirtin.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {step === 4 && (
+          <div className="space-y-6">
+            {/* Özet */}
+            <div className="bg-gray-50 rounded-xl p-6">
+              <h4 className="font-bold text-gray-900 mb-4">📋 Mutabakat Özeti</h4>
+              
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm text-gray-600">Ürün:</p>
+                  <p className="font-medium">{formData.productDescription}</p>
+                </div>
+                
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-gray-600">Fiyat:</p>
+                    <p className="font-medium">{formData.agreedPrice} {formData.priceCurrency}</p>
+                  </div>
+                  
+                  <div>
+                    <p className="text-sm text-gray-600">Teslimat:</p>
+                    <p className="font-medium">
+                      {deliveryMethods.find(m => m.value === formData.deliveryMethod)?.label}
+                    </p>
+                  </div>
+                  
+                  <div>
+                    <p className="text-sm text-gray-600">Ödeme:</p>
+                    <p className="font-medium">
+                      {paymentMethods.find(m => m.value === formData.paymentMethod)?.label}
+                    </p>
+                  </div>
+                  
+                  <div>
+                    <p className="text-sm text-gray-600">Garanti:</p>
+                    <p className="font-medium">
+                      {formData.warrantyDays === '0' ? 'Yok' : `${formData.warrantyDays} gün`}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Sorumluluk reddi */}
+            <div className="bg-red-50 border border-red-200 rounded-xl p-6">
+              <h4 className="font-bold text-red-900 mb-3">⚠️ KRİTİK UYARI</h4>
+              
+              <div className="prose prose-sm max-w-none text-red-800">
+                {MESSAGING_DISCLAIMERS.TRADE_AGREEMENT_DISCLAIMER.split('\n').map((line, i) => (
+                  <p key={i} className={i === 0 ? 'font-bold' : ''}>
+                    {line}
+                  </p>
+                ))}
+              </div>
+              
+              <div className="mt-4">
+                <label className="flex items-start">
+                  <input
+                    type="checkbox"
+                    checked={formData.disclaimerAccepted}
+                    onChange={(e) => setFormData({...formData, disclaimerAccepted: e.target.checked})}
+                    className="mt-1 mr-3 text-red-600"
+                    required
+                  />
+                  <span className="text-sm font-medium text-red-900">
+                    Yukarıdaki sorumluluk reddini okudum, anladım ve kabul ediyorum.
+                    <br />
+                    <span className="font-normal text-red-700">
+                      Bu form sadece kayıt amaçlıdır, yasal bağlayıcılığı yoktur.
+                    </span>
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            {/* Tavsiyeler */}
+            <div className="bg-blue-50 rounded-xl p-6">
+              <h4 className="font-bold text-gray-900 mb-3">💡 Güvenli Alışveriş Tavsiyeleri</h4>
+              <ul className="space-y-2 text-sm text-gray-700">
+                <li className="flex items-start">
+                  <span className="mr-2">✅</span>
+                  <span>Yerel buluşmalarda halka açık, kameralı yerleri tercih edin</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="mr-2">✅</span>
+                  <span>Ürünü görmeden, teslimat almadan ödeme yapmayın</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="mr-2">✅</span>
+                  <span>Resmi fatura veya garanti belgesi talep edin</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="mr-2">✅</span>
+                  <span>Şüpheli durumları platform@spotitforme.com'a bildirin</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div className="mt-8 pt-6 border-t flex justify-between">
+        <button
+          onClick={step === 1 ? onCancel : () => setStep(step - 1)}
+          className="px-6 py-3 text-gray-700 hover:text-gray-900 font-medium"
+        >
+          {step === 1 ? 'İptal' : 'Geri'}
+        </button>
+
+        <div className="flex space-x-4">
+          {step < 4 && (
+            <button
+              onClick={() => setStep(step + 1)}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg"
+            >
+              Devam Et
+            </button>
+          )}
+          
+          {step === 4 && (
+            <button
+              onClick={handleSubmit}
+              disabled={loading || !formData.disclaimerAccepted || !formData.agreedPrice}
+              className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold py-3 px-8 rounded-lg disabled:opacity-50"
+            >
+              {loading ? (
+                <span className="flex items-center">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                  Oluşturuluyor...
+                </span>
+              ) : (
+                'Mutabakat Formunu Oluştur'
+              )}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+
+
+// components/messaging/QuickReplies.tsx
+'use client'
+
+import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
+
+interface QuickRepliesProps {
+  shopId?: string
+  userId?: string
+  onSelectTemplate: (content: string) => void
+}
+
+export default function QuickReplies({ shopId, userId, onSelectTemplate }: QuickRepliesProps) {
+  const [templates, setTemplates] = useState<any[]>([])
+  const [showForm, setShowForm] = useState(false)
+  const [newTemplate, setNewTemplate] = useState({ title: '', content: '', category: '' })
+
+  useEffect(() => {
+    fetchTemplates()
+  }, [shopId, userId])
+
+  const fetchTemplates = async () => {
+    try {
+      let query = supabase.from('quick_reply_templates').select('*')
+      
+      if (shopId) {
+        query = query.eq('shop_id', shopId)
+      } else if (userId) {
+        query = query.eq('user_id', userId)
+      }
+      
+      const { data } = await query.order('usage_count', { ascending: false })
+      setTemplates(data || [])
+    } catch (error) {
+      console.error('Template yüklenemedi:', error)
+    }
+  }
+
+  const handleCreateTemplate = async () => {
+    if (!newTemplate.title || !newTemplate.content) return
+
+    try {
+      const { error } = await supabase
+        .from('quick_reply_templates')
+        .insert({
+          ...(shopId ? { shop_id: shopId } : { user_id: userId }),
+          title: newTemplate.title,
+          content: newTemplate.content,
+          category: newTemplate.category || 'general'
+        })
+
+      if (error) throw error
+
+      setNewTemplate({ title: '', content: '', category: '' })
+      setShowForm(false)
+      fetchTemplates()
+    } catch (error) {
+      console.error('Template oluşturma hatası:', error)
+    }
+  }
+
+  const handleUseTemplate = async (templateId: string, content: string) => {
+    try {
+      // Kullanım sayısını artır
+      await supabase.rpc('increment_template_usage', { template_id: templateId })
+      
+      // Template'i seç
+      onSelectTemplate(content)
+    } catch (error) {
+      console.error('Template kullanım hatası:', error)
+    }
+  }
+
+  const categories = [
+    { value: 'greeting', label: 'Selamlama', icon: '👋' },
+    { value: 'price', label: 'Fiyat', icon: '💰' },
+    { value: 'delivery', label: 'Teslimat', icon: '🚚' },
+    { value: 'thanks', label: 'Teşekkür', icon: '🙏' },
+    { value: 'followup', label: 'Takip', icon: '⏰' }
+  ]
+
+  return (
+    <div className="border-t border-gray-200 pt-4">
+      <div className="flex items-center justify-between mb-3">
+        <h4 className="text-sm font-medium text-gray-700">⚡ Hızlı Yanıtlar</h4>
+        <button
+          onClick={() => setShowForm(!showForm)}
+          className="text-xs text-blue-600 hover:text-blue-800"
+        >
+          {showForm ? 'İptal' : '+ Yeni'}
+        </button>
+      </div>
+
+      {/* Yeni template formu */}
+      {showForm && (
+        <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+          <input
+            type="text"
+            placeholder="Template adı"
+            value={newTemplate.title}
+            onChange={(e) => setNewTemplate({...newTemplate, title: e.target.value})}
+            className="w-full mb-2 px-3 py-2 border border-gray-300 rounded text-sm"
+          />
+          <textarea
+            placeholder="Template içeriği"
+            value={newTemplate.content}
+            onChange={(e) => setNewTemplate({...newTemplate, content: e.target.value})}
+            className="w-full mb-2 px-3 py-2 border border-gray-300 rounded text-sm"
+            rows={2}
+          />
+          <div className="flex justify-between">
+            <select
+              value={newTemplate.category}
+              onChange={(e) => setNewTemplate({...newTemplate, category: e.target.value})}
+              className="text-sm border border-gray-300 rounded px-2 py-1"
+            >
+              <option value="">Kategori seç</option>
+              {categories.map(cat => (
+                <option key={cat.value} value={cat.value}>{cat.icon} {cat.label}</option>
+              ))}
+            </select>
+            <button
+              onClick={handleCreateTemplate}
+              className="bg-blue-600 text-white text-sm px-3 py-1 rounded"
+            >
+              Kaydet
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Template listesi */}
+      <div className="flex flex-wrap gap-2">
+        {templates.slice(0, 5).map((template) => (
+          <button
+            key={template.id}
+            onClick={() => handleUseTemplate(template.id, template.content)}
+            className="inline-flex items-center px-3 py-1.5 rounded-full text-sm bg-gray-100 hover:bg-gray-200 text-gray-800"
+            title={template.content}
+          >
+            <span className="mr-1">
+              {categories.find(c => c.value === template.category)?.icon || '💬'}
+            </span>
+            {template.title}
+            {template.usage_count > 0 && (
+              <span className="ml-2 text-xs text-gray-500">{template.usage_count}</span>
+            )}
+          </button>
+        ))}
+        
+        {templates.length === 0 && !showForm && (
+          <p className="text-sm text-gray-500 italic">
+            Henüz hızlı yanıt şablonunuz yok. "+ Yeni" butonundan ekleyin.
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+
+
+// lib/supabase.ts - Güncellenmiş versiyon
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+
+export const supabase = createClient(supabaseUrl, supabaseKey, {
+  realtime: {
+    params: {
+      eventsPerSecond: 10
+    }
+  }
+})
+
+
+
+// components/messaging/mobile/MessagingMobile.tsx
+'use client'
+
+import { useState } from 'react'
+import MobileThreadList from './MobileThreadList'
+import MobileMessageThread from './MobileMessageThread'
+import MobileNewMessage from './MobileNewMessage'
+
+export default function MessagingMobile({ userId }: { userId: string }) {
+  const [view, setView] = useState<'list' | 'thread' | 'new'>('list')
+  const [selectedThread, setSelectedThread] = useState<string | null>(null)
+
+  return (
+    <div className="md:hidden h-screen bg-white">
+      {view === 'list' && (
+        <MobileThreadList
+          userId={userId}
+          onSelectThread={(threadId) => {
+            setSelectedThread(threadId)
+            setView('thread')
+          }}
+          onNewMessage={() => setView('new')}
+        />
+      )}
+
+      {view === 'thread' && selectedThread && (
+        <MobileMessageThread
+          threadId={selectedThread}
+          userId={userId}
+          onBack={() => setView('list')}
+        />
+      )}
+
+      {view === 'new' && (
+        <MobileNewMessage
+          userId={userId}
+          onSend={() => setView('list')}
+          onCancel={() => setView('list')}
+        />
+      )}
+    </div>
+  )
+}
+
+
+
+// lib/messaging/legal.ts
+export const LEGAL_COMPLIANCE = {
+  // KVKK/GDPR uyumu
+  DATA_PROTECTION: {
+    messageRetentionDays: 365, // Mesajlar 1 yıl saklanır
+    autoDeleteAfterInactivity: 730, // 2 yıl hareketsiz kalırsa silinir
+    userRightToDelete: true, // Kullanıcı mesajlarını silebilir
+    dataExportEnabled: true // Kullanıcı verilerini dışa aktarabilir
+  },
+
+  // Türkiye yasaları
+  TURKISH_LAW: {
+    law5651: true, // İnternet ortamında yapılan yayınların düzenlenmesi
+    eSignatureLaw: false, // Mutabakat formları e-imza değildir
+    consumerProtection: {
+      applies: false, // B2B olduğu için Tüketici Koruma Kanunu uygulanmaz
+      note: 'Platform sadece iletişim sağlar, satış yapmaz'
+    }
+  },
+
+  // Uluslararası düzenlemeler
+  INTERNATIONAL: {
+    dmcaCompliant: true,
+    safeHarbor: true,
+    reportAbuseEmail: 'abuse@spotitforme.com',
+    lawEnforcementContact: 'legal@spotitforme.com'
+  }
+}
+
+// Kullanım şartları snippet'leri
+export const TERMS_SNIPPETS = {
+  MESSAGING: `6. MESAJLAŞMA HİZMETİ
+6.1. Platform kullanıcılar arasında mesajlaşma imkanı sağlar.
+6.2. Mesaj içeriklerinden kullanıcılar sorumludur.
+6.3. Platform dışı işlemlerde (ödeme, teslimat) hiçbir sorumluluk kabul edilmez.
+6.4. Şüpheli içerikler 5651 Sayılı Kanun gereği saklanır ve yetkililere bildirilir.`,
+
+  TRADE: `7. PLATFORM DIŞI İŞLEMLER
+7.1. Kullanıcılar platform dışında yaptıkları tüm işlemlerden kendileri sorumludur.
+7.2. Mutabakat formları sadece kayıt amaçlıdır, yasal bağlayıcılığı yoktur.
+7.3. Ödeme ve teslimat anlaşmazlıklarında platform arabuluculuk yapmaz.
+7.4. Dolandırıcılık şüphesi durumunda ilgili makamlara bilgi verilir.`
+}
