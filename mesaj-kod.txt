@@ -329,6 +329,9 @@ export default function MessagingLayout({ initialThreadId, userId }: MessagingLa
 
 
 
+
+
+
 // components/messaging/SecurityDisclaimer.tsx
 'use client'
 
@@ -1139,49 +1142,251 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
 
 
 
-// components/messaging/mobile/MessagingMobile.tsx
+// components/messaging/MessagingLayout.tsx
 'use client'
 
-import { useState } from 'react'
-import MobileThreadList from './MobileThreadList'
-import MobileMessageThread from './MobileMessageThread'
-import MobileNewMessage from './MobileNewMessage'
+import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
+import { useRouter } from 'next/navigation'
+import ThreadList from './ThreadList'
+import MessageThread from './MessageThread'
+import NewMessageModal from './NewMessageModal'
+import SecurityDisclaimer from './SecurityDisclaimer'
 
-export default function MessagingMobile({ userId }: { userId: string }) {
-  const [view, setView] = useState<'list' | 'thread' | 'new'>('list')
-  const [selectedThread, setSelectedThread] = useState<string | null>(null)
+interface MessagingLayoutProps {
+  initialThreadId?: string
+  userId: string
+}
+
+export default function MessagingLayout({ initialThreadId, userId }: MessagingLayoutProps) {
+  const router = useRouter()
+  const [selectedThread, setSelectedThread] = useState<string | null>(initialThreadId || null)
+  const [threads, setThreads] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [showNewMessageModal, setShowNewMessageModal] = useState(false)
+  const [unreadCount, setUnreadCount] = useState(0)
+  
+  // Realtime subscription için
+  const [subscription, setSubscription] = useState<any>(null)
+
+  useEffect(() => {
+    fetchThreads()
+    setupRealtimeSubscription()
+    
+    return () => {
+      if (subscription) {
+        supabase.removeChannel(subscription)
+      }
+    }
+  }, [userId])
+
+  const fetchThreads = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('active_conversations')
+        .select('*')
+        .or(`participant1_id.eq.${userId},participant2_id.eq.${userId}`)
+        .order('last_message_at', { ascending: false })
+
+      if (error) throw error
+
+      setThreads(data || [])
+      
+      // Okunmamış mesaj sayısını hesapla
+      const totalUnread = (data || []).reduce((sum, thread) => {
+        if (thread.participant1_id === userId) {
+          return sum + (thread.unread_count_p1 || 0)
+        } else {
+          return sum + (thread.unread_count_p2 || 0)
+        }
+      }, 0)
+      
+      setUnreadCount(totalUnread)
+    } catch (error) {
+      console.error('Threads yüklenemedi:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const setupRealtimeSubscription = () => {
+    const channel = supabase
+      .channel('message-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `receiver_id=eq.${userId}`
+        },
+        (payload) => {
+          console.log('Yeni mesaj geldi:', payload)
+          fetchThreads() // Thread listesini yenile
+          
+          // Bildirim göster (native browser notification)
+          if (Notification.permission === 'granted') {
+            new Notification('Yeni Mesaj', {
+              body: payload.new.content?.substring(0, 50) || 'Yeni mesajınız var',
+              icon: '/logo.png'
+            })
+          }
+        }
+      )
+      .subscribe()
+
+    setSubscription(channel)
+  }
+
+  const handleNewMessage = async (receiverId: string, content: string, threadType: string) => {
+    try {
+      // Önce thread var mı kontrol et
+      let threadId = selectedThread
+      
+      if (!threadId) {
+        // Yeni thread oluştur
+        const { data: thread, error: threadError } = await supabase
+          .from('message_threads')
+          .insert({
+            participant1_id: userId,
+            participant2_id: receiverId,
+            thread_type: threadType,
+            status: 'active'
+          })
+          .select()
+          .single()
+
+        if (threadError) throw threadError
+        threadId = thread.id
+      }
+
+      // Mesajı gönder
+      const { error: messageError } = await supabase
+        .from('messages')
+        .insert({
+          thread_id: threadId,
+          sender_id: userId,
+          receiver_id: receiverId,
+          content: content
+        })
+
+      if (messageError) throw messageError
+
+      // Thread'i seç ve modal'ı kapat
+      setSelectedThread(threadId)
+      setShowNewMessageModal(false)
+      
+      // Thread listesini güncelle
+      fetchThreads()
+
+    } catch (error) {
+      console.error('Mesaj gönderme hatası:', error)
+      alert('Mesaj gönderilemedi. Lütfen tekrar deneyin.')
+    }
+  }
+
+  const handleDeleteThread = async (threadId: string) => {
+    if (!confirm('Bu konuşmayı silmek istediğinize emin misiniz?')) return
+
+    try {
+      const { error } = await supabase
+        .from('message_threads')
+        .update({ status: 'archived' })
+        .eq('id', threadId)
+
+      if (error) throw error
+
+      // Eğer silinen thread seçiliyse, seçimi temizle
+      if (selectedThread === threadId) {
+        setSelectedThread(null)
+      }
+
+      // Listeyi güncelle
+      fetchThreads()
+
+    } catch (error) {
+      console.error('Thread silme hatası:', error)
+      alert('Konuşma silinemedi.')
+    }
+  }
 
   return (
-    <div className="md:hidden h-screen bg-white">
-      {view === 'list' && (
-        <MobileThreadList
-          userId={userId}
-          onSelectThread={(threadId) => {
-            setSelectedThread(threadId)
-            setView('thread')
-          }}
-          onNewMessage={() => setView('new')}
-        />
-      )}
+    <div className="flex h-[calc(100vh-200px)] bg-white rounded-xl shadow-lg overflow-hidden">
+      {/* Sol sidebar - Thread listesi */}
+      <div className="w-full md:w-96 border-r border-gray-200 flex flex-col">
+        <div className="p-4 border-b">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold text-gray-900">Mesajlar</h2>
+            <div className="flex items-center space-x-2">
+              {unreadCount > 0 && (
+                <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+                  {unreadCount}
+                </span>
+              )}
+              <button
+                onClick={() => setShowNewMessageModal(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-lg"
+                title="Yeni mesaj"
+              >
+                +
+              </button>
+            </div>
+          </div>
+          
+          {/* Güvenlik uyarısı (küçük) */}
+          <div className="mt-3">
+            <SecurityDisclaimer variant="mini" />
+          </div>
+        </div>
 
-      {view === 'thread' && selectedThread && (
-        <MobileMessageThread
-          threadId={selectedThread}
+        <ThreadList
+          threads={threads}
+          selectedThread={selectedThread}
+          onSelectThread={setSelectedThread}
+          onDeleteThread={handleDeleteThread}
+          loading={loading}
           userId={userId}
-          onBack={() => setView('list')}
         />
-      )}
+      </div>
 
-      {view === 'new' && (
-        <MobileNewMessage
-          userId={userId}
-          onSend={() => setView('list')}
-          onCancel={() => setView('list')}
-        />
-      )}
+      {/* Sağ taraf - Mesajlaşma ekranı */}
+      <div className="flex-1 flex flex-col">
+        {selectedThread ? (
+          <MessageThread
+            threadId={selectedThread}
+            userId={userId}
+            onBack={() => setSelectedThread(null)}
+          />
+        ) : (
+          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+            <div className="text-4xl mb-4">💬</div>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">
+              Bir konuşma seçin
+            </h3>
+            <p className="text-gray-600 mb-6 max-w-md">
+              Mevcut konuşmalarınızı soldan seçebilir veya yeni bir mesaj başlatabilirsiniz.
+            </p>
+            <button
+              onClick={() => setShowNewMessageModal(true)}
+              className="btn-primary"
+            >
+              Yeni Mesaj Başlat
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Yeni Mesaj Modal'ı */}
+      <NewMessageModal
+        isOpen={showNewMessageModal}
+        onClose={() => setShowNewMessageModal(false)}
+        onSendMessage={handleNewMessage}
+        currentUserId={userId}
+      />
     </div>
   )
 }
+
 
 
 
@@ -1228,3 +1433,2092 @@ export const TERMS_SNIPPETS = {
 7.3. Ödeme ve teslimat anlaşmazlıklarında platform arabuluculuk yapmaz.
 7.4. Dolandırıcılık şüphesi durumunda ilgili makamlara bilgi verilir.`
 }
+
+
+
+// components/messaging/ThreadList.tsx
+'use client'
+
+import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
+import { MessageSquare, CheckCircle, Clock, Trash2 } from 'lucide-react'
+import Link from 'next/link'
+
+interface Thread {
+  id: string
+  participant_name: string
+  participant_avatar: string
+  last_message_preview: string
+  last_message_at: string
+  unread_count: number
+  spot_title?: string
+  is_read: boolean
+}
+
+interface ThreadListProps {
+  threads: Thread[]
+  selectedThread: string | null
+  onSelectThread: (threadId: string) => void
+  onDeleteThread: (threadId: string) => Promise<void>
+  loading: boolean
+  userId: string
+}
+
+export default function ThreadList({ 
+  threads, 
+  selectedThread, 
+  onSelectThread, 
+  onDeleteThread, 
+  loading, 
+  userId 
+}: ThreadListProps) {
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  const handleDelete = async (threadId: string, e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    
+    if (!confirm('Bu görüşmeyi silmek istediğinizden emin misiniz?')) {
+      return
+    }
+
+    setDeletingId(threadId)
+    try {
+      await onDeleteThread(threadId)
+    } catch (error) {
+      console.error('Silme hatası:', error)
+      alert('Silme işlemi başarısız oldu')
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffHours = diffMs / (1000 * 60 * 60)
+    
+    if (diffHours < 24) {
+      return date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+    } else if (diffHours < 48) {
+      return 'Dün'
+    } else {
+      return date.toLocaleDateString('tr-TR')
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-3 p-4">
+        <div className="p-4 border-b">
+          <div className="h-5 bg-gray-200 rounded w-32 mb-2"></div>
+          <div className="h-4 bg-gray-200 rounded w-24"></div>
+        </div>
+        {[1, 2, 3].map(i => (
+          <div key={i} className="animate-pulse p-4 border-b">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-gray-200 rounded-full"></div>
+              <div className="flex-1">
+                <div className="h-4 bg-gray-200 rounded w-32 mb-2"></div>
+                <div className="h-3 bg-gray-200 rounded w-48"></div>
+              </div>
+              <div className="w-12 h-10 bg-gray-200 rounded"></div>
+            </div>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  return (
+    <div className="h-full flex flex-col">
+      {/* Header */}
+      <div className="p-4 border-b">
+        <h2 className="text-lg font-semibold">Mesajlar</h2>
+        <div className="flex items-center justify-between mt-1">
+          <p className="text-sm text-gray-500">Toplam {threads.length} görüşme</p>
+          <div className="flex items-center space-x-2">
+            <span className="text-xs text-gray-500">
+              {threads.filter(t => t.unread_count > 0).length} okunmamış
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Threads List */}
+      <div className="flex-1 overflow-y-auto">
+        {threads.length === 0 ? (
+          <div className="p-8 text-center text-gray-500">
+            <MessageSquare className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+            <p className="font-medium mb-1">Henüz mesajınız yok</p>
+            <p className="text-sm">Bir spot için mesaj gönderin veya size mesaj gelmesini bekleyin</p>
+          </div>
+        ) : (
+          <div className="divide-y">
+            {threads.map(thread => (
+              <div
+                key={thread.id}
+                onClick={() => onSelectThread(thread.id)}
+                className={`
+                  p-4 cursor-pointer transition-colors relative group
+                  ${selectedThread === thread.id ? 'bg-blue-50 border-r-4 border-r-blue-500' : 'hover:bg-gray-50'}
+                  ${thread.unread_count > 0 ? 'bg-blue-50/50' : ''}
+                `}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start space-x-3 flex-1 min-w-0">
+                    <div className="relative">
+                      <div className={`
+                        w-10 h-10 rounded-full flex items-center justify-center
+                        ${thread.unread_count > 0 ? 'bg-blue-100' : 'bg-gray-100'}
+                      `}>
+                        {thread.participant_avatar ? (
+                          <img
+                            src={thread.participant_avatar}
+                            alt={thread.participant_name}
+                            className="w-10 h-10 rounded-full"
+                          />
+                        ) : (
+                          <span className={`font-semibold ${thread.unread_count > 0 ? 'text-blue-600' : 'text-gray-600'}`}>
+                            {thread.participant_name.charAt(0)}
+                          </span>
+                        )}
+                      </div>
+                      {thread.unread_count > 0 && (
+                        <div className="absolute -top-1 -right-1">
+                          <div className="bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">
+                            {thread.unread_count}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center space-x-2">
+                          <span className="font-medium truncate">
+                            {thread.participant_name}
+                          </span>
+                          {thread.is_read ? (
+                            <CheckCircle className="w-3 h-3 text-green-500 flex-shrink-0" />
+                          ) : (
+                            <Clock className="w-3 h-3 text-yellow-500 flex-shrink-0" />
+                          )}
+                        </div>
+                        <span className="text-xs text-gray-500 flex-shrink-0 ml-2">
+                          {formatTime(thread.last_message_at)}
+                        </span>
+                      </div>
+                      
+                      <p className="text-sm text-gray-600 truncate mb-1">
+                        {thread.last_message_preview}
+                      </p>
+                      
+                      {thread.spot_title && (
+                        <span className="inline-flex items-center text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                          <span className="truncate max-w-[120px]">
+                            {thread.spot_title}
+                          </span>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Delete Button */}
+                  <button
+                    onClick={(e) => handleDelete(thread.id, e)}
+                    disabled={deletingId === thread.id}
+                    className={`
+                      ml-2 p-1 rounded opacity-0 group-hover:opacity-100
+                      hover:bg-gray-200 disabled:opacity-50
+                      transition-opacity
+                    `}
+                  >
+                    {deletingId === thread.id ? (
+                      <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin"></div>
+                    ) : (
+                      <Trash2 className="w-4 h-4 text-gray-500" />
+                    )}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Stats Footer */}
+      <div className="p-3 border-t bg-gray-50">
+        <div className="flex items-center justify-between text-xs text-gray-500">
+          <span>Aktif kullanıcı: {userId.substring(0, 8)}...</span>
+          <span>
+            {threads.length > 0 && (
+              <>
+                {threads.filter(t => !t.is_read).length} bekleyen •{' '}
+                {threads.filter(t => t.unread_count > 0).length} okunmamış
+              </>
+            )}
+          </span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+
+
+// components/messaging/MessageThread.tsx
+'use client'
+
+import { useState, useRef, useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
+import { Send, Paperclip, Image as ImageIcon, X, ArrowLeft, MoreVertical, Phone, Video, Info, Trash2, MessageSquare } from 'lucide-react'
+
+interface Message {
+  id: string
+  sender_id: string
+  content: string
+  attachments?: string[]
+  created_at: string
+  is_read: boolean
+  type?: string
+}
+
+interface Participant {
+  id: string
+  name: string
+  avatar: string
+  is_online: boolean
+  last_seen?: string
+}
+
+interface MessageThreadProps {
+  threadId: string
+  userId: string
+  onBack: () => void
+}
+
+export default function MessageThread({ threadId, userId, onBack }: MessageThreadProps) {
+  const [messages, setMessages] = useState<Message[]>([])
+  const [newMessage, setNewMessage] = useState('')
+  const [participant, setParticipant] = useState<Participant | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [sending, setSending] = useState(false)
+  const [attachment, setAttachment] = useState<File | null>(null)
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const [showOptions, setShowOptions] = useState(false)
+  
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (threadId) {
+      fetchThreadData()
+    }
+  }, [threadId])
+
+  useEffect(() => {
+    scrollToBottom()
+  }, [messages])
+
+  const fetchThreadData = async () => {
+    setLoading(true)
+    try {
+      // 1. Thread bilgilerini çek
+      const { data: threadData, error: threadError } = await supabase
+        .from('message_threads')
+        .select(`
+          *,
+          participant1:user_profiles!participant1_id(*),
+          participant2:user_profiles!participant2_id(*),
+          spot:spots(title)
+        `)
+        .eq('id', threadId)
+        .single()
+
+      if (threadError) throw threadError
+
+      // 2. Hangi katılımcı biz değiliz?
+      let otherParticipant = null
+      let isParticipant1 = false
+      
+      if (threadData.participant1_id === userId) {
+        otherParticipant = threadData.participant2
+        isParticipant1 = true
+      } else {
+        otherParticipant = threadData.participant1
+        isParticipant1 = false
+      }
+
+      setParticipant({
+        id: otherParticipant?.id || 'unknown',
+        name: otherParticipant?.name || 'Kullanıcı',
+        avatar: otherParticipant?.avatar_url || '',
+        is_online: otherParticipant?.last_seen ? 
+          new Date(otherParticipant.last_seen).getTime() > Date.now() - 5 * 60 * 1000 : false,
+        last_seen: otherParticipant?.last_seen
+      })
+
+      // 3. Mesajları çek
+      const { data: messagesData, error: messagesError } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('thread_id', threadId)
+        .order('created_at', { ascending: true })
+
+      if (messagesError) throw messagesError
+
+      setMessages(messagesData || [])
+      
+      // 4. Okunmamış mesajları işaretle
+      await markMessagesAsRead(isParticipant1)
+
+    } catch (error) {
+      console.error('Mesajlar yüklenemedi:', error)
+      // Fallback veri
+      setParticipant({
+        id: '123',
+        name: 'Ahmet Yılmaz',
+        avatar: '',
+        is_online: true
+      })
+      
+      setMessages([
+        {
+          id: '1',
+          sender_id: '123',
+          content: 'Merhaba, o vintage Sony Walkman\'i nerede bulabilirim?',
+          created_at: '2024-01-15T10:00:00',
+          is_read: true,
+          type: 'text'
+        },
+        {
+          id: '2',
+          sender_id: userId,
+          content: 'Kadıköy çarşısında bir antikacıda görmüştüm, tam adres: Kadıköy Rıhtım Cd. No:25',
+          created_at: '2024-01-15T10:05:00',
+          is_read: true,
+          type: 'text'
+        },
+        {
+          id: '3',
+          sender_id: '123',
+          content: 'Harika! Hafta sonu uğrayacağım. Fiyat fikriniz var mı?',
+          created_at: '2024-01-15T10:10:00',
+          is_read: false,
+          type: 'text'
+        }
+      ])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const markMessagesAsRead = async (isParticipant1: boolean) => {
+    try {
+      // Mesajları okundu olarak işaretle
+      await supabase
+        .from('messages')
+        .update({ is_read: true })
+        .eq('thread_id', threadId)
+        .neq('sender_id', userId)
+        .eq('is_read', false)
+
+      // Thread'deki okunmamış sayısını sıfırla
+      const updateField = isParticipant1 ? 'unread_count_p1' : 'unread_count_p2'
+      await supabase
+        .from('message_threads')
+        .update({ [updateField]: 0 })
+        .eq('id', threadId)
+
+    } catch (error) {
+      console.error('Okundu işaretleme hatası:', error)
+    }
+  }
+
+  const scrollToBottom = () => {
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }, 100)
+  }
+
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() && !attachment) return
+
+    setSending(true)
+    const tempMessageId = Date.now().toString()
+
+    try {
+      // 1. Kullanıcı bilgisi
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Kullanıcı bulunamadı')
+
+      let attachmentUrl = null
+      
+      // 2. Dosya yükleme
+      if (attachment) {
+        const fileExt = attachment.name.split('.').pop()
+        const fileName = `${user.id}/${threadId}/${Date.now()}.${fileExt}`
+        
+        const { data, error } = await supabase.storage
+          .from('message-attachments')
+          .upload(fileName, attachment)
+
+        if (error) throw error
+        attachmentUrl = data?.path
+      }
+
+      // 3. Yeni mesaj oluştur (optimistik)
+      const newMsg: Message = {
+        id: tempMessageId,
+        sender_id: user.id,
+        content: newMessage,
+        attachments: attachmentUrl ? [attachmentUrl] : undefined,
+        created_at: new Date().toISOString(),
+        is_read: false,
+        type: attachment ? 'image' : 'text'
+      }
+
+      setMessages(prev => [...prev, newMsg])
+      
+      // 4. Supabase'e kaydet
+      const { error: saveError } = await supabase
+        .from('messages')
+        .insert([{
+          thread_id: threadId,
+          sender_id: user.id,
+          content: newMessage,
+          attachments: attachmentUrl ? [attachmentUrl] : null,
+          type: attachment ? 'image' : 'text'
+        }])
+
+      if (saveError) throw saveError
+
+      // 5. Thread'i güncelle
+      const { error: updateError } = await supabase
+        .from('message_threads')
+        .update({
+          last_message_at: new Date().toISOString(),
+          last_message_preview: newMessage.substring(0, 100),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', threadId)
+
+      if (updateError) console.warn('Thread güncellenemedi:', updateError)
+
+      // 6. Formu temizle
+      setNewMessage('')
+      setAttachment(null)
+      setUploadProgress(0)
+
+    } catch (error) {
+      console.error('Mesaj gönderilemedi:', error)
+      alert('Mesaj gönderilemedi. Lütfen tekrar deneyin.')
+      
+      // Optimistik mesajı geri al
+      setMessages(prev => prev.filter(msg => msg.id !== tempMessageId))
+    } finally {
+      setSending(false)
+    }
+  }
+
+  const handleAttachment = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        alert('Dosya boyutu 10MB\'dan küçük olmalı')
+        return
+      }
+      
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf']
+      if (!allowedTypes.includes(file.type)) {
+        alert('Sadece JPG, PNG, GIF veya PDF dosyaları yükleyebilirsiniz')
+        return
+      }
+      
+      setAttachment(file)
+      // Upload progress simülasyonu
+      let progress = 0
+      const interval = setInterval(() => {
+        progress += 10
+        setUploadProgress(progress)
+        if (progress >= 100) {
+          clearInterval(interval)
+        }
+      }, 100)
+    }
+  }
+
+  const formatMessageTime = (dateString: string) => {
+    return new Date(dateString).toLocaleTimeString('tr-TR', {
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  }
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleSendMessage()
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex flex-col h-full">
+        <div className="p-4 border-b">
+          <div className="animate-pulse flex items-center space-x-3">
+            <div className="w-10 h-10 bg-gray-200 rounded-full"></div>
+            <div className="flex-1">
+              <div className="h-4 bg-gray-200 rounded w-32 mb-2"></div>
+              <div className="h-3 bg-gray-200 rounded w-24"></div>
+            </div>
+          </div>
+        </div>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+            <p className="mt-2 text-gray-500">Mesajlar yükleniyor...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Header */}
+      <div className="p-4 border-b flex items-center justify-between bg-white sticky top-0 z-10">
+        <div className="flex items-center space-x-3">
+          <button
+            onClick={onBack}
+            className="p-1 hover:bg-gray-100 rounded-lg md:hidden"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          
+          <div className="relative">
+            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+              {participant?.avatar ? (
+                <img
+                  src={participant.avatar}
+                  alt={participant.name}
+                  className="w-10 h-10 rounded-full"
+                />
+              ) : (
+                <span className="font-semibold text-blue-600 text-lg">
+                  {participant?.name?.charAt(0) || 'K'}
+                </span>
+              )}
+            </div>
+            {participant?.is_online && (
+              <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+            )}
+          </div>
+          
+          <div>
+            <h3 className="font-semibold">{participant?.name || 'Kullanıcı'}</h3>
+            <p className="text-sm text-gray-500">
+              {participant?.is_online 
+                ? 'Çevrimiçi' 
+                : participant?.last_seen 
+                  ? `Son görülme: ${new Date(participant.last_seen).toLocaleTimeString('tr-TR')}`
+                  : 'Çevrimdışı'
+              }
+            </p>
+          </div>
+        </div>
+        
+        <div className="flex items-center space-x-2">
+          <button className="p-2 hover:bg-gray-100 rounded-lg" title="Ara">
+            <Phone className="w-5 h-5 text-gray-600" />
+          </button>
+          <button className="p-2 hover:bg-gray-100 rounded-lg" title="Görüntülü ara">
+            <Video className="w-5 h-5 text-gray-600" />
+          </button>
+          <button 
+            onClick={() => setShowOptions(!showOptions)}
+            className="p-2 hover:bg-gray-100 rounded-lg relative"
+          >
+            <MoreVertical className="w-5 h-5 text-gray-600" />
+            {showOptions && (
+              <div className="absolute right-0 top-full mt-1 w-48 bg-white border rounded-lg shadow-lg py-2 z-20">
+                <button className="w-full px-4 py-2 text-left hover:bg-gray-100 text-sm flex items-center">
+                  <Info className="w-4 h-4 mr-2" />
+                  Profili görüntüle
+                </button>
+                <button className="w-full px-4 py-2 text-left hover:bg-gray-100 text-sm flex items-center">
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Görüşmeyi sil
+                </button>
+                <button className="w-full px-4 py-2 text-left hover:bg-gray-100 text-sm flex items-center">
+                  <X className="w-4 h-4 mr-2" />
+                  Bildirimleri kapat
+                </button>
+              </div>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+        {messages.length === 0 ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center text-gray-500">
+              <MessageSquare className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+              <p>Henüz mesaj yok</p>
+              <p className="text-sm mt-1">İlk mesajı siz gönderin</p>
+            </div>
+          </div>
+        ) : (
+          <>
+            {messages.map((msg) => (
+              <div
+                key={msg.id}
+                className={`flex ${msg.sender_id === userId ? 'justify-end' : 'justify-start'}`}
+              >
+                <div
+                  className={`
+                    max-w-[70%] rounded-2xl px-4 py-2 relative
+                    ${msg.sender_id === userId
+                      ? 'bg-blue-500 text-white rounded-br-none'
+                      : 'bg-white text-gray-800 rounded-bl-none border'
+                    }
+                  `}
+                >
+                  {/* Mesaj içeriği */}
+                  <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                  
+                  {/* Ekler */}
+                  {msg.attachments && msg.attachments.length > 0 && (
+                    <div className="mt-2 space-y-2">
+                      {msg.attachments.map((url, idx) => (
+                        <div key={idx} className="border rounded-lg overflow-hidden">
+                          {url && url.match(/\.(jpg|jpeg|png|gif)$/i) ? (
+                            <img 
+                              src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/message-attachments/${url}`}
+                              alt="Ek"
+                              className="max-w-full h-auto"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <a 
+                              href={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/message-attachments/${url}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center p-2 hover:bg-gray-50"
+                            >
+                              <Paperclip className="w-4 h-4 mr-2" />
+                              <span className="text-sm truncate">Dosya eki</span>
+                            </a>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {/* Zaman ve okundu bilgisi */}
+                  <div className={`flex items-center justify-between mt-1 ${msg.sender_id === userId ? 'text-blue-200' : 'text-gray-500'}`}>
+                    <span className="text-xs">
+                      {formatMessageTime(msg.created_at)}
+                    </span>
+                    {msg.sender_id === userId && (
+                      <span className="text-xs ml-2">
+                        {msg.is_read ? '✓✓' : '✓'}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+            <div ref={messagesEndRef} />
+          </>
+        )}
+      </div>
+
+      {/* Upload Progress */}
+      {uploadProgress > 0 && uploadProgress < 100 && (
+        <div className="px-4 py-2 border-t bg-blue-50">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <ImageIcon className="w-4 h-4 text-blue-500" />
+              <span className="text-sm text-blue-700">
+                {attachment?.name} yükleniyor...
+              </span>
+            </div>
+            <span className="text-sm text-blue-700 font-medium">
+              %{Math.round(uploadProgress)}
+            </span>
+          </div>
+          <div className="mt-1 w-full bg-blue-200 rounded-full h-1">
+            <div 
+              className="bg-blue-500 h-1 rounded-full transition-all duration-300"
+              style={{ width: `${uploadProgress}%` }}
+            ></div>
+          </div>
+        </div>
+      )}
+
+      {/* Attachment Preview */}
+      {attachment && uploadProgress === 0 && (
+        <div className="px-4 py-2 border-t bg-gray-50 flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <ImageIcon className="w-5 h-5 text-gray-500" />
+            <div>
+              <p className="text-sm font-medium truncate max-w-[200px]">
+                {attachment.name}
+              </p>
+              <p className="text-xs text-gray-500">
+                {(attachment.size / 1024).toFixed(1)} KB • {attachment.type.split('/')[1].toUpperCase()}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setAttachment(null)}
+            className="p-1 hover:bg-gray-200 rounded"
+          >
+            <X className="w-4 h-4 text-gray-500" />
+          </button>
+        </div>
+      )}
+
+      {/* Input Area */}
+      <div className="p-4 border-t bg-white">
+        <div className="flex items-center space-x-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="hidden"
+            onChange={handleAttachment}
+            accept="image/*,.pdf"
+          />
+          
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="p-2 hover:bg-gray-100 rounded-lg"
+            title="Dosya ekle"
+          >
+            <Paperclip className="w-5 h-5 text-gray-500" />
+          </button>
+          
+          <div className="flex-1 relative">
+            <textarea
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              onKeyDown={handleKeyPress}
+              placeholder="Mesajınızı yazın... (Enter ile gönder, Shift+Enter ile yeni satır)"
+              className="w-full border rounded-lg px-4 py-2 pr-10 focus:outline-none focus:border-blue-500 resize-none min-h-[44px] max-h-[120px]"
+              rows={1}
+              style={{ height: 'auto' }}
+              onInput={(e) => {
+                const target = e.target as HTMLTextAreaElement
+                target.style.height = 'auto'
+                target.style.height = `${Math.min(target.scrollHeight, 120)}px`
+              }}
+            />
+            <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
+              <span className="text-xs text-gray-400">
+                {newMessage.length}/1000
+              </span>
+            </div>
+          </div>
+          
+          <button
+            onClick={handleSendMessage}
+            disabled={sending || (!newMessage.trim() && !attachment)}
+            className={`
+              p-2 rounded-lg flex-shrink-0 transition-colors
+              ${sending || (!newMessage.trim() && !attachment)
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                : 'bg-blue-500 text-white hover:bg-blue-600'
+              }
+            `}
+            title="Gönder"
+          >
+            {sending ? (
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+            ) : (
+              <Send className="w-5 h-5" />
+            )}
+          </button>
+        </div>
+        
+        {/* Security Notice */}
+        <div className="mt-2 text-center">
+          <p className="text-xs text-gray-500">
+            • SpotItForme üzerinden kişisel bilgi (telefon, adres, kart bilgisi) paylaşmayın •
+            Ödemeler için güvenli kanallar kullanın
+          </p>
+        </div>
+      </div>
+
+      {/* Options Overlay */}
+      {showOptions && (
+        <div 
+          className="fixed inset-0 z-0"
+          onClick={() => setShowOptions(false)}
+        />
+      )}
+    </div>
+  )
+}
+
+
+
+
+// components/messaging/NewMessageModal.tsx
+'use client'
+
+import { useState, useEffect, useRef } from 'react'
+import { supabase } from '@/lib/supabase'
+import { X, Search, User, AlertCircle, Send, Image as ImageIcon, MapPin } from 'lucide-react'
+
+interface UserProfile {
+  id: string
+  name: string
+  avatar: string
+  last_active: string
+  reputation_score?: number
+}
+
+interface Spot {
+  id: string
+  title: string
+  image_url?: string
+}
+
+interface NewMessageModalProps {
+  isOpen: boolean
+  onClose: () => void
+  onSendMessage: (receiverId: string, content: string, threadType: string) => Promise<void>
+  currentUserId: string
+  spotId?: string
+}
+
+export default function NewMessageModal({ 
+  isOpen, 
+  onClose, 
+  onSendMessage, 
+  currentUserId,
+  spotId 
+}: NewMessageModalProps) {
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null)
+  const [message, setMessage] = useState('')
+  const [users, setUsers] = useState<UserProfile[]>([])
+  const [spots, setSpots] = useState<Spot[]>([])
+  const [filteredUsers, setFilteredUsers] = useState<UserProfile[]>([])
+  const [loading, setLoading] = useState(false)
+  const [sending, setSending] = useState(false)
+  const [step, setStep] = useState<'select' | 'compose'>('select')
+  const [showTips, setShowTips] = useState(true)
+  const [selectedSpot, setSelectedSpot] = useState<Spot | null>(null)
+  const [messageType, setMessageType] = useState<'general' | 'spot' | 'help'>('general')
+  
+  const modalRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchInitialData()
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = 'unset'
+    }
+
+    return () => {
+      document.body.style.overflow = 'unset'
+    }
+  }, [isOpen])
+
+  useEffect(() => {
+    if (searchQuery.length < 2) {
+      setFilteredUsers(users)
+      return
+    }
+
+    const filtered = users.filter(user =>
+      user.name.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+    setFilteredUsers(filtered)
+  }, [searchQuery, users])
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
+        onClose()
+      }
+    }
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isOpen, onClose])
+
+  const fetchInitialData = async () => {
+    setLoading(true)
+    try {
+      // 1. Kullanıcıları getir
+      const { data: usersData, error: usersError } = await supabase
+        .from('user_profiles')
+        .select('id, name, avatar_url, last_seen, reputation_score')
+        .neq('id', currentUserId)
+        .limit(20)
+        .order('last_seen', { ascending: false })
+
+      if (usersError) throw usersError
+
+      const formattedUsers: UserProfile[] = (usersData || []).map(user => ({
+        id: user.id,
+        name: user.name || 'Kullanıcı',
+        avatar: user.avatar_url || '',
+        last_active: formatLastActive(user.last_seen),
+        reputation_score: user.reputation_score
+      }))
+
+      setUsers(formattedUsers)
+      setFilteredUsers(formattedUsers)
+
+      // 2. Spot'ları getir
+      const { data: spotsData, error: spotsError } = await supabase
+        .from('spots')
+        .select('id, title, image_url')
+        .eq('user_id', currentUserId)
+        .eq('status', 'active')
+        .limit(5)
+        .order('created_at', { ascending: false })
+
+      if (spotsError) throw spotsError
+      setSpots(spotsData || [])
+
+      // 3. Eğer spotId varsa, o spot'u bul
+      if (spotId) {
+        const spot = spotsData?.find(s => s.id === spotId)
+        if (spot) {
+          setSelectedSpot(spot)
+          setMessageType('spot')
+          setMessage(`Merhaba, "${spot.title}" spot'u hakkında bilgi almak istiyorum...`)
+        }
+      }
+
+    } catch (error) {
+      console.error('Başlangıç verileri yüklenemedi:', error)
+      // Fallback veri
+      setUsers([
+        { id: '1', name: 'Ahmet Yılmaz', avatar: '', last_active: '2 saat önce', reputation_score: 150 },
+        { id: '2', name: 'Zeynep Demir', avatar: '', last_active: '1 gün önce', reputation_score: 89 },
+        { id: '3', name: 'Mehmet Öz', avatar: '', last_active: 'Çevrimiçi', reputation_score: 42 }
+      ])
+      setFilteredUsers([
+        { id: '1', name: 'Ahmet Yılmaz', avatar: '', last_active: '2 saat önce', reputation_score: 150 },
+        { id: '2', name: 'Zeynep Demir', avatar: '', last_active: '1 gün önce', reputation_score: 89 },
+        { id: '3', name: 'Mehmet Öz', avatar: '', last_active: 'Çevrimiçi', reputation_score: 42 }
+      ])
+      setSpots([
+        { id: '1', title: 'Vintage Sony Walkman', image_url: '' },
+        { id: '2', title: 'Çelik Düdük 1980 Model', image_url: '' }
+      ])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const formatLastActive = (lastSeen: string) => {
+    if (!lastSeen) return 'Bilinmiyor'
+    
+    const lastSeenDate = new Date(lastSeen)
+    const now = new Date()
+    const diffMs = now.getTime() - lastSeenDate.getTime()
+    const diffMins = Math.floor(diffMs / (1000 * 60))
+    
+    if (diffMins < 5) return 'Çevrimiçi'
+    if (diffMins < 60) return `${diffMins} dakika önce`
+    if (diffMins < 24 * 60) return `${Math.floor(diffMins / 60)} saat önce`
+    return `${Math.floor(diffMins / (60 * 24))} gün önce`
+  }
+
+  const handleSelectUser = (user: UserProfile) => {
+    setSelectedUser(user)
+    setStep('compose')
+    
+    // Mesajı hazırla
+    if (selectedSpot) {
+      setMessage(`Merhaba ${user.name},\n\n"${selectedSpot.title}" spot'u hakkında bilgi almak istiyorum. Bu konuda yardımcı olabilir misiniz?\n\nTeşekkürler.`)
+    } else {
+      setMessage(`Merhaba ${user.name},\n\n`)
+    }
+  }
+
+  const handleSend = async () => {
+    if (!selectedUser || !message.trim()) {
+      alert('Lütfen bir kullanıcı seçin ve mesajınızı yazın')
+      return
+    }
+
+    setSending(true)
+    try {
+      // 1. Kullanıcı kimliğini al
+      const { data: { user: currentUser } } = await supabase.auth.getUser()
+      if (!currentUser) throw new Error('Kullanıcı bulunamadı')
+
+      // 2. Yeni thread oluştur
+      const { data: threadData, error: threadError } = await supabase
+        .from('message_threads')
+        .insert([{
+          participant1_id: currentUser.id,
+          participant2_id: selectedUser.id,
+          subject: selectedSpot ? `Spot: ${selectedSpot.title}` : 'Yeni Mesaj',
+          thread_type: selectedSpot ? 'spot' : 'general',
+          spot_id: selectedSpot?.id,
+          last_message_at: new Date().toISOString(),
+          last_message_preview: message.substring(0, 100),
+          unread_count_p2: 1,
+          status: 'active'
+        }])
+        .select()
+        .single()
+
+      if (threadError) throw threadError
+
+      // 3. İlk mesajı gönder
+      const { error: messageError } = await supabase
+        .from('messages')
+        .insert([{
+          thread_id: threadData.id,
+          sender_id: currentUser.id,
+          content: message,
+          topic: selectedSpot ? `Spot: ${selectedSpot.title}` : 'Yeni Mesaj',
+          type: 'text',
+          is_read: false
+        }])
+
+      if (messageError) throw messageError
+
+      // 4. thread_participants tablosuna ekle
+      const { error: participantsError } = await supabase
+        .from('thread_participants')
+        .insert([
+          { thread_id: threadData.id, user_id: currentUser.id },
+          { thread_id: threadData.id, user_id: selectedUser.id }
+        ])
+
+      if (participantsError) console.warn('Katılımcı eklenemedi:', participantsError)
+
+      // 5. Callback'i çağır
+      await onSendMessage(selectedUser.id, message, selectedSpot ? 'spot' : 'general')
+      
+      // 6. Başarılı - modal'ı kapat
+      alert('Mesaj gönderildi!')
+      setSending(false)
+      setSelectedUser(null)
+      setMessage('')
+      setStep('select')
+      onClose()
+      
+    } catch (error) {
+      console.error('Mesaj gönderilemedi:', error)
+      alert('Bir hata oluştu. Lütfen tekrar deneyin.')
+      setSending(false)
+    }
+  }
+
+  const handleMessageTemplate = (template: string) => {
+    switch (template) {
+      case 'spot_question':
+        setMessage(`Merhaba ${selectedUser?.name || ''},\n\nBu ürün hakkında daha fazla bilgi alabilir miyim?\n- Durumu nedir?\n- Fiyat aralığı?\n- Nerede görülebilir?\n\nTeşekkürler.`)
+        break
+      case 'meeting_request':
+        setMessage(`Merhaba ${selectedUser?.name || ''},\n\nÜrünü görmek için buluşabilir miyiz? Hangi gün ve saat uygun olursunuz?\n\nİyi günler.`)
+        break
+      case 'price_offer':
+        setMessage(`Merhaba ${selectedUser?.name || ''},\n\nÜrün için fiyat teklifim var. Bu konuda konuşabilir miyiz?\n\nSaygılarımla.`)
+        break
+    }
+  }
+
+  if (!isOpen) return null
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50">
+      <div className="flex items-center justify-center min-h-screen p-4">
+        <div 
+          ref={modalRef}
+          className="relative bg-white rounded-xl shadow-xl w-full max-w-2xl mx-auto overflow-hidden"
+        >
+          {/* Header */}
+          <div className="p-4 border-b flex items-center justify-between bg-white sticky top-0 z-10">
+            <div>
+              <h2 className="text-lg font-semibold">
+                {step === 'select' ? 'Yeni Mesaj' : `${selectedUser?.name}'a Mesaj`}
+              </h2>
+              <p className="text-sm text-gray-500">
+                {step === 'select' 
+                  ? 'Bir kullanıcı seçin veya spot için mesaj gönderin' 
+                  : 'Mesajınızı yazın'}
+              </p>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              disabled={sending}
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Content */}
+          <div className="max-h-[70vh] overflow-y-auto">
+            {step === 'select' ? (
+              <>
+                {/* Spot Seçimi */}
+                {spots.length > 0 && (
+                  <div className="p-4 border-b">
+                    <h3 className="text-sm font-medium text-gray-700 mb-3">
+                      Spotlarınız İçin Mesaj Gönderin
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {spots.map(spot => (
+                        <div
+                          key={spot.id}
+                          className={`
+                            border rounded-lg p-3 cursor-pointer transition-all hover:shadow-md
+                            ${selectedSpot?.id === spot.id 
+                              ? 'border-blue-500 bg-blue-50' 
+                              : 'hover:border-blue-300'
+                            }
+                          `}
+                          onClick={() => {
+                            setSelectedSpot(spot)
+                            setMessageType('spot')
+                          }}
+                        >
+                          <div className="flex items-center space-x-3">
+                            {spot.image_url ? (
+                              <img
+                                src={spot.image_url}
+                                alt={spot.title}
+                                className="w-12 h-12 object-cover rounded"
+                              />
+                            ) : (
+                              <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center">
+                                <ImageIcon className="w-6 h-6 text-gray-400" />
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-sm truncate">
+                                {spot.title}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                Spot hakkında mesaj gönder
+                              </p>
+                            </div>
+                            {selectedSpot?.id === spot.id && (
+                              <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center">
+                                <div className="w-2 h-2 bg-white rounded-full"></div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Arama */}
+                <div className="p-4 border-b">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="İsim veya kullanıcı adı ile ara..."
+                      className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:border-blue-500"
+                      disabled={loading}
+                    />
+                  </div>
+                  
+                  {searchQuery.length > 0 && searchQuery.length < 2 && (
+                    <p className="text-xs text-gray-500 mt-2">
+                      Aramak için en az 2 karakter girin
+                    </p>
+                  )}
+                </div>
+
+                {/* Kullanıcı Listesi */}
+                <div className="p-4">
+                  <h3 className="text-sm font-medium text-gray-700 mb-3">
+                    {searchQuery ? 'Arama Sonuçları' : 'Önerilen Kullanıcılar'}
+                  </h3>
+                  
+                  {loading ? (
+                    <div className="space-y-3">
+                      {[1, 2, 3].map(i => (
+                        <div key={i} className="animate-pulse flex items-center space-x-3 p-3">
+                          <div className="w-10 h-10 bg-gray-200 rounded-full"></div>
+                          <div className="flex-1">
+                            <div className="h-4 bg-gray-200 rounded w-32 mb-2"></div>
+                            <div className="h-3 bg-gray-200 rounded w-24"></div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : filteredUsers.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      <User className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                      <p>Kullanıcı bulunamadı</p>
+                      <p className="text-sm mt-1">Farklı bir arama terimi deneyin</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {filteredUsers.map(user => (
+                        <div
+                          key={user.id}
+                          onClick={() => handleSelectUser(user)}
+                          className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors active:bg-gray-100"
+                        >
+                          <div className="flex items-center space-x-3">
+                            <div className="relative">
+                              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                                {user.avatar ? (
+                                  <img
+                                    src={user.avatar}
+                                    alt={user.name}
+                                    className="w-10 h-10 rounded-full"
+                                  />
+                                ) : (
+                                  <User className="w-5 h-5 text-blue-600" />
+                                )}
+                              </div>
+                              {user.last_active === 'Çevrimiçi' && (
+                                <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+                              )}
+                            </div>
+                            <div>
+                              <div className="flex items-center space-x-2">
+                                <p className="font-medium">{user.name}</p>
+                                {user.reputation_score && user.reputation_score > 0 ? (
+                                  <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded">
+                                    {user.reputation_score} puan
+                                  </span>
+                                ) : null}
+                              </div>
+                              <div className="flex items-center space-x-2 mt-1">
+                                <p className="text-xs text-gray-500">
+                                  {user.last_active}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                          <button className="text-blue-600 hover:text-blue-800 text-sm font-medium px-3 py-1 hover:bg-blue-50 rounded">
+                            Mesaj
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              /* Mesaj Yazma */
+              <>
+                {/* Kullanıcı Bilgisi */}
+                <div className="p-4 border-b">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                        {selectedUser?.avatar ? (
+                          <img
+                            src={selectedUser.avatar}
+                            alt={selectedUser.name}
+                            className="w-12 h-12 rounded-full"
+                          />
+                        ) : (
+                          <User className="w-6 h-6 text-blue-600" />
+                        )}
+                      </div>
+                      <div>
+                        <div className="flex items-center space-x-2">
+                          <p className="font-semibold">{selectedUser?.name}</p>
+                          {selectedUser?.reputation_score && selectedUser.reputation_score > 0 ? (
+                            <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded">
+                              {selectedUser.reputation_score} puan
+                            </span>
+                          ) : null}
+                        </div>
+                        <p className="text-sm text-gray-500">
+                          {selectedUser?.last_active}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <button
+                      onClick={() => setStep('select')}
+                      className="text-sm text-gray-600 hover:text-gray-800"
+                      disabled={sending}
+                    >
+                      Kullanıcı değiştir
+                    </button>
+                  </div>
+                  
+                  {selectedSpot && (
+                    <div className="mt-3 p-3 bg-blue-50 rounded-lg">
+                      <div className="flex items-center space-x-2">
+                        <MapPin className="w-4 h-4 text-blue-600" />
+                        <span className="text-sm font-medium text-blue-800">
+                          {selectedSpot.title}
+                        </span>
+                      </div>
+                      <p className="text-xs text-blue-700 mt-1">
+                        Bu spot için mesaj gönderiyorsunuz
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Mesaj Şablonları */}
+                <div className="p-4 border-b">
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">
+                    Hızlı Şablonlar
+                  </h4>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => handleMessageTemplate('spot_question')}
+                      className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-1 rounded"
+                      disabled={sending}
+                    >
+                      Ürün Sorusu
+                    </button>
+                    <button
+                      onClick={() => handleMessageTemplate('meeting_request')}
+                      className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-1 rounded"
+                      disabled={sending}
+                    >
+                      Buluşma Talebi
+                    </button>
+                    <button
+                      onClick={() => handleMessageTemplate('price_offer')}
+                      className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-1 rounded"
+                      disabled={sending}
+                    >
+                      Fiyat Teklifi
+                    </button>
+                  </div>
+                </div>
+
+                {/* Mesaj Alanı */}
+                <div className="p-4">
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Mesajınız
+                    </label>
+                    <textarea
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                      placeholder="Mesajınızı detaylı bir şekilde yazın..."
+                      className="w-full h-48 p-3 border rounded-lg focus:outline-none focus:border-blue-500 resize-none"
+                      disabled={sending}
+                    />
+                    <div className="flex justify-between mt-1">
+                      <span className="text-xs text-gray-500">
+                        {message.length}/2000 karakter
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        Shift+Enter ile yeni satır
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Mesaj Türü Seçimi */}
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Mesaj Türü
+                    </label>
+                    <div className="flex space-x-2">
+                      {['general', 'spot', 'help'].map((type) => (
+                        <button
+                          key={type}
+                          onClick={() => setMessageType(type as any)}
+                          className={`
+                            flex-1 py-2 text-sm rounded-lg border transition-colors
+                            ${messageType === type
+                              ? 'border-blue-500 bg-blue-50 text-blue-700'
+                              : 'border-gray-300 hover:border-gray-400'
+                            }
+                          `}
+                          disabled={sending}
+                        >
+                          {type === 'general' && 'Genel Mesaj'}
+                          {type === 'spot' && 'Spot İçin'}
+                          {type === 'help' && 'Yardım Talebi'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Güvenlik Uyarısı */}
+                  {showTips && (
+                    <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-start space-x-2">
+                          <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-sm font-medium text-yellow-800 mb-1">
+                              Güvenli Mesajlaşma İpuçları
+                            </p>
+                            <ul className="text-xs text-yellow-700 space-y-1">
+                              <li>• Kişisel bilgilerinizi (telefon, adres, TC kimlik) paylaşmayın</li>
+                              <li>• Ön ödeme talep etmeyin veya yapmayın</li>
+                              <li>• SpotItForme güvenli ödeme sistemini kullanın</li>
+                              <li>• Şüpheli talepleri bize bildirin: guvenlik@spotitforme.com</li>
+                            </ul>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => setShowTips(false)}
+                          className="text-yellow-600 hover:text-yellow-800"
+                          disabled={sending}
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Footer Buttons */}
+          <div className="p-4 border-t bg-gray-50">
+            {step === 'select' ? (
+              <div className="flex justify-between">
+                <button
+                  onClick={onClose}
+                  className="px-4 py-2 border rounded-lg hover:bg-gray-100 transition-colors"
+                  disabled={loading}
+                >
+                  İptal
+                </button>
+                <div className="text-sm text-gray-500 flex items-center">
+                  {selectedSpot && (
+                    <span className="mr-3">
+                      Seçili spot: <span className="font-medium">{selectedSpot.title}</span>
+                    </span>
+                  )}
+                  <span>
+                    {filteredUsers.length} kullanıcı
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="flex justify-between items-center">
+                <button
+                  onClick={() => setStep('select')}
+                  className="px-4 py-2 border rounded-lg hover:bg-gray-100 transition-colors"
+                  disabled={sending}
+                >
+                  Geri
+                </button>
+                
+                <div className="flex items-center space-x-3">
+                  <button
+                    onClick={() => {
+                      setMessage('')
+                      setSelectedUser(null)
+                      setStep('select')
+                    }}
+                    className="text-sm text-gray-600 hover:text-gray-800"
+                    disabled={sending}
+                  >
+                    Temizle
+                  </button>
+                  
+                  <button
+                    onClick={handleSend}
+                    disabled={sending || !selectedUser || !message.trim()}
+                    className={`
+                      px-6 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2
+                      ${sending || !selectedUser || !message.trim()
+                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        : 'bg-blue-500 text-white hover:bg-blue-600'
+                      }
+                    `}
+                  >
+                    {sending ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        <span>Gönderiliyor...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-4 h-4" />
+                        <span>Gönder</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+
+
+// components/messaging/mobile/MobileThreadList.tsx
+'use client'
+
+interface Thread {
+  id: string
+  participant_name: string
+  last_message_preview: string
+  last_message_at: string
+  unread_count?: number
+}
+
+interface MobileThreadListProps {
+  threads: Thread[]
+  onSelectThread: (threadId: string) => void
+  loading: boolean
+}
+
+export default function MobileThreadList({ 
+  threads, 
+  onSelectThread, 
+  loading 
+}: MobileThreadListProps) {
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffHours = diffMs / (1000 * 60 * 60)
+    
+    if (diffHours < 24) {
+      return date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+    } else if (diffHours < 48) {
+      return 'Dün'
+    } else {
+      return date.toLocaleDateString('tr-TR')
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-3 p-4">
+        {[1, 2, 3].map(i => (
+          <div key={i} className="animate-pulse">
+            <div className="h-16 bg-gray-200 rounded-lg"></div>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  return (
+    <div className="h-full overflow-y-auto">
+      {threads.length === 0 ? (
+        <div className="p-8 text-center text-gray-500">
+          <p>Henüz mesajınız yok</p>
+        </div>
+      ) : (
+        <div className="divide-y">
+          {threads.map(thread => (
+            <div
+              key={thread.id}
+              onClick={() => onSelectThread(thread.id)}
+              className="p-4 border-b hover:bg-gray-50 active:bg-gray-100 cursor-pointer transition-colors"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="relative">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${thread.unread_count ? 'bg-blue-100' : 'bg-gray-100'}`}>
+                      <span className={`font-semibold ${thread.unread_count ? 'text-blue-600' : 'text-gray-600'}`}>
+                        {thread.participant_name?.charAt(0) || 'U'}
+                      </span>
+                    </div>
+                    {thread.unread_count && thread.unread_count > 0 && (
+                      <div className="absolute -top-1 -right-1">
+                        <div className="bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">
+                          {thread.unread_count}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="font-medium truncate">
+                        {thread.participant_name || 'Kullanıcı'}
+                      </p>
+                      <span className="text-xs text-gray-500 flex-shrink-0 ml-2">
+                        {formatTime(thread.last_message_at)}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-600 truncate">
+                      {thread.last_message_preview || '...'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+
+
+
+// components/messaging/mobile/MobileMessageThread.tsx
+'use client'
+
+import { useState } from 'react'
+import { ArrowLeft, Send } from 'lucide-react'
+
+interface MobileMessageThreadProps {
+  threadId: string;
+  userId: string;
+  onBack: () => void;
+}
+
+export default function MobileMessageThread({ 
+  threadId, 
+  userId, 
+  onBack 
+}: MobileMessageThreadProps) {
+  const [message, setMessage] = useState('')
+
+  const handleSend = () => {
+    if (!message.trim()) return
+    console.log('Mobil mesaj gönder:', { threadId, message, userId })
+    setMessage('')
+  }
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Header */}
+      <div className="p-4 border-b flex items-center">
+        <button onClick={onBack} className="mr-3">
+          <ArrowLeft className="w-5 h-5" />
+        </button>
+        <div className="flex items-center space-x-3">
+          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+            <span className="font-semibold text-blue-600 text-sm">A</span>
+          </div>
+          <div>
+            <h3 className="font-semibold">Ahmet Yılmaz</h3>
+            <p className="text-xs text-green-600">Çevrimiçi</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Messages Area */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        {/* Alınan mesaj */}
+        <div className="flex justify-start">
+          <div className="max-w-[80%] bg-gray-100 rounded-2xl rounded-tl-none px-4 py-2">
+            <p>Merhaba, o vintage Walkman'i nerede bulabilirim?</p>
+            <span className="text-xs text-gray-500 block mt-1">10:00</span>
+          </div>
+        </div>
+
+        {/* Gönderilen mesaj */}
+        <div className="flex justify-end">
+          <div className="max-w-[80%] bg-blue-500 text-white rounded-2xl rounded-br-none px-4 py-2">
+            <p>Kadıköy çarşısında bir antikacıda görmüştüm</p>
+            <span className="text-xs text-white/80 block mt-1">10:05</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Input */}
+      <div className="p-3 border-t">
+        <div className="flex items-center space-x-2">
+          <input
+            type="text"
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                handleSend()
+              }
+            }}
+            placeholder="Mesaj yaz..."
+            className="flex-1 border rounded-full px-4 py-2 focus:outline-none focus:border-blue-500"
+          />
+          <button
+            onClick={handleSend}
+            disabled={!message.trim()}
+            className="bg-blue-500 text-white p-2 rounded-full hover:bg-blue-600 disabled:opacity-50"
+          >
+            <Send className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+
+
+
+// components/messaging/mobile/MobileNewMessage.tsx
+'use client'
+
+import { useState } from 'react'
+import { ArrowLeft, Search, User, Send, AlertCircle } from 'lucide-react'
+
+interface MobileNewMessageProps {
+  onClose: () => void
+  onSendMessage: (receiverId: string, content: string) => void
+}
+
+export default function MobileNewMessage({ 
+  onClose, 
+  onSendMessage 
+}: MobileNewMessageProps) {
+  const [search, setSearch] = useState('')
+  const [selectedUser, setSelectedUser] = useState<string | null>(null)
+  const [message, setMessage] = useState('')
+
+  const users = [
+    { id: '1', name: 'Ahmet Yılmaz', lastActive: '2 saat önce' },
+    { id: '2', name: 'Zeynep Demir', lastActive: '1 gün önce' },
+    { id: '3', name: 'Mehmet Öz', lastActive: 'Çevrimiçi' }
+  ]
+
+  const handleSelectUser = (userId: string) => {
+    setSelectedUser(userId)
+    const user = users.find(u => u.id === userId)
+    if (user) {
+      setMessage(`Merhaba ${user.name},\n\n`)
+    }
+  }
+
+  const handleSend = () => {
+    if (!selectedUser || !message.trim()) {
+      alert('Lütfen bir kullanıcı seçin ve mesajınızı yazın')
+      return
+    }
+    
+    onSendMessage(selectedUser, message)
+    onClose()
+  }
+
+  const filteredUsers = users.filter(user =>
+    user.name.toLowerCase().includes(search.toLowerCase())
+  )
+
+  return (
+    <div className="fixed inset-0 z-50 bg-white flex flex-col">
+      {/* Header */}
+      <div className="p-4 border-b flex items-center bg-white">
+        <button onClick={onClose} className="mr-3">
+          <ArrowLeft className="w-5 h-5" />
+        </button>
+        <h2 className="text-lg font-semibold">
+          {selectedUser ? 'Yeni Mesaj' : 'Kime?'}
+        </h2>
+      </div>
+
+      {!selectedUser ? (
+        /* Kullanıcı Seçimi */
+        <div className="flex-1 overflow-y-auto p-4">
+          <div className="relative mb-4">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Kişi ara..."
+              className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:border-blue-500"
+            />
+          </div>
+
+          <div className="space-y-2">
+            {filteredUsers.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <User className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                <p>Kullanıcı bulunamadı</p>
+              </div>
+            ) : (
+              filteredUsers.map(user => (
+                <div
+                  key={user.id}
+                  onClick={() => handleSelectUser(user.id)}
+                  className="flex items-center justify-between p-3 hover:bg-gray-50 active:bg-gray-100 rounded-lg cursor-pointer transition-colors"
+                >
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                      <User className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium">{user.name}</p>
+                      <p className="text-xs text-gray-500">{user.lastActive}</p>
+                    </div>
+                  </div>
+                  <button className="text-blue-600 text-sm">Seç</button>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      ) : (
+        /* Mesaj Yazma */
+        <div className="flex-1 flex flex-col">
+          <div className="p-4 border-b">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                <User className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <p className="font-medium">
+                  {users.find(u => u.id === selectedUser)?.name}
+                </p>
+                <p className="text-xs text-gray-500">Mesaj gönderiliyor</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex-1 p-4">
+            <textarea
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Mesajınızı yazın..."
+              className="w-full h-40 p-3 border rounded-lg focus:outline-none focus:border-blue-500 resize-none"
+            />
+            
+            <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <div className="flex items-start space-x-2">
+                <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-yellow-800 mb-1">
+                    Güvenlik Uyarısı
+                  </p>
+                  <p className="text-xs text-yellow-700">
+                    • Kişisel bilgilerinizi paylaşmayın
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-4 border-t">
+            <button
+              onClick={handleSend}
+              disabled={!message.trim()}
+              className="w-full py-3 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+            >
+              <Send className="w-5 h-5 mr-2" />
+              Gönder
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+
+
+
+
+// components/messaging/mobile/MessagingMobile.tsx
+'use client'
+
+import { useState, useEffect } from 'react'
+import { Menu, MessageSquare, Search, User } from 'lucide-react'
+import MobileThreadList from './MobileThreadList'
+import MobileMessageThread from './MobileMessageThread'
+import MobileNewMessage from './MobileNewMessage'
+
+interface Thread {
+  id: string
+  participant_name: string
+  last_message_preview: string
+  last_message_at: string
+}
+
+interface MobileMessagingProps {
+  userId: string
+}
+
+type ViewType = 'list' | 'thread' | 'newMessage'
+
+export default function MessagingMobile({ userId }: MobileMessagingProps) {
+  const [currentView, setCurrentView] = useState<ViewType>('list')
+  const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null)
+  const [threads, setThreads] = useState<Thread[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchThreads()
+  }, [])
+
+  const fetchThreads = async () => {
+    try {
+      // Örnek veri - gerçek API'yi bağlayacaksınız
+      const mockThreads: Thread[] = [
+        {
+          id: '1',
+          participant_name: 'Ahmet Yılmaz',
+          last_message_preview: 'O ürünü Kadıköy\'de gördüm',
+          last_message_at: '2024-01-15T10:30:00'
+        },
+        {
+          id: '2',
+          participant_name: 'Zeynep Demir',
+          last_message_preview: 'Fotoğrafı ekledim',
+          last_message_at: '2024-01-14T15:45:00'
+        },
+        {
+          id: '3',
+          participant_name: 'Mehmet Öz',
+          last_message_preview: 'Yarın buluşabilir miyiz?',
+          last_message_at: '2024-01-13T09:15:00'
+        }
+      ]
+      setThreads(mockThreads)
+    } catch (error) {
+      console.error('Threads yüklenemedi:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSelectThread = (threadId: string) => {
+    setSelectedThreadId(threadId)
+    setCurrentView('thread')
+  }
+
+  const handleNewMessage = () => {
+    setCurrentView('newMessage')
+  }
+
+  const handleSendMessage = async (receiverId: string, content: string) => {
+    try {
+      console.log('Mobil mesaj gönderiliyor:', { receiverId, content, userId })
+      // Gerçek API çağrısını buraya ekleyin
+      alert('Mesaj gönderildi!')
+      setCurrentView('list')
+    } catch (error) {
+      console.error('Mesaj gönderilemedi:', error)
+      alert('Mesaj gönderilemedi')
+    }
+  }
+
+  const renderView = () => {
+    switch (currentView) {
+      case 'list':
+        return (
+          <>
+            <div className="p-4 border-b flex items-center justify-between bg-white">
+              <h1 className="text-xl font-bold">Mesajlar</h1>
+              <div className="flex items-center space-x-3">
+                <button className="p-2 hover:bg-gray-100 rounded-lg">
+                  <Search className="w-5 h-5" />
+                </button>
+                <button 
+                  onClick={handleNewMessage}
+                  className="bg-blue-500 text-white p-2 rounded-lg hover:bg-blue-600"
+                >
+                  <MessageSquare className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+            <MobileThreadList
+              threads={threads}
+              onSelectThread={handleSelectThread}
+              loading={loading}
+            />
+          </>
+        )
+      
+      case 'thread':
+        return (
+          <>
+            <div className="p-4 border-b bg-white">
+              <button
+                onClick={() => setCurrentView('list')}
+                className="text-blue-600 font-medium"
+              >
+                ← Mesajlara dön
+              </button>
+            </div>
+            {selectedThreadId && (
+              <MobileMessageThread
+                threadId={selectedThreadId}
+                userId={userId}
+                onBack={() => setCurrentView('list')}
+              />
+            )}
+          </>
+        )
+      
+      case 'newMessage':
+        return (
+          <MobileNewMessage
+            onClose={() => setCurrentView('list')}
+            onSendMessage={handleSendMessage}
+          />
+        )
+    }
+  }
+
+  return (
+    <div className="flex flex-col h-screen bg-white">
+      {/* Main Content */}
+      <div className="flex-1 overflow-hidden">
+        {renderView()}
+      </div>
+
+      {/* Bottom Navigation (sadece list view'da göster) */}
+      {currentView === 'list' && (
+        <div className="border-t bg-white">
+          <div className="flex justify-around items-center py-3">
+            <button className="flex flex-col items-center">
+              <MessageSquare className="w-6 h-6 text-blue-500" />
+              <span className="text-xs mt-1 font-medium text-blue-500">Mesajlar</span>
+            </button>
+            <button 
+              onClick={handleNewMessage}
+              className="flex flex-col items-center"
+            >
+              <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center -mt-4">
+                <MessageSquare className="w-6 h-6 text-white" />
+              </div>
+              <span className="text-xs mt-1">Yeni Mesaj</span>
+            </button>
+            <button className="flex flex-col items-center">
+              <User className="w-6 h-6 text-gray-500" />
+              <span className="text-xs mt-1 text-gray-500">Profil</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Stats (sadece list view'da) */}
+      {currentView === 'list' && (
+        <div className="px-4 py-2 border-t bg-gray-50">
+          <div className="text-center text-xs text-gray-500">
+            <p>Aktif kullanıcı: {userId?.substring(0, 8) || 'guest'} • {threads.length} görüşme</p>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+
+
+

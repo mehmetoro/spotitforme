@@ -1,11 +1,9 @@
-// app/spots/[id]/page.tsx - GÜNCELLENMİŞ
+// app/spots/[id]/page.tsx - DÜZELTMİŞ HALİ
 'use client'
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import Header from '@/components/Header'
-import Footer from '@/components/Footer'
 import SimpleMap from '@/components/SimpleMap'
 import SimpleShareButtons from '@/components/SimpleShareButtons'
 
@@ -86,12 +84,10 @@ export default function SpotDetailPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Header />
         <main className="container-custom py-12 text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Yükleniyor...</p>
         </main>
-        <Footer />
       </div>
     )
   }
@@ -99,7 +95,6 @@ export default function SpotDetailPage() {
   if (!spot) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Header />
         <main className="container-custom py-12 text-center">
           <h1 className="text-3xl font-bold text-gray-900 mb-4">Spot bulunamadı</h1>
           <p className="text-gray-600 mb-8">Bu spot silinmiş veya mevcut değil.</p>
@@ -110,15 +105,12 @@ export default function SpotDetailPage() {
             Tüm Spot'lara Dön
           </button>
         </main>
-        <Footer />
       </div>
     )
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header />
-      
       <main className="container-custom py-8">
         {/* Üst Navigasyon */}
         <div className="mb-6">
@@ -296,8 +288,6 @@ export default function SpotDetailPage() {
           </div>
         </div>
       </main>
-
-      <Footer />
     </div>
   )
 }

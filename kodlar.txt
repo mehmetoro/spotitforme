@@ -5286,14 +5286,12 @@ export async function GET() {
 
 
 
-// app/spots/[id]/page.tsx - GÜNCELLENMİŞ
+// app/spots/[id]/page.tsx - DÜZELTMİŞ HALİ
 'use client'
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import Header from '@/components/Header'
-import Footer from '@/components/Footer'
 import SimpleMap from '@/components/SimpleMap'
 import SimpleShareButtons from '@/components/SimpleShareButtons'
 
@@ -5374,12 +5372,10 @@ export default function SpotDetailPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Header />
         <main className="container-custom py-12 text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Yükleniyor...</p>
         </main>
-        <Footer />
       </div>
     )
   }
@@ -5387,7 +5383,6 @@ export default function SpotDetailPage() {
   if (!spot) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Header />
         <main className="container-custom py-12 text-center">
           <h1 className="text-3xl font-bold text-gray-900 mb-4">Spot bulunamadı</h1>
           <p className="text-gray-600 mb-8">Bu spot silinmiş veya mevcut değil.</p>
@@ -5398,15 +5393,12 @@ export default function SpotDetailPage() {
             Tüm Spot'lara Dön
           </button>
         </main>
-        <Footer />
       </div>
     )
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header />
-      
       <main className="container-custom py-8">
         {/* Üst Navigasyon */}
         <div className="mb-6">
@@ -5584,17 +5576,14 @@ export default function SpotDetailPage() {
           </div>
         </div>
       </main>
-
-      <Footer />
     </div>
   )
 }
 
 
 
-// app/spots/page.tsx (GÜNCELLENMİŞ)
-import Header from '@/components/Header'
-import Footer from '@/components/Footer'
+
+// app/spots/page.tsx - DÜZELTMİŞ HALİ
 import SpotList from '@/components/SpotList'
 import SearchFilters from '@/components/SearchFilters'
 
@@ -5619,7 +5608,7 @@ export default function SpotsPage({
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header />
+      {/* HEADER'ı BURADAN KALDIRIN */}
       
       <main className="container-custom py-8">
         {/* BAŞLIK BÖLÜMÜ */}
@@ -5687,10 +5676,156 @@ export default function SpotsPage({
         </div>
       </main>
 
-      <Footer />
+      {/* FOOTER'ı BURADAN KALDIRIN */}
     </div>
   )
 }
+
+
+
+
+// components/NativeAd.tsx - Spot'larla uyumlu reklam
+'use client';
+
+import { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase';
+import { ExternalLink, TrendingUp, Star } from 'lucide-react';
+
+interface NativeAdProps {
+  index?: number; // Kaçıncı spot'tan sonra gösterileceği
+  className?: string;
+}
+
+export default function NativeAd({ index = 3, className = '' }: NativeAdProps) {
+  const [adData, setAdData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadAd();
+  }, []);
+
+  const loadAd = async () => {
+    try {
+      // Native reklamları getir (spot benzeri görünüm)
+      const { data: ads } = await supabase
+        .from('ad_units')
+        .select('*')
+        .eq('type', 'native')
+        .eq('status', 'active')
+        .lte('start_date', new Date().toISOString())
+        .gte('end_date', new Date().toISOString())
+        .order('rotation_order', { ascending: true })
+        .limit(1);
+
+      if (ads && ads.length > 0) {
+        setAdData(ads[0]);
+      }
+    } catch (error) {
+      console.error('Reklam yükleme hatası:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className={`bg-gray-100 animate-pulse rounded-xl ${className}`}>
+        <div className="p-6">
+          <div className="h-4 bg-gray-200 rounded w-1/3 mb-4"></div>
+          <div className="h-20 bg-gray-200 rounded mb-4"></div>
+          <div className="h-8 bg-gray-200 rounded w-1/2"></div>
+        </div>
+      </div>
+    );
+  }
+
+  // Reklam yoksa göster
+  if (!adData) {
+    return (
+      <div className={`border-2 border-dashed border-blue-200 bg-blue-50 rounded-xl p-6 ${className}`}>
+        <div className="text-center">
+          <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-100 rounded-full mb-4">
+            <TrendingUp className="text-blue-600" size={24} />
+          </div>
+          <h4 className="font-semibold text-blue-800 mb-2">Reklam Alanı</h4>
+          <p className="text-blue-600 text-sm mb-4">
+            Buraya spot'larla uyumlu reklamınızı yerleştirin
+          </p>
+          <div className="text-xs text-blue-500">
+            Gösterim: 0 | Tıklama: 0 | CTR: 0%
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Native reklam gösterimi
+  return (
+    <div className={`bg-gradient-to-br from-blue-50 to-white border border-blue-100 rounded-xl shadow-sm overflow-hidden ${className}`}>
+      <div className="p-6">
+        {/* Reklam badge */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-2">
+            <div className="bg-blue-100 text-blue-700 text-xs font-semibold px-2 py-1 rounded">
+              <span className="flex items-center">
+                <Star size={12} className="mr-1" />
+                SPONSORLU
+              </span>
+            </div>
+            {adData.advertiser_name && (
+              <span className="text-sm text-gray-600">{adData.advertiser_name}</span>
+            )}
+          </div>
+          <ExternalLink size={16} className="text-gray-400" />
+        </div>
+
+        {/* Reklam içeriği */}
+        <div className="mb-4">
+          {adData.custom_html ? (
+            <div dangerouslySetInnerHTML={{ __html: adData.custom_html }} />
+          ) : (
+            <>
+              <h3 className="font-bold text-gray-900 text-lg mb-2">
+                {adData.name || 'Özel Teklif'}
+              </h3>
+              <p className="text-gray-600 text-sm mb-4">
+                {adData.description || 'Bu ürün/hizmet için özel fırsat!'}
+              </p>
+            </>
+          )}
+        </div>
+
+        {/* Call to action */}
+        <a
+          href={adData.advertiser_url || '#'}
+          target="_blank"
+          rel="noopener noreferrer nofollow"
+          className="block w-full bg-blue-600 hover:bg-blue-700 text-white text-center font-semibold py-3 px-4 rounded-lg transition-colors"
+          onClick={async () => {
+            // Click tracking
+            if (adData.id) {
+              await supabase
+                .from('ad_units')
+                .update({ clicks: (adData.clicks || 0) + 1 })
+                .eq('id', adData.id);
+            }
+          }}
+        >
+          {adData.cta_text || 'Detaylı İncele'}
+        </a>
+
+        {/* Küçük disclaimer */}
+        <div className="mt-4 pt-4 border-t border-gray-100">
+          <p className="text-xs text-gray-400 text-center">
+            Bu bir reklamdır. SpotItForMe reklam içeriğinden sorumlu değildir.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 
 
 
@@ -6676,15 +6811,13 @@ export default function RootLayout({
 
 
 
-// app/page.tsx - SON HAL
-import Header from '@/components/Header'
+// app/page.tsx - DÜZELTMİŞ HALİ
 import Hero from '@/components/Hero'
 import Stats from '@/components/Stats'
 import HowItWorks from '@/components/HowItWorks'
 import RecentSpots from '@/components/RecentSpots'
 import Categories from '@/components/Categories'
 import CTA from '@/components/CTA'
-import Footer from '@/components/Footer'
 
 // YENİ BİLEŞENLER
 import RecentSightings from '@/components/RecentSightings'
@@ -6695,7 +6828,7 @@ import QuickSightingButton from '@/components/QuickSightingButton'
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
-      <Header />
+      {/* HEADER'ı BURADAN KALDIRIN - Layout'ta zaten var */}
       <QuickSightingButton />
       
       <div className="container-custom">
@@ -6750,10 +6883,88 @@ export default function HomePage() {
         </div>
       </div>
 
-      <Footer />
+      {/* FOOTER'ı da BURADAN KALDIRIN - Layout'ta zaten var */}
     </div>
   )
 }
+
+
+import Link from 'next/link'
+import UserMenu from './UserMenu'
+
+export default function Header() {
+  return (
+    <header className="bg-white shadow">
+      <div className="container-custom py-4">
+        <div className="flex justify-between items-center">
+          {/* Logo */}
+          <div className="flex items-center space-x-2">
+            <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-xl">S</span>
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">SpotItForMe</h1>
+              <p className="text-sm text-gray-600 hidden md:block">Toplulukla bulma platformu</p>
+            </div>
+          </div>
+
+          {/* Navigation */}
+          <nav className="hidden md:flex space-x-8">
+            <Link href="/" className="text-gray-700 hover:text-blue-600 font-medium">
+              Ana Sayfa
+            </Link>
+            <Link href="/spots" className="text-gray-700 hover:text-blue-600 font-medium">
+              Spot'lar
+            </Link>
+            <Link href="/how-it-works" className="text-gray-700 hover:text-blue-600 font-medium">
+              Nasıl Çalışır?
+            </Link>
+            <Link href="/for-business" className="text-gray-700 hover:text-blue-600 font-medium">
+              İşletmeler İçin
+            </Link>
+          </nav>
+
+          {/* Buttons */}
+          <div className="flex items-center space-x-4">
+            <UserMenu />
+            <Link 
+              href="/create-spot"
+              className="btn-primary hidden md:inline-block"
+            >
+              Spot Oluştur
+            </Link>
+          </div>
+        </div>
+
+        {/* Mobile Navigation */}
+        <div className="md:hidden mt-4 flex justify-center space-x-6">
+          <Link href="/spots" className="text-gray-700 hover:text-blue-600 text-sm">
+            Spot'lar
+          </Link>
+          <Link href="/how-it-works" className="text-gray-700 hover:text-blue-600 text-sm">
+            Nasıl Çalışır?
+          </Link>
+          <Link href="/for-business" className="text-gray-700 hover:text-blue-600 text-sm">
+            İşletmeler
+          </Link>
+        </div>
+
+        {/* Mobile Spot Oluştur Butonu */}
+        <div className="md:hidden mt-4">
+          <Link 
+            href="/create-spot"
+            className="btn-primary w-full block text-center"
+          >
+            Ücretsiz Spot Oluştur
+          </Link>
+        </div>
+      </div>
+    </header>
+  )
+}
+
+
+
 
 // app/help/[id]/page.tsx - BASİT ÇALIŞAN VERSİYON
 'use client'
@@ -10722,523 +10933,374 @@ export default function SpotCard({ spot }: SpotCardProps) {
 
 
 
-// components/SpotList.tsx
-'use client'
+// components/SpotList.tsx - GÜNCELLENMİŞ
+'use client';
 
-import { useEffect, useState, useCallback } from 'react'
-import { useSearchParams } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
-import SpotCard from './SpotCard'
+import { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase';
+import SpotCard from './SpotCard';
+import NativeAd from './NativeAd';
 
-interface Spot {
-  id: string
-  title: string
-  description: string
-  category: string | null
-  location: string | null
-  image_url: string | null
-  status: string
-  created_at: string
-  user_id: string
-  views: number
-  helps: number
-  user?: {
-    name: string | null
-  }
+interface SpotListProps {
+  searchQuery?: string;
+  category?: string;
+  location?: string;
+  status?: string;
 }
 
-export default function SpotList() {
-  const searchParams = useSearchParams()
-  const [spots, setSpots] = useState<Spot[]>([])
-  const [loading, setLoading] = useState(true)
-  const [totalCount, setTotalCount] = useState(0)
+export default function SpotList({ 
+  searchQuery, 
+  category, 
+  location, 
+  status 
+}: SpotListProps) {
+  const [spots, setSpots] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
 
-  // URL parametrelerini al
-  const category = searchParams.get('category') || 'all'
-  const location = searchParams.get('location') || 'all'
-  const status = searchParams.get('status') || 'all'
-  const searchQuery = searchParams.get('search') || ''
-  const sortBy = searchParams.get('sort') || 'newest'
-  const minPrice = searchParams.get('minPrice') || ''
-  const maxPrice = searchParams.get('maxPrice') || ''
-  const dateRange = searchParams.get('dateRange') || 'all'
-
-  const fetchSpots = useCallback(async () => {
-    setLoading(true)
+  const loadSpots = async (pageNum = 1) => {
+    setLoading(true);
     
-    try {
-      let query = supabase
-        .from('spots')
-        .select('*', { count: 'exact' })
+    let query = supabase
+      .from('spots')
+      .select('*')
+      .eq('status', 'active')
+      .order('created_at', { ascending: false });
 
-      // 🔍 ARAMA FİLTRESİ
-      if (searchQuery && searchQuery.trim() !== '') {
-        query = query.or(`title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`)
-      }
-
-      // 📂 KATEGORİ FİLTRESİ
-      if (category !== 'all') {
-        query = query.eq('category', category)
-      }
-
-      // 📍 KONUM FİLTRESİ
-      if (location !== 'all') {
-        query = query.eq('location', location)
-      }
-
-      // 🟢 DURUM FİLTRESİ
-      if (status !== 'all') {
-        if (status === 'urgent') {
-          query = query.eq('status', 'active').eq('is_urgent', true)
-        } else {
-          query = query.eq('status', status)
-        }
-      }
-
-      // 💰 FİYAT FİLTRESİ (eğer sightings tablosunda fiyat varsa)
-      if (minPrice || maxPrice) {
-        // Önce price range'i olan spot id'lerini bul
-        const { data: pricedSpots } = await supabase
-          .from('sightings')
-          .select('spot_id, price')
-          .not('price', 'is', null)
-          
-        if (pricedSpots && pricedSpots.length > 0) {
-          const spotIds = pricedSpots
-            .filter(sighting => {
-              const price = sighting.price
-              if (minPrice && maxPrice) {
-                return price >= parseFloat(minPrice) && price <= parseFloat(maxPrice)
-              } else if (minPrice) {
-                return price >= parseFloat(minPrice)
-              } else if (maxPrice) {
-                return price <= parseFloat(maxPrice)
-              }
-              return true
-            })
-            .map(s => s.spot_id)
-          
-          if (spotIds.length > 0) {
-            query = query.in('id', spotIds)
-          } else {
-            // Eşleşen fiyat yoksa boş array döndür
-            query = query.in('id', [])
-          }
-        }
-      }
-
-      // 📅 TARİH FİLTRESİ
-      if (dateRange !== 'all') {
-        const now = new Date()
-        let startDate = new Date()
-        
-        switch (dateRange) {
-          case 'today':
-            startDate.setHours(0, 0, 0, 0)
-            break
-          case 'week':
-            startDate.setDate(now.getDate() - 7)
-            break
-          case 'month':
-            startDate.setMonth(now.getMonth() - 1)
-            break
-          case '3months':
-            startDate.setMonth(now.getMonth() - 3)
-            break
-        }
-        
-        if (dateRange !== 'all') {
-          query = query.gte('created_at', startDate.toISOString())
-        }
-      }
-
-      // 📊 SIRALAMA
-      switch (sortBy) {
-        case 'newest':
-          query = query.order('created_at', { ascending: false })
-          break
-        case 'oldest':
-          query = query.order('created_at', { ascending: true })
-          break
-        case 'most_viewed':
-          query = query.order('views', { ascending: false })
-          break
-        case 'most_helped':
-          query = query.order('helps', { ascending: false })
-          break
-        default:
-          query = query.order('created_at', { ascending: false })
-      }
-
-      // LIMIT
-      query = query.limit(30)
-
-      const { data, error, count } = await query
-
-      if (error) {
-        console.error('Spot yükleme hatası:', error)
-        // TEST VERİSİ - Gerçekte bu kısmı kaldırabilirsiniz
-        setSpots(getFilteredTestSpots())
-        setTotalCount(getFilteredTestSpots().length)
-      } else {
-        // RESİM URL'LERİNİ TEMİZLE
-        const cleanedSpots = cleanImageUrls(data || [])
-        setSpots(cleanedSpots)
-        setTotalCount(count || 0)
-        
-        console.log(`📊 Filtrelenmiş: ${cleanedSpots.length} spot`)
-        console.log('Filtreler:', { category, location, status, searchQuery })
-      }
-    } catch (err) {
-      console.error('Beklenmeyen hata:', err)
-      setSpots([])
-    } finally {
-      setLoading(false)
+    // Filtreler
+    if (searchQuery) {
+      query = query.or(`title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`);
     }
-  }, [category, location, status, searchQuery, sortBy, minPrice, maxPrice, dateRange])
+    if (category && category !== 'all') {
+      query = query.eq('category', category);
+    }
+    if (location && location !== 'all') {
+      query = query.eq('location', location);
+    }
+
+    const { data, error } = await query
+      .range((pageNum - 1) * 12, pageNum * 12 - 1);
+
+    if (error) {
+      console.error('Error loading spots:', error);
+      return;
+    }
+
+    if (pageNum === 1) {
+      setSpots(data || []);
+    } else {
+      setSpots(prev => [...prev, ...(data || [])]);
+    }
+
+    setHasMore((data?.length || 0) === 12);
+    setLoading(false);
+  };
 
   useEffect(() => {
-    fetchSpots()
-  }, [fetchSpots])
+    loadSpots(1);
+    setPage(1);
+  }, [searchQuery, category, location, status]);
 
-  const cleanImageUrls = (spots: any[]): Spot[] => {
-    return spots.map(spot => {
-      let image_url = spot.image_url
+  const loadMore = () => {
+    const nextPage = page + 1;
+    setPage(nextPage);
+    loadSpots(nextPage);
+  };
+
+  // Reklamları spotlar arasına serpiştir
+  const getItemsWithAds = () => {
+    const items: any[] = [];
+    const adFrequency = 4; // Her 4 spot'ta bir reklam
+    
+    spots.forEach((spot, index) => {
+      items.push({
+        type: 'spot',
+        data: spot,
+        key: `spot-${spot.id}`
+      });
       
-      if (image_url && typeof image_url === 'string') {
-        image_url = image_url.trim()
-        image_url = image_url.replace(/["']/g, '')
-        
-        if (image_url.startsWith('http://')) {
-          image_url = image_url.replace('http://', 'https://')
-        }
-        
-        if (image_url.startsWith('//')) {
-          image_url = 'https:' + image_url
-        }
-        
-        if (image_url.includes('supabase.co')) {
-          if (image_url.includes('/storage/v1/object/') && !image_url.includes('/public/')) {
-            image_url = image_url.replace('/object/', '/object/public/')
-          }
-        }
-        
-        try {
-          new URL(image_url)
-        } catch {
-          image_url = null
-        }
-      } else {
-        image_url = null
+      // Belirli aralıklarla reklam ekle
+      if ((index + 1) % adFrequency === 0) {
+        items.push({
+          type: 'ad',
+          key: `ad-${index}`,
+          index: index
+        });
       }
-      
-      return {
-        ...spot,
-        image_url
-      }
-    })
-  }
+    });
+    
+    return items;
+  };
 
-  // TEST VERİSİ (geçici)
-  const getFilteredTestSpots = (): Spot[] => {
-    const testSpots = [
-      {
-        id: '1',
-        title: 'Vintage Nikon F2 Kamera Lens 50mm f/1.4',
-        description: 'Orijinal 50mm f/1.4 lens arıyorum. 1970lerden kalma.',
-        category: 'Elektronik',
-        location: 'İstanbul',
-        image_url: 'https://gobzxreumkbgaohvzoef.supabase.co/storage/v1/object/public/spot-images/7f4b4b19-992c-47b6-a1ba-29d339dade1b/1769311004662.png',
-        status: 'active',
-        created_at: new Date().toISOString(),
-        user_id: 'test',
-        views: 10,
-        helps: 2
-      },
-      {
-        id: '2',
-        title: 'Eski Arçelik Çay Makinesi Cam Kapağı',
-        description: 'Arçelik K 2712 modeli için cam kapak arıyorum.',
-        category: 'Ev & Bahçe',
-        location: 'İzmir',
-        image_url: null,
-        status: 'active',
-        created_at: new Date().toISOString(),
-        user_id: 'test',
-        views: 5,
-        helps: 1
-      },
-      {
-        id: '3',
-        title: 'Retro PlayStation 1 Oyun Koleksiyonu',
-        description: 'Crash Bandicoot, Tekken 3 orijinal CDleri.',
-        category: 'Oyuncak & Oyun',
-        location: 'Ankara',
-        image_url: 'https://images.unsplash.com/photo-1511512578047-dfb367046420',
-        status: 'found',
-        created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-        user_id: 'test',
-        views: 25,
-        helps: 7
-      }
-    ]
-
-    // Filtre uygula
-    return testSpots.filter(spot => {
-      if (category !== 'all' && spot.category !== category) return false
-      if (location !== 'all' && spot.location !== location) return false
-      if (status !== 'all' && spot.status !== status) return false
-      if (searchQuery && !spot.title.toLowerCase().includes(searchQuery.toLowerCase())) return false
-      return true
-    })
-  }
-
-  const categories = [
-    'Tümü', 'Elektronik', 'Giyim & Aksesuar', 'Ev & Bahçe',
-    'Koleksiyon', 'Kitap & Müzik', 'Oyuncak & Oyun',
-    'Spor & Outdoor', 'Araç & Parça', 'Diğer'
-  ]
-
-  const locations = [
-    'Tümü', 'İstanbul', 'Ankara', 'İzmir', 'Bursa', 'Antalya',
-    'Adana', 'Konya', 'Trabzon', 'Türkiye Geneli', 'Yurt Dışı'
-  ]
-
-  if (loading) {
-    return (
-      <div className="text-center py-12">
-        <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600"></div>
-        <p className="mt-4 text-gray-600">Spot'lar yükleniyor...</p>
-      </div>
-    )
-  }
+  const items = getItemsWithAds();
 
   return (
     <div>
-      {/* AKTİF FİLTRELER GÖSTERİMİ */}
-      <div className="bg-white rounded-xl shadow p-4 mb-6">
-        <div className="flex flex-wrap items-center justify-between">
-          <div className="flex flex-wrap items-center gap-2 mb-2 md:mb-0">
-            <span className="text-sm text-gray-700">Aktif filtreler:</span>
-            
-            {category !== 'all' && (
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800">
-                Kategori: {category}
-                <button 
-                  onClick={() => {
-                    const params = new URLSearchParams(searchParams.toString())
-                    params.delete('category')
-                    window.location.href = `/spots?${params.toString()}`
-                  }}
-                  className="ml-2 text-blue-600 hover:text-blue-800"
-                >
-                  ×
-                </button>
-              </span>
-            )}
-            
-            {location !== 'all' && (
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-green-100 text-green-800">
-                Konum: {location}
-                <button 
-                  onClick={() => {
-                    const params = new URLSearchParams(searchParams.toString())
-                    params.delete('location')
-                    window.location.href = `/spots?${params.toString()}`
-                  }}
-                  className="ml-2 text-green-600 hover:text-green-800"
-                >
-                  ×
-                </button>
-              </span>
-            )}
-            
-            {status !== 'all' && (
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-purple-100 text-purple-800">
-                Durum: {status === 'active' ? 'Aktif' : status === 'found' ? 'Bulundu' : 'Acil'}
-                <button 
-                  onClick={() => {
-                    const params = new URLSearchParams(searchParams.toString())
-                    params.delete('status')
-                    window.location.href = `/spots?${params.toString()}`
-                  }}
-                  className="ml-2 text-purple-600 hover:text-purple-800"
-                >
-                  ×
-                </button>
-              </span>
-            )}
-            
-            {searchQuery && (
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-orange-100 text-orange-800">
-                Arama: "{searchQuery}"
-                <button 
-                  onClick={() => {
-                    const params = new URLSearchParams(searchParams.toString())
-                    params.delete('search')
-                    window.location.href = `/spots?${params.toString()}`
-                  }}
-                  className="ml-2 text-orange-600 hover:text-orange-800"
-                >
-                  ×
-                </button>
-              </span>
-            )}
-            
-            {(category !== 'all' || location !== 'all' || status !== 'all' || searchQuery) && (
-              <button
-                onClick={() => window.location.href = '/spots'}
-                className="text-sm text-red-600 hover:text-red-800 ml-2"
-              >
-                Tümünü Temizle
-              </button>
-            )}
-          </div>
-          
-          <div className="text-sm text-gray-600">
-            {totalCount} spot bulundu
-          </div>
-        </div>
+      {/* Spot Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {items.map((item) => {
+          if (item.type === 'spot') {
+            return (
+              <SpotCard key={item.key} spot={item.data} />
+            );
+          } else {
+            return (
+              <div key={item.key} className="col-span-full md:col-span-2 lg:col-span-3">
+                <NativeAd index={item.index} />
+              </div>
+            );
+          }
+        })}
       </div>
 
-      {/* SPOT LİSTESİ */}
-      {spots.length === 0 ? (
-        <div className="text-center py-16 bg-white rounded-xl shadow">
-          <div className="text-5xl mb-6">🔍</div>
-          <h3 className="text-2xl font-bold text-gray-900 mb-4">
-            Filtrelere uygun spot bulunamadı
-          </h3>
-          <p className="text-gray-600 mb-8 max-w-md mx-auto">
-            Filtrelerinizi değiştirmeyi deneyin veya ilk spot'u oluşturun!
-          </p>
-          <div className="space-x-4">
-            <button
-              onClick={() => window.location.href = '/spots'}
-              className="btn-primary inline-block"
-            >
-              Filtreleri Temizle
-            </button>
-            <a
-              href="/create-spot"
-              className="btn-secondary inline-block"
-            >
-              İlk Spot'u Oluşturun
-            </a>
-          </div>
+      {/* Loading */}
+      {loading && (
+        <div className="text-center py-8">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <p className="mt-2 text-gray-600">Spot'lar yükleniyor...</p>
         </div>
-      ) : (
-        <>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {spots.map((spot) => (
-              <SpotCard key={spot.id} spot={spot} />
-            ))}
-          </div>
-          
-          {/* SAYFALAMA (Basit versiyon) */}
-          {spots.length >= 30 && (
-            <div className="mt-8 text-center">
-              <div className="inline-flex space-x-2 bg-white rounded-xl shadow p-2">
-                <button className="px-4 py-2 bg-gray-100 rounded-lg text-gray-700 hover:bg-gray-200">
-                  ← Önceki
-                </button>
-                <button className="px-4 py-2 bg-blue-600 text-white rounded-lg">
-                  1
-                </button>
-                <button className="px-4 py-2 bg-gray-100 rounded-lg text-gray-700 hover:bg-gray-200">
-                  2
-                </button>
-                <button className="px-4 py-2 bg-gray-100 rounded-lg text-gray-700 hover:bg-gray-200">
-                  3
-                </button>
-                <button className="px-4 py-2 bg-gray-100 rounded-lg text-gray-700 hover:bg-gray-200">
-                  Sonraki →
-                </button>
-              </div>
-              <p className="text-sm text-gray-500 mt-4">
-                Daha fazla spot için filtrelerinizi daraltın
-              </p>
-            </div>
-          )}
-        </>
+      )}
+
+      {/* Load More */}
+      {!loading && hasMore && spots.length > 0 && (
+        <div className="text-center mt-8">
+          <button
+            onClick={loadMore}
+            className="bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-3 px-8 rounded-lg transition-colors"
+          >
+            Daha Fazla Spot Göster
+          </button>
+        </div>
+      )}
+
+      {/* No Results */}
+      {!loading && spots.length === 0 && (
+        <div className="text-center py-12">
+          <div className="text-4xl mb-4">🔍</div>
+          <h3 className="text-xl font-semibold text-gray-800 mb-2">
+            Spot bulunamadı
+          </h3>
+          <p className="text-gray-600 mb-6">
+            Arama kriterlerinize uygun spot bulunamadı.
+          </p>
+          <a
+            href="/create-spot"
+            className="inline-block bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg"
+          >
+            İlk Spot'u Siz Oluşturun
+          </a>
+        </div>
       )}
     </div>
-  )
+  );
 }
 
 
 
-export default function Stats() {
-  const stats = [
-    { value: '10,000+', label: 'Aktif Spot', icon: '📝', color: 'from-blue-500 to-blue-600' },
-    { value: '50,000+', label: 'Topluluk Üyesi', icon: '👥', color: 'from-purple-500 to-purple-600' },
-    { value: '5,000+', label: 'Başarı Hikayesi', icon: '🎉', color: 'from-green-500 to-green-600' },
-    { value: '100+', label: 'Şehir', icon: '📍', color: 'from-orange-500 to-orange-600' },
-    { value: '24s', label: 'Ort. Yanıt Süresi', icon: '⚡', color: 'from-pink-500 to-pink-600' },
-    { value: '94%', label: 'Memnuniyet Oranı', icon: '⭐', color: 'from-indigo-500 to-indigo-600' },
-  ]
+// components/RecentSpots.tsx - GÜNCELLENMİŞ
+'use client';
+
+import { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase';
+import SpotCard from './SpotCard';
+import NativeAd from './NativeAd';
+
+export default function RecentSpots() {
+  const [spots, setSpots] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadSpots();
+  }, []);
+
+  const loadSpots = async () => {
+    const { data, error } = await supabase
+      .from('spots')
+      .select('*')
+      .eq('status', 'active')
+      .order('created_at', { ascending: false })
+      .limit(9); // 9 spot + reklamlar
+
+    if (error) {
+      console.error('Error loading recent spots:', error);
+      return;
+    }
+
+    setSpots(data || []);
+    setLoading(false);
+  };
+
+  // Spotlar ve reklamları karıştır
+  const getMixedItems = () => {
+    const items: any[] = [];
+    
+    // İlk 3 spot
+    items.push(...spots.slice(0, 3).map(spot => ({
+      type: 'spot',
+      data: spot,
+      key: `spot-${spot.id}`
+    })));
+    
+    // İlk reklam
+    items.push({
+      type: 'ad',
+      key: 'ad-1',
+      index: 3
+    });
+    
+    // Sonraki 3 spot
+    items.push(...spots.slice(3, 6).map(spot => ({
+      type: 'spot',
+      data: spot,
+      key: `spot-${spot.id}`
+    })));
+    
+    // İkinci reklam
+    items.push({
+      type: 'ad',
+      key: 'ad-2',
+      index: 6
+    });
+    
+    // Son 3 spot
+    items.push(...spots.slice(6, 9).map(spot => ({
+      type: 'spot',
+      data: spot,
+      key: `spot-${spot.id}`
+    })));
+    
+    return items;
+  };
+
+  const mixedItems = getMixedItems();
+
+  if (loading) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {[...Array(6)].map((_, i) => (
+          <div key={i} className="bg-gray-100 animate-pulse rounded-xl h-64"></div>
+        ))}
+      </div>
+    );
+  }
 
   return (
-    <section className="py-16 bg-gradient-to-b from-white to-gray-50">
-      <div className="container-custom">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-            SpotItForMe İstatistikleri
-          </h2>
-          <p className="text-gray-600 max-w-2xl mx-auto">
-            Türkiye'nin en büyük kayıp ürün bulma topluluğu olarak her gün binlerce kişiye yardım ediyoruz
-          </p>
-        </div>
+    <section className="py-12">
+      <div className="flex justify-between items-center mb-8">
+        <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
+          Yeni Eklenen Spot'lar
+        </h2>
+        <a
+          href="/spots"
+          className="text-blue-600 hover:text-blue-800 font-medium"
+        >
+          Tümünü Gör →
+        </a>
+      </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
-          {stats.map((stat, index) => (
-            <div 
-              key={index}
-              className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-gray-100"
-            >
-              <div className={`w-16 h-16 rounded-xl bg-gradient-to-br ${stat.color} flex items-center justify-center text-2xl text-white mx-auto mb-4`}>
-                {stat.icon}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {mixedItems.map((item) => {
+          if (item.type === 'spot') {
+            return (
+              <SpotCard key={item.key} spot={item.data} />
+            );
+          } else {
+            return (
+              <div key={item.key} className="col-span-full md:col-span-2 lg:col-span-3">
+                <NativeAd index={item.index} />
               </div>
-              
-              <div className="text-center">
-                <div className="text-2xl md:text-3xl font-bold text-gray-900 mb-1">
-                  {stat.value}
-                </div>
-                <div className="text-sm text-gray-600 font-medium">
-                  {stat.label}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Canlı aktivite */}
-        <div className="mt-12 bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-8 border border-blue-100">
-          <div className="flex flex-col md:flex-row items-center justify-between">
-            <div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">🎯 Şu Anda Aktif Aramalar</h3>
-              <p className="text-gray-600">
-                <span className="font-bold text-blue-600">127 kişi</span> şu anda topluluğumuzdan yardım bekliyor
-              </p>
-            </div>
-            <div className="mt-4 md:mt-0">
-              <div className="flex items-center space-x-4">
-                <div className="flex -space-x-2">
-                  {[1, 2, 3, 4, 5].map((i) => (
-                    <div 
-                      key={i}
-                      className="w-10 h-10 rounded-full border-2 border-white bg-gradient-to-br from-blue-400 to-purple-400"
-                    />
-                  ))}
-                </div>
-                <span className="text-sm text-gray-600">+ daha fazlası yardım ediyor</span>
-              </div>
-            </div>
-          </div>
-        </div>
+            );
+          }
+        })}
       </div>
     </section>
-  )
+  );
 }
+
+
+
+
+// components/ResponsiveAd.tsx - DÜZELTMİŞ
+'use client';
+
+import { useState, useEffect } from 'react';
+import NativeAd from './NativeAd';
+
+interface ResponsiveAdProps {
+  placement: 'inline' | 'banner' | 'native';
+  className?: string;
+}
+
+export default function ResponsiveAd({ placement, className = '' }: ResponsiveAdProps) {
+  const [isMobile, setIsMobile] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  if (!mounted) {
+    return (
+      <div className={`${className} bg-gray-100 animate-pulse rounded-lg`}>
+        <div className="h-full flex items-center justify-center">
+          <span className="text-gray-400 text-sm">Reklam yükleniyor...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Mobilde daha küçük reklam boyutları
+  const getAdSize = () => {
+    if (isMobile) {
+      switch (placement) {
+        case 'banner': return '320x50';
+        case 'inline': return '300x250';
+        case 'native': return 'native';
+        default: return '300x250';
+      }
+    } else {
+      switch (placement) {
+        case 'banner': return '728x90';
+        case 'inline': return '728x90';
+        case 'native': return 'native';
+        default: return '728x90';
+      }
+    }
+  };
+
+  const adSize = getAdSize();
+
+  return (
+    <div className={`${className} ${isMobile ? 'px-2' : ''}`}>
+      {adSize === 'native' ? (
+        <NativeAd />
+      ) : (
+        <div className="text-center p-4 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50">
+          <div className="text-gray-700 font-medium mb-2">
+            {isMobile ? 'Mobil Reklam' : 'Desktop Reklam'}
+          </div>
+          <div className="text-gray-500 text-sm mb-3">
+            Boyut: {adSize}
+          </div>
+          <div className="text-xs text-gray-400">
+            Bu alana reklamınızı yerleştirin
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 
 
 
@@ -12544,64 +12606,56 @@ export interface Shop {
 }
 
 
-// app/layout.tsx - HEAD kısmına ekle
-import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
-import './globals.css'
+// app/layout.tsx - GÜNCELLENMİŞ
+import { Inter } from "next/font/google";
+import "./globals.css";
+import Script from "next/script";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
+import AdUnit from "@/components/AdUnit";
 
-const inter = Inter({ subsets: ['latin'] })
-
-export const metadata: Metadata = {
-  title: 'SpotItForMe - Toplulukla Ürün Bulma Platformu',
-  description: 'Bulunması zor ürünleri topluluk gücüyle bulun. Vintage, nadir, eski model ürünler için spot oluşturun.',
-}
+const inter = Inter({ subsets: ["latin"] });
 
 export default function RootLayout({
   children,
-}: {
-  children: React.ReactNode
-}) {
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  const adsenseClientId = process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID;
+  
   return (
     <html lang="tr">
       <head>
-        {/* Google AdSense Script */}
-        <script 
-          async 
-          src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-${process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID}`}
-          crossOrigin="anonymous"
-        />
-        
-        {/* Meta Tags for AdSense */}
-        <meta name="google-adsense-account" content={`ca-pub-${process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID}`} />
-        
-        {/* Favicon ve diğer meta tag'ler */}
-        <link rel="icon" href="/favicon.ico" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        
-        {/* AdSense için gerekli meta tag'ler */}
-        <meta name="robots" content="index, follow" />
-        <meta name="googlebot" content="index, follow" />
-        <meta name="referrer" content="strict-origin-when-cross-origin" />
+        {adsenseClientId && (
+          <Script
+            async
+            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adsenseClientId}`}
+            strategy="lazyOnload"
+            crossOrigin="anonymous"
+          />
+        )}
       </head>
       <body className={inter.className}>
-        {children}
+        {/* Header üstü reklam (sadece desktop) */}
+        <div className="hidden md:block container mx-auto px-4 mt-4">
+          <AdUnit placement="header" className="h-24 mb-4" />
+        </div>
         
-        {/* AdSense için gerekli script */}
-        <script 
-          dangerouslySetInnerHTML={{
-            __html: `
-              (adsbygoogle = window.adsbygoogle || []).push({
-                google_ad_client: "${process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID}",
-                enable_page_level_ads: true,
-                overlays: {bottom: true}
-              });
-            `
-          }}
-        />
+        <Header />
+        
+        <main className="min-h-screen">
+          {/* SADECE children - sidebar YOK */}
+          <div className="container mx-auto px-4">
+            {children}
+          </div>
+        </main>
+        
+        <Footer />
       </body>
     </html>
-  )
+  );
 }
+
 
 
 
@@ -14741,4 +14795,473 @@ NEXT_PUBLIC_MAX_PHOTO_SIZE=5 # MB
 NEXT_PUBLIC_ENABLE_MESSAGING=true
 NEXT_PUBLIC_MAX_MESSAGE_LENGTH=5000
 NEXT_PUBLIC_MAX_FILE_SIZE=10485760 # 10MB
+
+
+
+
+// app/admin/ads/page.tsx - Reklam Ana Sayfası
+'use client';
+
+import { useState } from 'react';
+import Link from 'next/link';
+
+export default function AdminAdsPage() {
+  const [activeTab, setActiveTab] = useState('overview');
+
+  return (
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-6">Reklam Yönetimi</h1>
+      
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+        <div className="bg-white p-4 rounded-lg shadow">
+          <h3 className="font-semibold">Toplam Gelir</h3>
+          <p className="text-2xl font-bold text-green-600">₺0.00</p>
+        </div>
+        <div className="bg-white p-4 rounded-lg shadow">
+          <h3 className="font-semibold">Aktif Reklamlar</h3>
+          <p className="text-2xl font-bold text-blue-600">0</p>
+        </div>
+        <div className="bg-white p-4 rounded-lg shadow">
+          <h3 className="font-semibold">Bugünkü Gösterim</h3>
+          <p className="text-2xl font-bold text-purple-600">0</p>
+        </div>
+        <div className="bg-white p-4 rounded-lg shadow">
+          <h3 className="font-semibold">Bugünkü Tıklama</h3>
+          <p className="text-2xl font-bold text-orange-600">0</p>
+        </div>
+      </div>
+
+      <div className="flex space-x-4 mb-6">
+        <button
+          className={`px-4 py-2 rounded-lg ${activeTab === 'overview' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
+          onClick={() => setActiveTab('overview')}
+        >
+          Genel Bakış
+        </button>
+        <button
+          className={`px-4 py-2 rounded-lg ${activeTab === 'adsense' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
+          onClick={() => setActiveTab('adsense')}
+        >
+          AdSense Yönetimi
+        </button>
+        <button
+          className={`px-4 py-2 rounded-lg ${activeTab === 'manual' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
+          onClick={() => setActiveTab('manual')}
+        >
+          Manuel Reklamlar
+        </button>
+        <button
+          className={`px-4 py-2 rounded-lg ${activeTab === 'advertisers' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
+          onClick={() => setActiveTab('advertisers')}
+        >
+          Reklamverenler
+        </button>
+      </div>
+
+      {activeTab === 'overview' && (
+        <div className="bg-white p-6 rounded-lg shadow">
+          <h2 className="text-xl font-bold mb-4">Hızlı Eylemler</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Link href="/admin/ads/adsense-setup" className="bg-blue-50 p-4 rounded-lg border border-blue-200 hover:bg-blue-100 transition">
+              <h3 className="font-semibold">AdSense Kurulum</h3>
+              <p className="text-sm text-gray-600">Google AdSense entegrasyonu</p>
+            </Link>
+            <Link href="/admin/ads/create-manual" className="bg-green-50 p-4 rounded-lg border border-green-200 hover:bg-green-100 transition">
+              <h3 className="font-semibold">Manuel Reklam Ekle</h3>
+              <p className="text-sm text-gray-600">Kendi reklamınızı ekleyin</p>
+            </Link>
+            <Link href="/admin/ads/placements" className="bg-purple-50 p-4 rounded-lg border border-purple-200 hover:bg-purple-100 transition">
+              <h3 className="font-semibold">Reklam Yerleşimleri</h3>
+              <p className="text-sm text-gray-600">Reklam pozisyonlarını yönetin</p>
+            </Link>
+            <Link href="/admin/ads/reports" className="bg-orange-50 p-4 rounded-lg border border-orange-200 hover:bg-orange-100 transition">
+              <h3 className="font-semibold">Raporlar</h3>
+              <p className="text-sm text-gray-600">Performans raporları</p>
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'adsense' && (
+        <div className="bg-white p-6 rounded-lg shadow">
+          <h2 className="text-xl font-bold mb-4">AdSense Yönetimi</h2>
+          <div className="space-y-4">
+            <div className="p-4 border rounded-lg">
+              <h3 className="font-semibold">AdSense Durumu</h3>
+              <div className="flex items-center space-x-2 mt-2">
+                <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                <span>AdSense aktif değil</span>
+              </div>
+            </div>
+            
+            <div className="p-4 border rounded-lg">
+              <h3 className="font-semibold mb-2">AdSense Kurulumu</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">AdSense Client ID</label>
+                  <input
+                    type="text"
+                    placeholder="ca-pub-xxxxxxxxxxxxxxxx"
+                    className="w-full p-2 border rounded"
+                  />
+                  <p className="text-sm text-gray-500 mt-1">Google AdSense panelinden alınan client ID</p>
+                </div>
+                <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                  AdSense'i Aktif Et
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'manual' && (
+        <div className="bg-white p-6 rounded-lg shadow">
+          <h2 className="text-xl font-bold mb-4">Manuel Reklam Yönetimi</h2>
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="font-semibold">Mevcut Reklamlar</h3>
+              <Link href="/admin/ads/create-manual" className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">
+                Yeni Reklam Ekle
+              </Link>
+            </div>
+            
+            {/* Reklam listesi buraya gelecek */}
+            <div className="text-center py-8 text-gray-500">
+              Henüz manuel reklam eklenmemiş
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'advertisers' && (
+        <div className="bg-white p-6 rounded-lg shadow">
+          <h2 className="text-xl font-bold mb-4">Reklamveren Yönetimi</h2>
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="font-semibold">Reklamverenler</h3>
+              <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                Yeni Reklamveren Ekle
+              </button>
+            </div>
+            
+            {/* Reklamveren listesi buraya gelecek */}
+            <div className="text-center py-8 text-gray-500">
+              Henüz reklamveren eklenmemiş
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+
+
+// components/AdUnit.tsx - ÇİFT ÖZELLİKLİ
+'use client';
+
+import { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase';
+
+interface AdUnitProps {
+  placement: string; // 'header', 'sidebar', 'inline', 'popup'
+  className?: string;
+}
+
+export default function AdUnit({ placement, className = '' }: AdUnitProps) {
+  const [adData, setAdData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [adType, setAdType] = useState<'adsense' | 'manual' | 'placeholder'>('placeholder');
+
+  useEffect(() => {
+    loadAd();
+  }, [placement]);
+
+  const loadAd = async () => {
+    try {
+      // 1. Önce aktif reklamları getir
+      const { data: ads } = await supabase
+        .from('ad_units')
+        .select('*')
+        .eq('position', placement)
+        .eq('status', 'active')
+        .lte('start_date', new Date().toISOString())
+        .gte('end_date', new Date().toISOString())
+        .order('rotation_order', { ascending: true })
+        .limit(1);
+
+      if (ads && ads.length > 0) {
+        const ad = ads[0];
+        setAdData(ad);
+        setAdType(ad.ad_type);
+      } else {
+        setAdType('placeholder');
+      }
+    } catch (error) {
+      console.error('Reklam yükleme hatası:', error);
+      setAdType('placeholder');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const trackImpression = async () => {
+    if (!adData) return;
+    
+    await supabase
+      .from('ad_units')
+      .update({
+        impressions: (adData.impressions || 0) + 1
+      })
+      .eq('id', adData.id);
+  };
+
+  const trackClick = async () => {
+    if (!adData) return;
+    
+    await supabase
+      .from('ad_units')
+      .update({
+        clicks: (adData.clicks || 0) + 1
+      })
+      .eq('id', adData.id);
+  };
+
+  if (loading) {
+    return (
+      <div className={`bg-gray-100 animate-pulse rounded-lg ${className}`}>
+        <div className="w-full h-full flex items-center justify-center">
+          <span className="text-gray-400">Reklam yükleniyor...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // AdSense reklamı
+  if (adType === 'adsense' && adData?.client_id) {
+    return (
+      <div className={`relative ${className}`}>
+        <ins
+          className="adsbygoogle"
+          style={{ display: 'block' }}
+          data-ad-client={adData.client_id}
+          data-ad-slot={adData.ad_slot}
+          data-ad-format="auto"
+          data-full-width-responsive="true"
+        ></ins>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (adsbygoogle = window.adsbygoogle || []).push({});
+            `,
+          }}
+        />
+      </div>
+    );
+  }
+
+  // Manuel reklam
+  if (adType === 'manual' && adData) {
+    return (
+      <div 
+        className={`relative ${className}`}
+        onLoad={trackImpression}
+        onClick={trackClick}
+      >
+        {adData.custom_html ? (
+          <div dangerouslySetInnerHTML={{ __html: adData.custom_html }} />
+        ) : (
+          <a 
+            href={adData.advertiser_url || '#'}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block"
+          >
+            <div className="border-2 border-dashed border-blue-300 bg-blue-50 p-4 rounded-lg">
+              <div className="text-center">
+                <div className="font-semibold text-blue-700">{adData.advertiser_name}</div>
+                <div className="text-sm text-blue-600">Reklam Alanı</div>
+                <div className="text-xs text-gray-500 mt-2">
+                  Boyut: {adData.size} | Gösterim: {adData.impressions || 0}
+                </div>
+              </div>
+            </div>
+          </a>
+        )}
+      </div>
+    );
+  }
+
+  // Placeholder - Reklam yoksa
+  return (
+    <div className={`border-2 border-dashed border-gray-300 bg-gray-50 p-4 rounded-lg ${className}`}>
+      <div className="text-center">
+        <div className="font-semibold text-gray-700">Reklam Alanı</div>
+        <div className="text-sm text-gray-600">{getPlaceholderSize(placement)}</div>
+        <div className="text-xs text-gray-500 mt-2">Buraya reklamınızı yerleştirin</div>
+        <div className="text-xs text-gray-400 mt-1">
+          Gösterim: 0 | Tıklama: 0 | CTR: 0%
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function getPlaceholderSize(placement: string): string {
+  const sizes: Record<string, string> = {
+    'header': '728x90',
+    'sidebar': '300x250',
+    'inline': '728x90',
+    'mobile': '320x50',
+    'popup': '400x300'
+  };
+  return sizes[placement] || '300x250';
+}
+
+
+
+
+// app/admin/ads/create-manual/page.tsx
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+
+export default function CreateManualAdPage() {
+  const router = useRouter();
+  const [formData, setFormData] = useState({
+    name: '',
+    ad_type: 'manual',
+    position: 'sidebar',
+    size: '300x250',
+    custom_html: '',
+    advertiser_name: '',
+    advertiser_url: '',
+    advertiser_email: '',
+    start_date: '',
+    end_date: '',
+    daily_budget: '',
+    total_budget: '',
+    status: 'draft'
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    // Supabase'e kaydet
+    router.push('/admin/ads');
+  };
+
+  return (
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-6">Yeni Manuel Reklam Ekle</h1>
+      
+      <form onSubmit={handleSubmit} className="space-y-6 max-w-2xl">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">Reklam Adı *</label>
+            <input
+              type="text"
+              required
+              className="w-full p-2 border rounded"
+              value={formData.name}
+              onChange={(e) => setFormData({...formData, name: e.target.value})}
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-1">Pozisyon *</label>
+            <select
+              className="w-full p-2 border rounded"
+              value={formData.position}
+              onChange={(e) => setFormData({...formData, position: e.target.value})}
+            >
+              <option value="header">Ana Sayfa Üst (728x90)</option>
+              <option value="sidebar">Sağ Sidebar (300x250)</option>
+              <option value="inline">İçerik Arası (728x90)</option>
+              <option value="mobile">Mobil Banner (320x50)</option>
+              <option value="popup">Popup (400x300)</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-1">Reklamveren Bilgileri</label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+            <input
+              type="text"
+              placeholder="Şirket Adı"
+              className="p-2 border rounded"
+              value={formData.advertiser_name}
+              onChange={(e) => setFormData({...formData, advertiser_name: e.target.value})}
+            />
+            <input
+              type="url"
+              placeholder="Website URL"
+              className="p-2 border rounded"
+              value={formData.advertiser_url}
+              onChange={(e) => setFormData({...formData, advertiser_url: e.target.value})}
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-1">Reklam HTML Kodu</label>
+          <textarea
+            rows={8}
+            className="w-full p-2 border rounded font-mono text-sm"
+            placeholder='<a href="https://example.com"><img src="https://example.com/banner.jpg" alt="Reklam" /></a>'
+            value={formData.custom_html}
+            onChange={(e) => setFormData({...formData, custom_html: e.target.value})}
+          />
+          <p className="text-sm text-gray-500 mt-1">
+            HTML5 banner kodu veya basit HTML. Boyutlara dikkat edin.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">Başlangıç Tarihi</label>
+            <input
+              type="date"
+              className="w-full p-2 border rounded"
+              value={formData.start_date}
+              onChange={(e) => setFormData({...formData, start_date: e.target.value})}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Bitiş Tarihi</label>
+            <input
+              type="date"
+              className="w-full p-2 border rounded"
+              value={formData.end_date}
+              onChange={(e) => setFormData({...formData, end_date: e.target.value})}
+            />
+          </div>
+        </div>
+
+        <div className="flex justify-end space-x-4">
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="px-4 py-2 border rounded-lg hover:bg-gray-100"
+          >
+            İptal
+          </button>
+          <button
+            type="submit"
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            Reklamı Kaydet
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+
+
+
 

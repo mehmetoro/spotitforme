@@ -1,442 +1,162 @@
-// components/SpotList.tsx
-'use client'
+// components/SpotList.tsx - GÜNCELLENMİŞ
+'use client';
 
-import { useEffect, useState, useCallback } from 'react'
-import { useSearchParams } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
-import SpotCard from './SpotCard'
+import { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase';
+import SpotCard from './SpotCard';
+import NativeAd from './NativeAd';
 
-interface Spot {
-  id: string
-  title: string
-  description: string
-  category: string | null
-  location: string | null
-  image_url: string | null
-  status: string
-  created_at: string
-  user_id: string
-  views: number
-  helps: number
-  user?: {
-    name: string | null
-  }
+interface SpotListProps {
+  searchQuery?: string;
+  category?: string;
+  location?: string;
+  status?: string;
 }
 
-export default function SpotList() {
-  const searchParams = useSearchParams()
-  const [spots, setSpots] = useState<Spot[]>([])
-  const [loading, setLoading] = useState(true)
-  const [totalCount, setTotalCount] = useState(0)
+export default function SpotList({ 
+  searchQuery, 
+  category, 
+  location, 
+  status 
+}: SpotListProps) {
+  const [spots, setSpots] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
 
-  // URL parametrelerini al
-  const category = searchParams.get('category') || 'all'
-  const location = searchParams.get('location') || 'all'
-  const status = searchParams.get('status') || 'all'
-  const searchQuery = searchParams.get('search') || ''
-  const sortBy = searchParams.get('sort') || 'newest'
-  const minPrice = searchParams.get('minPrice') || ''
-  const maxPrice = searchParams.get('maxPrice') || ''
-  const dateRange = searchParams.get('dateRange') || 'all'
-
-  const fetchSpots = useCallback(async () => {
-    setLoading(true)
+  const loadSpots = async (pageNum = 1) => {
+    setLoading(true);
     
-    try {
-      let query = supabase
-        .from('spots')
-        .select('*', { count: 'exact' })
+    let query = supabase
+      .from('spots')
+      .select('*')
+      .eq('status', 'active')
+      .order('created_at', { ascending: false });
 
-      // 🔍 ARAMA FİLTRESİ
-      if (searchQuery && searchQuery.trim() !== '') {
-        query = query.or(`title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`)
-      }
-
-      // 📂 KATEGORİ FİLTRESİ
-      if (category !== 'all') {
-        query = query.eq('category', category)
-      }
-
-      // 📍 KONUM FİLTRESİ
-      if (location !== 'all') {
-        query = query.eq('location', location)
-      }
-
-      // 🟢 DURUM FİLTRESİ
-      if (status !== 'all') {
-        if (status === 'urgent') {
-          query = query.eq('status', 'active').eq('is_urgent', true)
-        } else {
-          query = query.eq('status', status)
-        }
-      }
-
-      // 💰 FİYAT FİLTRESİ (eğer sightings tablosunda fiyat varsa)
-      if (minPrice || maxPrice) {
-        // Önce price range'i olan spot id'lerini bul
-        const { data: pricedSpots } = await supabase
-          .from('sightings')
-          .select('spot_id, price')
-          .not('price', 'is', null)
-          
-        if (pricedSpots && pricedSpots.length > 0) {
-          const spotIds = pricedSpots
-            .filter(sighting => {
-              const price = sighting.price
-              if (minPrice && maxPrice) {
-                return price >= parseFloat(minPrice) && price <= parseFloat(maxPrice)
-              } else if (minPrice) {
-                return price >= parseFloat(minPrice)
-              } else if (maxPrice) {
-                return price <= parseFloat(maxPrice)
-              }
-              return true
-            })
-            .map(s => s.spot_id)
-          
-          if (spotIds.length > 0) {
-            query = query.in('id', spotIds)
-          } else {
-            // Eşleşen fiyat yoksa boş array döndür
-            query = query.in('id', [])
-          }
-        }
-      }
-
-      // 📅 TARİH FİLTRESİ
-      if (dateRange !== 'all') {
-        const now = new Date()
-        let startDate = new Date()
-        
-        switch (dateRange) {
-          case 'today':
-            startDate.setHours(0, 0, 0, 0)
-            break
-          case 'week':
-            startDate.setDate(now.getDate() - 7)
-            break
-          case 'month':
-            startDate.setMonth(now.getMonth() - 1)
-            break
-          case '3months':
-            startDate.setMonth(now.getMonth() - 3)
-            break
-        }
-        
-        if (dateRange !== 'all') {
-          query = query.gte('created_at', startDate.toISOString())
-        }
-      }
-
-      // 📊 SIRALAMA
-      switch (sortBy) {
-        case 'newest':
-          query = query.order('created_at', { ascending: false })
-          break
-        case 'oldest':
-          query = query.order('created_at', { ascending: true })
-          break
-        case 'most_viewed':
-          query = query.order('views', { ascending: false })
-          break
-        case 'most_helped':
-          query = query.order('helps', { ascending: false })
-          break
-        default:
-          query = query.order('created_at', { ascending: false })
-      }
-
-      // LIMIT
-      query = query.limit(30)
-
-      const { data, error, count } = await query
-
-      if (error) {
-        console.error('Spot yükleme hatası:', error)
-        // TEST VERİSİ - Gerçekte bu kısmı kaldırabilirsiniz
-        setSpots(getFilteredTestSpots())
-        setTotalCount(getFilteredTestSpots().length)
-      } else {
-        // RESİM URL'LERİNİ TEMİZLE
-        const cleanedSpots = cleanImageUrls(data || [])
-        setSpots(cleanedSpots)
-        setTotalCount(count || 0)
-        
-        console.log(`📊 Filtrelenmiş: ${cleanedSpots.length} spot`)
-        console.log('Filtreler:', { category, location, status, searchQuery })
-      }
-    } catch (err) {
-      console.error('Beklenmeyen hata:', err)
-      setSpots([])
-    } finally {
-      setLoading(false)
+    // Filtreler
+    if (searchQuery) {
+      query = query.or(`title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`);
     }
-  }, [category, location, status, searchQuery, sortBy, minPrice, maxPrice, dateRange])
+    if (category && category !== 'all') {
+      query = query.eq('category', category);
+    }
+    if (location && location !== 'all') {
+      query = query.eq('location', location);
+    }
+
+    const { data, error } = await query
+      .range((pageNum - 1) * 12, pageNum * 12 - 1);
+
+    if (error) {
+      console.error('Error loading spots:', error);
+      return;
+    }
+
+    if (pageNum === 1) {
+      setSpots(data || []);
+    } else {
+      setSpots(prev => [...prev, ...(data || [])]);
+    }
+
+    setHasMore((data?.length || 0) === 12);
+    setLoading(false);
+  };
 
   useEffect(() => {
-    fetchSpots()
-  }, [fetchSpots])
+    loadSpots(1);
+    setPage(1);
+  }, [searchQuery, category, location, status]);
 
-  const cleanImageUrls = (spots: any[]): Spot[] => {
-    return spots.map(spot => {
-      let image_url = spot.image_url
+  const loadMore = () => {
+    const nextPage = page + 1;
+    setPage(nextPage);
+    loadSpots(nextPage);
+  };
+
+  // Reklamları spotlar arasına serpiştir
+  const getItemsWithAds = () => {
+    const items: any[] = [];
+    const adFrequency = 4; // Her 4 spot'ta bir reklam
+    
+    spots.forEach((spot, index) => {
+      items.push({
+        type: 'spot',
+        data: spot,
+        key: `spot-${spot.id}`
+      });
       
-      if (image_url && typeof image_url === 'string') {
-        image_url = image_url.trim()
-        image_url = image_url.replace(/["']/g, '')
-        
-        if (image_url.startsWith('http://')) {
-          image_url = image_url.replace('http://', 'https://')
-        }
-        
-        if (image_url.startsWith('//')) {
-          image_url = 'https:' + image_url
-        }
-        
-        if (image_url.includes('supabase.co')) {
-          if (image_url.includes('/storage/v1/object/') && !image_url.includes('/public/')) {
-            image_url = image_url.replace('/object/', '/object/public/')
-          }
-        }
-        
-        try {
-          new URL(image_url)
-        } catch {
-          image_url = null
-        }
-      } else {
-        image_url = null
+      // Belirli aralıklarla reklam ekle
+      if ((index + 1) % adFrequency === 0) {
+        items.push({
+          type: 'ad',
+          key: `ad-${index}`,
+          index: index
+        });
       }
-      
-      return {
-        ...spot,
-        image_url
-      }
-    })
-  }
+    });
+    
+    return items;
+  };
 
-  // TEST VERİSİ (geçici)
-  const getFilteredTestSpots = (): Spot[] => {
-    const testSpots = [
-      {
-        id: '1',
-        title: 'Vintage Nikon F2 Kamera Lens 50mm f/1.4',
-        description: 'Orijinal 50mm f/1.4 lens arıyorum. 1970lerden kalma.',
-        category: 'Elektronik',
-        location: 'İstanbul',
-        image_url: 'https://gobzxreumkbgaohvzoef.supabase.co/storage/v1/object/public/spot-images/7f4b4b19-992c-47b6-a1ba-29d339dade1b/1769311004662.png',
-        status: 'active',
-        created_at: new Date().toISOString(),
-        user_id: 'test',
-        views: 10,
-        helps: 2
-      },
-      {
-        id: '2',
-        title: 'Eski Arçelik Çay Makinesi Cam Kapağı',
-        description: 'Arçelik K 2712 modeli için cam kapak arıyorum.',
-        category: 'Ev & Bahçe',
-        location: 'İzmir',
-        image_url: null,
-        status: 'active',
-        created_at: new Date().toISOString(),
-        user_id: 'test',
-        views: 5,
-        helps: 1
-      },
-      {
-        id: '3',
-        title: 'Retro PlayStation 1 Oyun Koleksiyonu',
-        description: 'Crash Bandicoot, Tekken 3 orijinal CDleri.',
-        category: 'Oyuncak & Oyun',
-        location: 'Ankara',
-        image_url: 'https://images.unsplash.com/photo-1511512578047-dfb367046420',
-        status: 'found',
-        created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-        user_id: 'test',
-        views: 25,
-        helps: 7
-      }
-    ]
-
-    // Filtre uygula
-    return testSpots.filter(spot => {
-      if (category !== 'all' && spot.category !== category) return false
-      if (location !== 'all' && spot.location !== location) return false
-      if (status !== 'all' && spot.status !== status) return false
-      if (searchQuery && !spot.title.toLowerCase().includes(searchQuery.toLowerCase())) return false
-      return true
-    })
-  }
-
-  const categories = [
-    'Tümü', 'Elektronik', 'Giyim & Aksesuar', 'Ev & Bahçe',
-    'Koleksiyon', 'Kitap & Müzik', 'Oyuncak & Oyun',
-    'Spor & Outdoor', 'Araç & Parça', 'Diğer'
-  ]
-
-  const locations = [
-    'Tümü', 'İstanbul', 'Ankara', 'İzmir', 'Bursa', 'Antalya',
-    'Adana', 'Konya', 'Trabzon', 'Türkiye Geneli', 'Yurt Dışı'
-  ]
-
-  if (loading) {
-    return (
-      <div className="text-center py-12">
-        <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600"></div>
-        <p className="mt-4 text-gray-600">Spot'lar yükleniyor...</p>
-      </div>
-    )
-  }
+  const items = getItemsWithAds();
 
   return (
     <div>
-      {/* AKTİF FİLTRELER GÖSTERİMİ */}
-      <div className="bg-white rounded-xl shadow p-4 mb-6">
-        <div className="flex flex-wrap items-center justify-between">
-          <div className="flex flex-wrap items-center gap-2 mb-2 md:mb-0">
-            <span className="text-sm text-gray-700">Aktif filtreler:</span>
-            
-            {category !== 'all' && (
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800">
-                Kategori: {category}
-                <button 
-                  onClick={() => {
-                    const params = new URLSearchParams(searchParams.toString())
-                    params.delete('category')
-                    window.location.href = `/spots?${params.toString()}`
-                  }}
-                  className="ml-2 text-blue-600 hover:text-blue-800"
-                >
-                  ×
-                </button>
-              </span>
-            )}
-            
-            {location !== 'all' && (
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-green-100 text-green-800">
-                Konum: {location}
-                <button 
-                  onClick={() => {
-                    const params = new URLSearchParams(searchParams.toString())
-                    params.delete('location')
-                    window.location.href = `/spots?${params.toString()}`
-                  }}
-                  className="ml-2 text-green-600 hover:text-green-800"
-                >
-                  ×
-                </button>
-              </span>
-            )}
-            
-            {status !== 'all' && (
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-purple-100 text-purple-800">
-                Durum: {status === 'active' ? 'Aktif' : status === 'found' ? 'Bulundu' : 'Acil'}
-                <button 
-                  onClick={() => {
-                    const params = new URLSearchParams(searchParams.toString())
-                    params.delete('status')
-                    window.location.href = `/spots?${params.toString()}`
-                  }}
-                  className="ml-2 text-purple-600 hover:text-purple-800"
-                >
-                  ×
-                </button>
-              </span>
-            )}
-            
-            {searchQuery && (
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-orange-100 text-orange-800">
-                Arama: "{searchQuery}"
-                <button 
-                  onClick={() => {
-                    const params = new URLSearchParams(searchParams.toString())
-                    params.delete('search')
-                    window.location.href = `/spots?${params.toString()}`
-                  }}
-                  className="ml-2 text-orange-600 hover:text-orange-800"
-                >
-                  ×
-                </button>
-              </span>
-            )}
-            
-            {(category !== 'all' || location !== 'all' || status !== 'all' || searchQuery) && (
-              <button
-                onClick={() => window.location.href = '/spots'}
-                className="text-sm text-red-600 hover:text-red-800 ml-2"
-              >
-                Tümünü Temizle
-              </button>
-            )}
-          </div>
-          
-          <div className="text-sm text-gray-600">
-            {totalCount} spot bulundu
-          </div>
-        </div>
+      {/* Spot Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {items.map((item) => {
+          if (item.type === 'spot') {
+            return (
+              <SpotCard key={item.key} spot={item.data} />
+            );
+          } else {
+            return (
+              <div key={item.key} className="col-span-full md:col-span-2 lg:col-span-3">
+                <NativeAd index={item.index} />
+              </div>
+            );
+          }
+        })}
       </div>
 
-      {/* SPOT LİSTESİ */}
-      {spots.length === 0 ? (
-        <div className="text-center py-16 bg-white rounded-xl shadow">
-          <div className="text-5xl mb-6">🔍</div>
-          <h3 className="text-2xl font-bold text-gray-900 mb-4">
-            Filtrelere uygun spot bulunamadı
-          </h3>
-          <p className="text-gray-600 mb-8 max-w-md mx-auto">
-            Filtrelerinizi değiştirmeyi deneyin veya ilk spot'u oluşturun!
-          </p>
-          <div className="space-x-4">
-            <button
-              onClick={() => window.location.href = '/spots'}
-              className="btn-primary inline-block"
-            >
-              Filtreleri Temizle
-            </button>
-            <a
-              href="/create-spot"
-              className="btn-secondary inline-block"
-            >
-              İlk Spot'u Oluşturun
-            </a>
-          </div>
+      {/* Loading */}
+      {loading && (
+        <div className="text-center py-8">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <p className="mt-2 text-gray-600">Spot'lar yükleniyor...</p>
         </div>
-      ) : (
-        <>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {spots.map((spot) => (
-              <SpotCard key={spot.id} spot={spot} />
-            ))}
-          </div>
-          
-          {/* SAYFALAMA (Basit versiyon) */}
-          {spots.length >= 30 && (
-            <div className="mt-8 text-center">
-              <div className="inline-flex space-x-2 bg-white rounded-xl shadow p-2">
-                <button className="px-4 py-2 bg-gray-100 rounded-lg text-gray-700 hover:bg-gray-200">
-                  ← Önceki
-                </button>
-                <button className="px-4 py-2 bg-blue-600 text-white rounded-lg">
-                  1
-                </button>
-                <button className="px-4 py-2 bg-gray-100 rounded-lg text-gray-700 hover:bg-gray-200">
-                  2
-                </button>
-                <button className="px-4 py-2 bg-gray-100 rounded-lg text-gray-700 hover:bg-gray-200">
-                  3
-                </button>
-                <button className="px-4 py-2 bg-gray-100 rounded-lg text-gray-700 hover:bg-gray-200">
-                  Sonraki →
-                </button>
-              </div>
-              <p className="text-sm text-gray-500 mt-4">
-                Daha fazla spot için filtrelerinizi daraltın
-              </p>
-            </div>
-          )}
-        </>
+      )}
+
+      {/* Load More */}
+      {!loading && hasMore && spots.length > 0 && (
+        <div className="text-center mt-8">
+          <button
+            onClick={loadMore}
+            className="bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-3 px-8 rounded-lg transition-colors"
+          >
+            Daha Fazla Spot Göster
+          </button>
+        </div>
+      )}
+
+      {/* No Results */}
+      {!loading && spots.length === 0 && (
+        <div className="text-center py-12">
+          <div className="text-4xl mb-4">🔍</div>
+          <h3 className="text-xl font-semibold text-gray-800 mb-2">
+            Spot bulunamadı
+          </h3>
+          <p className="text-gray-600 mb-6">
+            Arama kriterlerinize uygun spot bulunamadı.
+          </p>
+          <a
+            href="/create-spot"
+            className="inline-block bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg"
+          >
+            İlk Spot'u Siz Oluşturun
+          </a>
+        </div>
       )}
     </div>
-  )
+  );
 }

@@ -1,12 +1,10 @@
-// app/page.tsx - SON HAL
-import Header from '@/components/Header'
+// app/page.tsx - DÜZELTMİŞ HALİ
 import Hero from '@/components/Hero'
 import Stats from '@/components/Stats'
 import HowItWorks from '@/components/HowItWorks'
 import RecentSpots from '@/components/RecentSpots'
 import Categories from '@/components/Categories'
 import CTA from '@/components/CTA'
-import Footer from '@/components/Footer'
 
 // YENİ BİLEŞENLER
 import RecentSightings from '@/components/RecentSightings'
@@ -17,7 +15,7 @@ import QuickSightingButton from '@/components/QuickSightingButton'
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
-      <Header />
+      {/* HEADER'ı BURADAN KALDIRIN - Layout'ta zaten var */}
       <QuickSightingButton />
       
       <div className="container-custom">
@@ -72,7 +70,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      <Footer />
+      {/* FOOTER'ı da BURADAN KALDIRIN - Layout'ta zaten var */}
     </div>
   )
 }

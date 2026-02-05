@@ -1,6 +1,4 @@
-// app/spots/page.tsx (GÜNCELLENMİŞ)
-import Header from '@/components/Header'
-import Footer from '@/components/Footer'
+// app/spots/page.tsx - DÜZELTMİŞ HALİ
 import SpotList from '@/components/SpotList'
 import SearchFilters from '@/components/SearchFilters'
 
@@ -25,7 +23,7 @@ export default function SpotsPage({
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header />
+      {/* HEADER'ı BURADAN KALDIRIN */}
       
       <main className="container-custom py-8">
         {/* BAŞLIK BÖLÜMÜ */}
@@ -93,7 +91,7 @@ export default function SpotsPage({
         </div>
       </main>
 
-      <Footer />
+      {/* FOOTER'ı BURADAN KALDIRIN */}
     </div>
   )
 }
