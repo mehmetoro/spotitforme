@@ -14757,46 +14757,6 @@ export interface AdminStats {
 }
 
 
-# .env.local
-
-NEXT_PUBLIC_SUPABASE_URL=https://gobzxreumkbgaohvzoef.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdvYnp4cmV1bWtiZ2FvaHZ6b2VmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkyODI2MjksImV4cCI6MjA4NDg1ODYyOX0.9r7Ds_Ja0ulkTYWxJsl9r14ylIbUHzdFULvWehfoTDQ
-
-
-
-
-GMAIL_USER=spotitformeweb@gmail.com
-GMAIL_APP_PASS=ahfdvrzykuenopmj
-NEXT_PUBLIC_SITE_URL=https://spotitforme.vercel.app/
-
-
-
-# Vercel Production
-CRON_SECRET=0ef0a4a1e72055f6c69395cc215331ec50bc017831b488df3221561bd8305225
-ADMIN_EMAIL=mehmetberber1977@hotmail.com
-
-
-NODE_ENV=development
-
-# Site URLs
-
-NEXT_PUBLIC_APP_URL=https://spotitforme.vercel.app
-
-
-NEXT_PUBLIC_ADSENSE_CLIENT_ID=ca-pub-xxxxxxxxxxxxxxxx
-
-NEXT_PUBLIC_ENABLE_SOCIAL=true
-NEXT_PUBLIC_MAX_POST_IMAGES=10
-NEXT_PUBLIC_MAX_CAPTION_LENGTH=2000
-
-NEXT_PUBLIC_ENABLE_QUICK_SIGHTINGS=true
-NEXT_PUBLIC_MAX_PHOTO_SIZE=5 # MB
-
-NEXT_PUBLIC_ENABLE_MESSAGING=true
-NEXT_PUBLIC_MAX_MESSAGE_LENGTH=5000
-NEXT_PUBLIC_MAX_FILE_SIZE=10485760 # 10MB
-
-
 
 
 // app/admin/ads/page.tsx - Reklam Ana Sayfası
