@@ -1,4 +1,4 @@
-// app/create-spot/page.tsx - ÇALIŞAN VERSİYON
+// app/create-spot/page.tsx - DÜZELTMİŞ VERSİYON
 'use client'
 
 import { useState } from 'react'
@@ -6,24 +6,58 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
-import SimpleLocationPicker from '@/components/SimpleLocationPicker'
 
 export default function CreateSpotPage() {
   const router = useRouter()
   
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    category: ''
-  })
-  const [location, setLocation] = useState<{
-    lat: number | null
-    lon: number | null
-    city: string
-  } | null>(null)
-  const [image, setImage] = useState<File | null>(null)
+  const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
+  const [category, setCategory] = useState('')
+  const [location, setLocation] = useState('')
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  const categories = [
+    'Elektronik',
+    'Giyim & Aksesuar',
+    'Ev & Bahçe',
+    'Koleksiyon',
+    'Kitap & Müzik',
+    'Oyuncak & Oyun',
+    'Spor & Outdoor',
+    'Araç & Parça',
+    'Diğer'
+  ]
+
+  const locations = [
+    'İstanbul',
+    'Ankara',
+    'İzmir',
+    'Bursa',
+    'Antalya',
+    'Adana',
+    'Konya',
+    'Türkiye Geneli',
+    'Yurt Dışı'
+  ]
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        setError('Resim boyutu 5MB\'dan küçük olmalıdır')
+        return
+      }
+      setImageFile(file)
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -31,61 +65,118 @@ export default function CreateSpotPage() {
     setError('')
 
     try {
-      // Validasyon
-      if (!location?.city || location.city.includes('seçin')) {
-        throw new Error('Lütfen konum seçin')
-      }
-
-      // Kullanıcı kontrolü
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
+      // 1. Kullanıcı kontrolü
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      if (userError || !user) {
         throw new Error('Lütfen önce giriş yapın')
       }
 
-      // Resim yükle
-      let imageUrl = ''
-      if (image) {
-        const timestamp = Date.now()
-        const fileExt = image.name.split('.').pop()
-        const fileName = `${user.id}/${timestamp}.${fileExt}`
-        
-        const { error: uploadError } = await supabase.storage
-          .from('spot-images')
-          .upload(fileName, image)
+      console.log('👤 Kullanıcı:', user.id)
 
-        if (!uploadError) {
+      let imageUrl = ''
+
+      // 2. Resim yükleme
+      if (imageFile) {
+        console.log('📸 Resim yükleniyor:', imageFile.name)
+        
+        try {
+          const timestamp = Date.now()
+          const fileExt = imageFile.name.split('.').pop()
+          const fileName = `${user.id}/${timestamp}.${fileExt}`
+          
+          console.log('📁 Dosya adı:', fileName)
+          
+          // Bucket kontrolü
+          const { data: buckets } = await supabase.storage.listBuckets()
+          console.log('📦 Bucket\'lar:', buckets)
+          
+          // Resim yükle
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('spot-images')
+            .upload(fileName, imageFile, {
+              cacheControl: '3600',
+              upsert: false,
+              contentType: imageFile.type
+            })
+
+          if (uploadError) {
+            console.error('❌ Yükleme hatası:', uploadError)
+            throw new Error(`Resim yüklenemedi: ${uploadError.message}`)
+          }
+
+          console.log('✅ Resim yüklendi!')
+
+          // Public URL al
           const { data: { publicUrl } } = supabase.storage
             .from('spot-images')
             .getPublicUrl(fileName)
+          
+          console.log('🔗 Public URL:', publicUrl)
           imageUrl = publicUrl
+          
+          if (!publicUrl) {
+            throw new Error('Resim URLsi alınamadı')
+          }
+          
+        } catch (uploadErr: any) {
+          console.error('❌ Resim yükleme hatası:', uploadErr)
+          setError(`❌ Resim yüklenemedi: ${uploadErr.message}`)
+          setLoading(false)
+          return
         }
+      } else {
+        console.log('ℹ️ Resim seçilmedi')
       }
 
-      // Spot'u kaydet
-      const { data: spotData, error: spotError } = await supabase
+      // 3. Spot'u database'e kaydet - SADECE VAR OLAN KOLONLARI KULLAN
+      console.log('💾 Database\'e kaydediliyor...')
+      
+      const spotData = {
+        user_id: user.id,
+        title: title.trim(),
+        description: description.trim(),
+        category: category || null,
+        location: location || null,
+        image_url: imageUrl || null,
+        status: 'active',
+        views: 0,
+        helps: 0,
+        created_at: new Date().toISOString()
+      }
+
+      console.log('📝 Spot verisi:', spotData)
+
+      const { data: spotDataResult, error: spotError } = await supabase
         .from('spots')
-        .insert([
-          {
-            user_id: user.id,
-            title: formData.title.trim(),
-            description: formData.description.trim(),
-            category: formData.category || null,
-            location: location.city,
-            latitude: location.lat,
-            longitude: location.lon,
-            image_url: imageUrl || null,
-            status: 'active'
-          }
-        ])
+        .insert([spotData])
         .select()
 
-      if (spotError) throw spotError
+      console.log('📊 Database yanıtı:', { spotDataResult, spotError })
 
-      alert('✅ Spot başarıyla oluşturuldu!')
-      router.push(`/spots/${spotData[0].id}`)
+      if (spotError) {
+        console.error('❌ Database hatası:', spotError)
+        throw new Error(`Spot kaydedilemedi: ${spotError.message}`)
+      }
+
+      // 4. BAŞARILI
+      console.log('🎉 Spot başarıyla oluşturuldu!')
+      
+      if (imageUrl) {
+        alert('✅ Spot başarıyla oluşturuldu! Resim de yüklendi.')
+      } else {
+        alert('✅ Spot başarıyla oluşturuldu!')
+      }
+      
+      // Yeni oluşturulan spot'a yönlendir
+      if (spotDataResult && spotDataResult[0]) {
+        router.push(`/spots/${spotDataResult[0].id}`)
+      } else {
+        router.push('/spots')
+      }
 
     } catch (err: any) {
-      setError(err.message)
+      console.error('❌ Spot oluşturma hatası:', err)
+      setError(err.message || 'Spot oluşturulurken bir hata oluştu')
     } finally {
       setLoading(false)
     }
@@ -95,131 +186,224 @@ export default function CreateSpotPage() {
     <div className="min-h-screen bg-gray-50">
       <Header />
       
-      <main className="container-custom py-8">
+      <main className="container-custom py-12">
         <div className="max-w-2xl mx-auto">
-          <h1 className="text-3xl font-bold text-center mb-2">
-            Yeni Spot Oluştur
-          </h1>
-          <p className="text-gray-600 text-center mb-8">
-            Konum izni vererek daha hızlı yardım alın
-          </p>
+          {/* Başlık */}
+          <div className="text-center mb-10">
+            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+              Yeni Spot Oluştur
+            </h1>
+            <p className="text-gray-600">
+              Aradığınız ürünü topluluğumuzla paylaşın, binlerce göz sizin için arasın
+            </p>
+          </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Başlık */}
-            <div>
-              <label className="block text-sm font-medium mb-2">
-                Ne arıyorsunuz? *
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-lg p-6 md:p-8">
+            {/* Resim Yükleme */}
+            <div className="mb-8">
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                Ürün Fotoğrafı (Opsiyonel)
+                <span className="text-gray-500 ml-1">- Daha hızlı bulunmasını sağlar</span>
               </label>
-              <input
-                type="text"
-                value={formData.title}
-                onChange={(e) => setFormData({...formData, title: e.target.value})}
-                className="w-full px-4 py-3 border rounded-lg"
-                placeholder="Örnek: Vintage Nikon kamera lensi"
-                required
-              />
-            </div>
-
-            {/* Açıklama */}
-            <div>
-              <label className="block text-sm font-medium mb-2">
-                Detaylı açıklama *
-              </label>
-              <textarea
-                value={formData.description}
-                onChange={(e) => setFormData({...formData, description: e.target.value})}
-                className="w-full px-4 py-3 border rounded-lg"
-                rows={4}
-                placeholder="Marka, model, renk, durum, özel notlar..."
-                required
-              />
-            </div>
-
-            {/* KONUM - EN ÖNEMLİ KISIM */}
-            <div>
-              <label className="block text-sm font-medium mb-2">
-                Konum *
-              </label>
-              <SimpleLocationPicker onLocationSelect={setLocation} />
               
-              {location && (
-                <div className="mt-4 p-4 bg-green-50 rounded-lg border border-green-200">
-                  <div className="flex items-center">
-                    <span className="text-green-600 text-xl mr-3">✅</span>
-                    <div>
-                      <p className="font-medium">Konum seçildi</p>
-                      <p className="text-green-700">{location.city}</p>
-                      {location.lat && (
-                        <p className="text-sm text-green-600">
-                          Koordinat: {location.lat.toFixed(4)}, {location.lon?.toFixed(4)}
-                        </p>
-                      )}
+              {imagePreview ? (
+                <div className="mb-4">
+                  <div className="relative">
+                    <img
+                      src={imagePreview}
+                      alt="Preview"
+                      className="w-full max-w-md h-64 object-cover rounded-lg mx-auto border-2 border-green-200"
+                    />
+                    <div className="absolute top-2 right-2 bg-green-100 text-green-800 text-xs px-2 py-1 rounded">
+                      ✓ Hazır
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setImageFile(null)
+                      setImagePreview('')
+                    }}
+                    className="mt-2 text-red-600 hover:text-red-800 text-sm flex items-center"
+                  >
+                    <span className="mr-1">🗑️</span> Resmi Kaldır
+                  </button>
+                </div>
+              ) : (
+                <label className="cursor-pointer">
+                  <div className="border-2 border-dashed border-gray-300 rounded-2xl p-8 text-center hover:border-blue-400 transition duration-200 bg-gray-50 hover:bg-blue-50">
+                    <div className="text-4xl mb-4 text-gray-400">📷</div>
+                    <p className="text-gray-600 mb-2 font-medium">
+                      Resim yüklemek için tıklayın veya sürükleyin
+                    </p>
+                    <p className="text-sm text-gray-500 mb-4">
+                      PNG, JPG, GIF • Maksimum 5MB
+                    </p>
+                    <div className="btn-primary inline-block !py-2 !px-4">
+                      Resim Seç
+                    </div>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageChange}
+                      className="hidden"
+                    />
+                  </div>
+                </label>
+              )}
+              
+              {/* Resim Bilgisi */}
+              {imageFile && (
+                <div className="mt-3 p-3 bg-blue-50 rounded-lg">
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center">
+                      <span className="text-blue-600 mr-2">📦</span>
+                      <span className="font-medium truncate max-w-xs">{imageFile.name}</span>
+                    </div>
+                    <div className="text-gray-600">
+                      {(imageFile.size / 1024 / 1024).toFixed(2)} MB
                     </div>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Kategori */}
-            <div>
-              <label className="block text-sm font-medium mb-2">
-                Kategori
-              </label>
-              <select
-                value={formData.category}
-                onChange={(e) => setFormData({...formData, category: e.target.value})}
-                className="w-full px-4 py-3 border rounded-lg"
-              >
-                <option value="">Kategori seçin</option>
-                <option value="Elektronik">Elektronik</option>
-                <option value="Giyim & Aksesuar">Giyim & Aksesuar</option>
-                <option value="Ev & Bahçe">Ev & Bahçe</option>
-                <option value="Koleksiyon">Koleksiyon</option>
-                <option value="Diğer">Diğer</option>
-              </select>
-            </div>
-
-            {/* Resim */}
-            <div>
-              <label className="block text-sm font-medium mb-2">
-                Fotoğraf (opsiyonel)
+            {/* Başlık */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Ne arıyorsunuz? *
               </label>
               <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => setImage(e.target.files?.[0] || null)}
-                className="w-full px-4 py-3 border rounded-lg"
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Örnek: Vintage Nikon F2 kamera lensi"
+                required
+                maxLength={100}
               />
+              <p className="text-sm text-gray-500 mt-1">
+                {title.length}/100 karakter
+              </p>
             </div>
 
-            {/* Hata */}
+            {/* Açıklama */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Detaylı Açıklama *
+              </label>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Marka, model, renk, boyut, özel notlar... Ne kadar detaylı olursa o kadar iyi!"
+                rows={5}
+                required
+                maxLength={1000}
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                {description.length}/1000 karakter
+              </p>
+            </div>
+
+            {/* Kategori ve Konum */}
+            <div className="grid md:grid-cols-2 gap-6 mb-8">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Kategori
+                </label>
+                <select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">Kategori Seçin</option>
+                  {categories.map((cat) => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Konum
+                </label>
+                <select
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">Konum Seçin</option>
+                  {locations.map((loc) => (
+                    <option key={loc} value={loc}>{loc}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Hata Mesajı */}
             {error && (
-              <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-red-700">{error}</p>
+              <div className="mb-6 bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg">
+                <div className="flex items-center">
+                  <span className="mr-2">❌</span>
+                  <span>{error}</span>
+                </div>
               </div>
             )}
 
-            {/* Submit */}
-            <button
-              type="submit"
-              disabled={loading || !location}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl disabled:opacity-50"
-            >
-              {loading ? 'Oluşturuluyor...' : 'Spot\'u Oluştur'}
-            </button>
+            {/* Butonlar */}
+            <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t">
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-lg disabled:opacity-50 flex items-center justify-center"
+              >
+                {loading ? (
+                  <>
+                    <span className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></span>
+                    Oluşturuluyor...
+                  </>
+                ) : (
+                  'Spot\'u Oluştur ve Paylaş'
+                )}
+              </button>
+              
+              <button
+                type="button"
+                onClick={() => router.push('/')}
+                className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-3 rounded-lg"
+              >
+                İptal
+              </button>
+            </div>
+
+            {/* Bilgi Notu */}
+            <div className="mt-8 p-4 bg-blue-50 rounded-lg">
+              <div className="flex items-start">
+                <span className="text-blue-600 mr-3">💡</span>
+                <div>
+                  <p className="font-medium text-blue-800 mb-1">Spot Oluşturma İpuçları</p>
+                  <ul className="text-sm text-blue-700 space-y-1">
+                    <li>• Net fotoğraf eklemek bulunma şansını %70 artırır</li>
+                    <li>• Marka ve model bilgisi çok önemli</li>
+                    <li>• Bütçe aralığı belirtirseniz daha hızlı yardım alırsınız</li>
+                    <li>• Spot'unuz 30 gün aktif kalacak</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
           </form>
 
-          {/* Bilgi */}
-          <div className="mt-8 p-6 bg-blue-50 rounded-xl">
-            <h3 className="font-bold text-blue-800 mb-3">📱 Telefon Kullanıcıları İçin:</h3>
-            <ul className="text-sm text-blue-700 space-y-2">
-              <li>1. "Konum İzni İste" butonuna tıklayın</li>
-              <li>2. Ekranın <strong>üst kısmında</strong> tarayıcı izin isteği belirecek</li>
-              <li>3. <strong>"İzin Ver"</strong> veya <strong>"Allow"</strong> seçeneğini tıklayın</li>
-              <li>4. Konumunuz otomatik olarak alınacak</li>
-              <li>5. İzin vermek istemezseniz "Şehir Seç" moduna geçin</li>
-            </ul>
-          </div>
+          {/* Debug Info - Sadece development'da */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="mt-6 p-4 bg-gray-100 rounded-lg text-sm">
+              <p className="font-medium mb-2">🛠️ Development Bilgileri:</p>
+              <p>• Tablo: <code>spots</code></p>
+              <p>• Kolonlar: id, user_id, title, description, category, location, image_url, status, views, helps</p>
+              <p>• RLS: Aktif</p>
+            </div>
+          )}
         </div>
       </main>
 

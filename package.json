@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@googlemaps/js-api-loader": "^2.0.2",
+    "@supabase/ssr": "^0.1.0",
     "@supabase/supabase-js": "^2.39.0",
     "@types/google.maps": "^3.58.1",
     "lucide-react": "^0.309.0",
@@ -21,6 +22,7 @@
     "nodemailer": "^6.9.7",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-intersection-observer": "^10.0.2",
     "recharts": "^3.7.0"
   },
   "devDependencies": {
