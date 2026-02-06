@@ -1,4 +1,4 @@
-// app/spots/page.tsx - DÜZELTMİŞ HALİ
+// app/spots/page.tsx - BASİTLEŞTİRİLMİŞ
 import SpotList from '@/components/SpotList'
 import SearchFilters from '@/components/SearchFilters'
 
@@ -7,7 +7,6 @@ export default function SpotsPage({
 }: {
   searchParams: { [key: string]: string | string[] | undefined }
 }) {
-  // SearchParams'ı doğru şekilde al
   const getSearchParam = (key: string): string => {
     const param = searchParams[key]
     if (Array.isArray(param)) {
@@ -23,12 +22,11 @@ export default function SpotsPage({
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* HEADER'ı BURADAN KALDIRIN */}
-      
-      <main className="container-custom py-8">
-        {/* BAŞLIK BÖLÜMÜ */}
-        <div className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
+      <main className="container-custom py-4 md:py-8">
+        {/* Layout'ta zaten header reklamı var */}
+        
+        <div className="mb-6 md:mb-8">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
             {searchQuery 
               ? `"${searchQuery}" için sonuçlar` 
               : category !== 'all' && category 
@@ -45,8 +43,8 @@ export default function SpotsPage({
           </p>
         </div>
 
-        {/* ARA ÇUBUĞU */}
-        <div className="mb-8">
+        {/* Arama çubuğu */}
+        <div className="mb-6">
           <form action="/spots" method="GET" className="relative">
             <div className="flex">
               <input
@@ -54,11 +52,11 @@ export default function SpotsPage({
                 name="search"
                 defaultValue={searchQuery}
                 placeholder="Ne aramıştınız? Ürün adı, marka, model..."
-                className="flex-grow px-6 py-4 text-lg border border-gray-300 rounded-l-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                className="flex-grow px-4 md:px-6 py-3 md:py-4 text-base md:text-lg border border-gray-300 rounded-l-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
               />
               <button
                 type="submit"
-                className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-8 py-4 rounded-r-xl"
+                className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 md:px-8 py-3 md:py-4 rounded-r-xl"
               >
                 Ara
               </button>
@@ -66,32 +64,15 @@ export default function SpotsPage({
           </form>
         </div>
 
-        {/* FİLTRELER */}
         <SearchFilters />
 
-        {/* SPOT LİSTESİ */}
-        <SpotList />
-
-        {/* ÇAĞRI KARTI */}
-        <div className="mt-12 p-6 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl text-white">
-          <div className="flex flex-col md:flex-row items-center justify-between">
-            <div className="mb-6 md:mb-0 md:mr-8">
-              <h3 className="text-2xl font-bold mb-2">Aradığınızı bulamadınız mı?</h3>
-              <p className="opacity-90">
-                Topluluğumuza sorun! Binlerce kullanıcı sizin için göz kulak olacak.
-              </p>
-            </div>
-            <a
-              href="/create-spot"
-              className="bg-white text-blue-600 hover:bg-gray-100 font-bold py-3 px-8 rounded-xl whitespace-nowrap"
-            >
-              Ücretsiz Spot Oluşturun
-            </a>
-          </div>
+        {/* Spot listesi (içinde native reklamlar var) */}
+        <div className="mt-6">
+          <SpotList />
         </div>
-      </main>
 
-      {/* FOOTER'ı BURADAN KALDIRIN */}
+        {/* Layout'ta zaten footer reklamı var */}
+      </main>
     </div>
   )
 }

@@ -1,10 +1,10 @@
-// app/layout.tsx - GÜNCELLENMİŞ
+// app/layout.tsx - DÜZGÜN KONUMLANDIRMA
 import { Inter } from "next/font/google";
 import "./globals.css";
 import Script from "next/script";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import AdUnit from "@/components/AdUnit";
+import ResponsiveAd from "@/components/ResponsiveAd";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -18,6 +18,7 @@ export default function RootLayout({
   return (
     <html lang="tr">
       <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
         {adsenseClientId && (
           <Script
             async
@@ -28,19 +29,38 @@ export default function RootLayout({
         )}
       </head>
       <body className={inter.className}>
-        {/* Header üstü reklam (sadece desktop) */}
-        <div className="hidden md:block container mx-auto px-4 mt-4">
-          <AdUnit placement="header" className="h-24 mb-4" />
+        {/* REKLAM CONTAINER - Sabit yükseklik */}
+        <div className="bg-gray-50">
+          <div className="container mx-auto px-2 md:px-4">
+            <div className="relative">
+              {/* Reklam - Sabit ölçüler */}
+              <div className="py-2">
+                <ResponsiveAd 
+                  placement="banner" 
+                  className="h-16 md:h-20" 
+                />
+              </div>
+              
+              {/* Header - Reklamın ALTINDA */}
+              <div className="relative z-10">
+                <Header />
+              </div>
+            </div>
+          </div>
         </div>
         
-        <Header />
-        
-        <main className="min-h-screen">
-          {/* SADECE children - sidebar YOK */}
-          <div className="container mx-auto px-4">
+        <main className="min-h-screen bg-white">
+          <div className="container mx-auto px-2 md:px-4 py-4 md:py-8">
             {children}
           </div>
         </main>
+        
+        {/* Footer Öncesi Reklam - Sabit alan */}
+        <div className="bg-gray-50 border-t border-gray-200">
+          <div className="container mx-auto px-2 md:px-4 py-6 md:py-8">
+            <ResponsiveAd placement="inline" />
+          </div>
+        </div>
         
         <Footer />
       </body>

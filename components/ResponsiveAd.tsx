@@ -1,15 +1,17 @@
-// components/ResponsiveAd.tsx - DÜZELTMİŞ
+// components/ResponsiveAd.tsx - SABİT ÖLÇÜLER
 'use client';
 
 import { useState, useEffect } from 'react';
-import NativeAd from './NativeAd';
 
 interface ResponsiveAdProps {
   placement: 'inline' | 'banner' | 'native';
   className?: string;
 }
 
-export default function ResponsiveAd({ placement, className = '' }: ResponsiveAdProps) {
+export default function ResponsiveAd({ 
+  placement, 
+  className = ''
+}: ResponsiveAdProps) {
   const [isMobile, setIsMobile] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -27,7 +29,7 @@ export default function ResponsiveAd({ placement, className = '' }: ResponsiveAd
 
   if (!mounted) {
     return (
-      <div className={`${className} bg-gray-100 animate-pulse rounded-lg`}>
+      <div className={`${className} bg-gray-100 animate-pulse rounded`}>
         <div className="h-full flex items-center justify-center">
           <span className="text-gray-400 text-sm">Reklam yükleniyor...</span>
         </div>
@@ -35,44 +37,81 @@ export default function ResponsiveAd({ placement, className = '' }: ResponsiveAd
     );
   }
 
-  // Mobilde daha küçük reklam boyutları
-  const getAdSize = () => {
+  // Sabit ölçüler belirle
+  const getAdConfig = () => {
     if (isMobile) {
-      switch (placement) {
-        case 'banner': return '320x50';
-        case 'inline': return '300x250';
-        case 'native': return 'native';
-        default: return '300x250';
-      }
+      return {
+        height: placement === 'banner' ? 'h-16' : 'h-48',
+        width: 'w-full',
+        textSize: 'text-sm',
+        label: placement === 'banner' ? 'MOBİL BANNER' : 'MOBİL REKLAM',
+        dimensions: placement === 'banner' ? '320×50' : '300×250',
+        bgColor: placement === 'banner' ? 'bg-gradient-to-r from-blue-50 to-cyan-50' : 'bg-gradient-to-br from-blue-50 to-purple-50'
+      };
     } else {
-      switch (placement) {
-        case 'banner': return '728x90';
-        case 'inline': return '728x90';
-        case 'native': return 'native';
-        default: return '728x90';
-      }
+      return {
+        height: placement === 'banner' ? 'h-20' : 'h-40',
+        width: 'w-full',
+        textSize: 'text-base',
+        label: placement === 'banner' ? 'DESKTOP BANNER' : 'DESKTOP REKLAM',
+        dimensions: placement === 'banner' ? '728×90' : '728×90',
+        bgColor: placement === 'banner' ? 'bg-gradient-to-r from-blue-100 to-indigo-100' : 'bg-gradient-to-br from-blue-100 to-purple-100'
+      };
     }
   };
 
-  const adSize = getAdSize();
+  const config = getAdConfig();
 
   return (
-    <div className={`${className} ${isMobile ? 'px-2' : ''}`}>
-      {adSize === 'native' ? (
-        <NativeAd />
-      ) : (
-        <div className="text-center p-4 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50">
-          <div className="text-gray-700 font-medium mb-2">
-            {isMobile ? 'Mobil Reklam' : 'Desktop Reklam'}
+    <div className={`${className} ${config.width}`}>
+      <div className={`
+        text-center
+        ${config.bgColor}
+        border-2 border-dashed ${isMobile ? 'border-blue-200' : 'border-blue-300'}
+        rounded-lg
+        overflow-hidden
+        relative
+      `}>
+        {/* Reklam etiketi - köşede */}
+        <div className={`absolute top-2 left-2 ${isMobile ? 'text-[10px]' : 'text-xs'} bg-blue-600 text-white px-2 py-1 rounded`}>
+          REKLAM
+        </div>
+        
+        {/* Platform etiketi - diğer köşede */}
+        <div className={`absolute top-2 right-2 ${isMobile ? 'text-[10px]' : 'text-xs'} bg-gray-700 text-white px-2 py-1 rounded`}>
+          {isMobile ? '📱' : '💻'}
+        </div>
+        
+        {/* Ana reklam alanı */}
+        <div className={`
+          ${config.height}
+          flex flex-col items-center justify-center
+          px-4
+        `}>
+          <div className={`font-bold ${isMobile ? 'text-lg' : 'text-xl'} text-blue-700 mb-1`}>
+            {config.label}
           </div>
-          <div className="text-gray-500 text-sm mb-3">
-            Boyut: {adSize}
+          <div className={`${isMobile ? 'text-xs' : 'text-sm'} text-blue-600 mb-2`}>
+            {config.dimensions}
           </div>
-          <div className="text-xs text-gray-400">
-            Bu alana reklamınızı yerleştirin
+          <div className={`${isMobile ? 'text-xs' : 'text-sm'} text-gray-600`}>
+            {isMobile 
+              ? 'Mobil uyumlu reklam alanı' 
+              : 'Desktop uyumlu reklam alanı'}
           </div>
         </div>
-      )}
+        
+        {/* Alt bilgi */}
+        <div className={`
+          ${isMobile ? 'py-1' : 'py-2'}
+          bg-white/50
+          border-t ${isMobile ? 'border-blue-100' : 'border-blue-200'}
+        `}>
+          <div className={`${isMobile ? 'text-[10px]' : 'text-xs'} text-gray-500`}>
+            SpotItForMe - Reklam Alanı
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

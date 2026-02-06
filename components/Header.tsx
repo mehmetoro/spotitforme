@@ -1,9 +1,10 @@
+// components/Header.tsx - Z-INDEX EKLENDİ
 import Link from 'next/link'
 import UserMenu from './UserMenu'
 
 export default function Header() {
   return (
-    <header className="bg-white shadow">
+    <header className="bg-white shadow relative z-50"> {/* Z-INDEX EKLENDİ */}
       <div className="container-custom py-4">
         <div className="flex justify-between items-center">
           {/* Logo */}
