@@ -1,0 +1,33 @@
+/* app/globals.css - Z-INDEX AYARLARI */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --header-z-index: 100;
+  --ad-z-index: 50;
+  --modal-z-index: 1000;
+}
+
+/* Header her zaman üstte */
+header {
+  z-index: var(--header-z-index) !important;
+  position: relative;
+}
+
+/* Reklamlar header'ın altında */
+.ad-container {
+  z-index: var(--ad-z-index);
+  position: relative;
+}
+
+/* Modal'lar en üstte */
+.modal {
+  z-index: var(--modal-z-index);
+}
+
+/* QuickSightingButton */
+.quick-sighting-button {
+  z-index: 90;
+  position: fixed;
+}

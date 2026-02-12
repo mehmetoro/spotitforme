@@ -1,0 +1,2 @@
+# Google'ın verdiği içeriği yapıştır
+google.com, pub-xxxxxxxxxxxxxxxx, DIRECT, xxxxxxxxxxxxxxxx
