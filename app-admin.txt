@@ -1,0 +1,3588 @@
+====================================================================================================
+📦 SPOTITFORME - TÜM ADMIN PANELİ VE ALT SAYFALAR
+====================================================================================================
+
+🎯 Başlangıç: app/admin/page.tsx
+📅 Tarih: 15.02.2026 00:33:20
+📊 Toplam: 15 dosya
+🌐 Bulunan Sayfalar: 0
+
+====================================================================================================
+🗺️  SAYFA HARİTASI
+====================================================================================================
+
+• /admin
+• /admin/ads
+• /admin/ads/create-manual
+• /admin/adsense
+• /admin/test
+• /admin/users
+
+====================================================================================================
+📱 APP SAYFALARI (page.tsx)
+====================================================================================================
+
+📄 app/admin/ads/create-manual/page.tsx
+📊 137 satır
+────────────────────────────────────────────────────────────
+
+// app/admin/ads/create-manual/page.tsx
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+
+export default function CreateManualAdPage() {
+  const router = useRouter();
+  const [formData, setFormData] = useState({
+    name: '',
+    ad_type: 'manual',
+    position: 'sidebar',
+    size: '300x250',
+    custom_html: '',
+    advertiser_name: '',
+    advertiser_url: '',
+    advertiser_email: '',
+    start_date: '',
+    end_date: '',
+    daily_budget: '',
+    total_budget: '',
+    status: 'draft'
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    // Supabase'e kaydet
+    router.push('/admin/ads');
+  };
+
+  return (
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-6">Yeni Manuel Reklam Ekle</h1>
+      
+      <form onSubmit={handleSubmit} className="space-y-6 max-w-2xl">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">Reklam Adı *</label>
+            <input
+              type="text"
+              required
+              className="w-full p-2 border rounded"
+              value={formData.name}
+              onChange={(e) => setFormData({...formData, name: e.target.value})}
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-1">Pozisyon *</label>
+            <select
+              className="w-full p-2 border rounded"
+              value={formData.position}
+              onChange={(e) => setFormData({...formData, position: e.target.value})}
+            >
+              <option value="header">Ana Sayfa Üst (728x90)</option>
+              <option value="sidebar">Sağ Sidebar (300x250)</option>
+              <option value="inline">İçerik Arası (728x90)</option>
+              <option value="mobile">Mobil Banner (320x50)</option>
+              <option value="popup">Popup (400x300)</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-1">Reklamveren Bilgileri</label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+            <input
+              type="text"
+              placeholder="Şirket Adı"
+              className="p-2 border rounded"
+              value={formData.advertiser_name}
+              onChange={(e) => setFormData({...formData, advertiser_name: e.target.value})}
+            />
+            <input
+              type="url"
+              placeholder="Website URL"
+              className="p-2 border rounded"
+              value={formData.advertiser_url}
+              onChange={(e) => setFormData({...formData, advertiser_url: e.target.value})}
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-1">Reklam HTML Kodu</label>
+          <textarea
+            rows={8}
+            className="w-full p-2 border rounded font-mono text-sm"
+            placeholder='<a href="https://example.com"><img src="https://example.com/banner.jpg" alt="Reklam" /></a>'
+            value={formData.custom_html}
+            onChange={(e) => setFormData({...formData, custom_html: e.target.value})}
+          />
+          <p className="text-sm text-gray-500 mt-1">
+            HTML5 banner kodu veya basit HTML. Boyutlara dikkat edin.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">Başlangıç Tarihi</label>
+            <input
+              type="date"
+              className="w-full p-2 border rounded"
+              value={formData.start_date}
+              onChange={(e) => setFormData({...formData, start_date: e.target.value})}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Bitiş Tarihi</label>
+            <input
+              type="date"
+              className="w-full p-2 border rounded"
+              value={formData.end_date}
+              onChange={(e) => setFormData({...formData, end_date: e.target.value})}
+            />
+          </div>
+        </div>
+
+        <div className="flex justify-end space-x-4">
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="px-4 py-2 border rounded-lg hover:bg-gray-100"
+          >
+            İptal
+          </button>
+          <button
+            type="submit"
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            Reklamı Kaydet
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+📄 app/admin/ads/page.tsx
+📊 156 satır
+────────────────────────────────────────────────────────────
+
+// app/admin/ads/page.tsx - Reklam Ana Sayfası
+'use client';
+
+import { useState } from 'react';
+import Link from 'next/link';
+
+export default function AdminAdsPage() {
+  const [activeTab, setActiveTab] = useState('overview');
+
+  return (
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-6">Reklam Yönetimi</h1>
+      
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+        <div className="bg-white p-4 rounded-lg shadow">
+          <h3 className="font-semibold">Toplam Gelir</h3>
+          <p className="text-2xl font-bold text-green-600">₺0.00</p>
+        </div>
+        <div className="bg-white p-4 rounded-lg shadow">
+          <h3 className="font-semibold">Aktif Reklamlar</h3>
+          <p className="text-2xl font-bold text-blue-600">0</p>
+        </div>
+        <div className="bg-white p-4 rounded-lg shadow">
+          <h3 className="font-semibold">Bugünkü Gösterim</h3>
+          <p className="text-2xl font-bold text-purple-600">0</p>
+        </div>
+        <div className="bg-white p-4 rounded-lg shadow">
+          <h3 className="font-semibold">Bugünkü Tıklama</h3>
+          <p className="text-2xl font-bold text-orange-600">0</p>
+        </div>
+      </div>
+
+      <div className="flex space-x-4 mb-6">
+        <button
+          className={`px-4 py-2 rounded-lg ${activeTab === 'overview' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
+          onClick={() => setActiveTab('overview')}
+        >
+          Genel Bakış
+        </button>
+        <button
+          className={`px-4 py-2 rounded-lg ${activeTab === 'adsense' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
+          onClick={() => setActiveTab('adsense')}
+        >
+          AdSense Yönetimi
+        </button>
+        <button
+          className={`px-4 py-2 rounded-lg ${activeTab === 'manual' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
+          onClick={() => setActiveTab('manual')}
+        >
+          Manuel Reklamlar
+        </button>
+        <button
+          className={`px-4 py-2 rounded-lg ${activeTab === 'advertisers' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
+          onClick={() => setActiveTab('advertisers')}
+        >
+          Reklamverenler
+        </button>
+      </div>
+
+      {activeTab === 'overview' && (
+        <div className="bg-white p-6 rounded-lg shadow">
+          <h2 className="text-xl font-bold mb-4">Hızlı Eylemler</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Link href="/admin/ads/adsense-setup" className="bg-blue-50 p-4 rounded-lg border border-blue-200 hover:bg-blue-100 transition">
+              <h3 className="font-semibold">AdSense Kurulum</h3>
+              <p className="text-sm text-gray-600">Google AdSense entegrasyonu</p>
+            </Link>
+            <Link href="/admin/ads/create-manual" className="bg-green-50 p-4 rounded-lg border border-green-200 hover:bg-green-100 transition">
+              <h3 className="font-semibold">Manuel Reklam Ekle</h3>
+              <p className="text-sm text-gray-600">Kendi reklamınızı ekleyin</p>
+            </Link>
+            <Link href="/admin/ads/placements" className="bg-purple-50 p-4 rounded-lg border border-purple-200 hover:bg-purple-100 transition">
+              <h3 className="font-semibold">Reklam Yerleşimleri</h3>
+              <p className="text-sm text-gray-600">Reklam pozisyonlarını yönetin</p>
+            </Link>
+            <Link href="/admin/ads/reports" className="bg-orange-50 p-4 rounded-lg border border-orange-200 hover:bg-orange-100 transition">
+              <h3 className="font-semibold">Raporlar</h3>
+              <p className="text-sm text-gray-600">Performans raporları</p>
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'adsense' && (
+        <div className="bg-white p-6 rounded-lg shadow">
+          <h2 className="text-xl font-bold mb-4">AdSense Yönetimi</h2>
+          <div className="space-y-4">
+            <div className="p-4 border rounded-lg">
+              <h3 className="font-semibold">AdSense Durumu</h3>
+              <div className="flex items-center space-x-2 mt-2">
+                <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                <span>AdSense aktif değil</span>
+              </div>
+            </div>
+            
+            <div className="p-4 border rounded-lg">
+              <h3 className="font-semibold mb-2">AdSense Kurulumu</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">AdSense Client ID</label>
+                  <input
+                    type="text"
+                    placeholder="ca-pub-xxxxxxxxxxxxxxxx"
+                    className="w-full p-2 border rounded"
+                  />
+                  <p className="text-sm text-gray-500 mt-1">Google AdSense panelinden alınan client ID</p>
+                </div>
+                <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                  AdSense'i Aktif Et
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'manual' && (
+        <div className="bg-white p-6 rounded-lg shadow">
+          <h2 className="text-xl font-bold mb-4">Manuel Reklam Yönetimi</h2>
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="font-semibold">Mevcut Reklamlar</h3>
+              <Link href="/admin/ads/create-manual" className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">
+                Yeni Reklam Ekle
+              </Link>
+            </div>
+            
+            {/* Reklam listesi buraya gelecek */}
+            <div className="text-center py-8 text-gray-500">
+              Henüz manuel reklam eklenmemiş
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'advertisers' && (
+        <div className="bg-white p-6 rounded-lg shadow">
+          <h2 className="text-xl font-bold mb-4">Reklamveren Yönetimi</h2>
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="font-semibold">Reklamverenler</h3>
+              <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                Yeni Reklamveren Ekle
+              </button>
+            </div>
+            
+            {/* Reklamveren listesi buraya gelecek */}
+            <div className="text-center py-8 text-gray-500">
+              Henüz reklamveren eklenmemiş
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+📄 app/admin/adsense/page.tsx
+📊 609 satır
+────────────────────────────────────────────────────────────
+
+// app/admin/adsense/page.tsx - DÜZELTMİŞ VERSİYON
+'use client'
+
+import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
+import AdUnitManager from '@/components/admin/AdUnitManager'
+import AdPerformance from '@/components/admin/AdPerformance'
+import Link from 'next/link'
+
+// AdUnit tipi
+interface AdUnit {
+  id: string
+  name: string
+  type: 'display' | 'in-article' | 'in-feed'
+  size: string
+  position: string
+  status: 'active' | 'paused'
+  revenue: number
+}
+
+// AdSense Config tipi
+interface AdSenseConfig {
+  clientId: string
+  isActive: boolean
+  autoAds: boolean
+  adUnits: AdUnit[]
+  lastSync?: string
+}
+
+export default function AdSensePage() {
+  const [config, setConfig] = useState<AdSenseConfig>({
+    clientId: process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID || '',
+    isActive: false,
+    autoAds: true,
+    adUnits: [
+      {
+        id: 'ad-header-001',
+        name: 'Header Banner',
+        type: 'display',
+        size: '728x90',
+        position: 'header',
+        status: 'active',
+        revenue: 45.50
+      },
+      {
+        id: 'ad-sidebar-001',
+        name: 'Sidebar Rectangle',
+        type: 'display',
+        size: '300x250',
+        position: 'sidebar',
+        status: 'active',
+        revenue: 32.75
+      },
+      {
+        id: 'ad-article-001',
+        name: 'Article Inline',
+        type: 'in-article',
+        size: '336x280',
+        position: 'content-middle',
+        status: 'paused',
+        revenue: 18.20
+      }
+    ]
+  })
+  
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  // DÜZELTME: 'code' tab'ını da ekle
+  const [activeTab, setActiveTab] = useState<'settings' | 'units' | 'performance' | 'code'>('settings')
+
+  useEffect(() => {
+    fetchAdSenseConfig()
+  }, [])
+
+  const fetchAdSenseConfig = async () => {
+    try {
+      setLoading(true)
+      
+      // Database'den config'i çek
+      const { data } = await supabase
+        .from('site_settings')
+        .select('*')
+        .eq('key', 'adsense_config')
+        .single()
+
+      if (data && data.value) {
+        const savedConfig = JSON.parse(data.value)
+        setConfig(prev => ({
+          ...prev,
+          ...savedConfig,
+          // Database'de yoksa varsayılan değerleri koru
+          clientId: savedConfig.clientId || prev.clientId,
+          isActive: savedConfig.isActive !== undefined ? savedConfig.isActive : prev.isActive,
+          autoAds: savedConfig.autoAds !== undefined ? savedConfig.autoAds : prev.autoAds,
+          adUnits: savedConfig.adUnits || prev.adUnits,
+          lastSync: savedConfig.lastSync
+        }))
+      }
+    } catch (error) {
+      console.error('AdSense config yüklenemedi:', error)
+      // Hata durumunda varsayılan config ile devam et
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const saveConfig = async () => {
+    setSaving(true)
+    try {
+      const configToSave = {
+        ...config,
+        lastSync: new Date().toISOString()
+      }
+
+      const { error } = await supabase
+        .from('site_settings')
+        .upsert({
+          key: 'adsense_config',
+          value: JSON.stringify(configToSave),
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'key'
+        })
+
+      if (error) throw error
+
+      // Admin log'a kaydet
+      await supabase
+        .from('admin_logs')
+        .insert({
+          action: 'adsense_config_updated',
+          details: { 
+            config: configToSave,
+            timestamp: new Date().toISOString()
+          }
+        })
+
+      alert('✅ AdSense ayarları başarıyla kaydedildi!')
+      
+    } catch (error) {
+      console.error('AdSense config kaydedilemedi:', error)
+      alert('❌ Kayıt sırasında hata oluştu. Lütfen tekrar deneyin.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleAdUnitsUpdate = (updatedUnits: AdUnit[]) => {
+    setConfig(prev => ({
+      ...prev,
+      adUnits: updatedUnits
+    }))
+  }
+
+  const generateAdCode = (type: 'header' | 'auto' | 'unit') => {
+    switch (type) {
+      case 'header':
+        return `<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${config.clientId}"></script>`
+      
+      case 'auto':
+        return `<script>
+  (adsbygoogle = window.adsbygoogle || []).push({
+    google_ad_client: "${config.clientId}",
+    enable_page_level_ads: true,
+    overlays: {bottom: true}
+  });
+</script>`
+      
+      case 'unit':
+        return `<ins class="adsbygoogle"
+  style="display:block"
+  data-ad-client="${config.clientId}"
+  data-ad-slot="1234567890"
+  data-ad-format="auto"
+  data-full-width-responsive="true"></ins>
+<script>
+  (adsbygoogle = window.adsbygoogle || []).push({});
+</script>`
+      
+      default:
+        return ''
+    }
+  }
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text)
+    alert('Kopyalandı!')
+  }
+
+  const testAdSense = async () => {
+    if (!config.clientId) {
+      alert('Önce AdSense Client ID girin')
+      return
+    }
+
+    try {
+      const response = await fetch('/api/adsense/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientId: config.clientId })
+      })
+
+      const data = await response.json()
+      
+      if (data.success) {
+        alert('✅ AdSense bağlantısı başarılı!')
+      } else {
+        alert('❌ AdSense bağlantısı başarısız: ' + data.message)
+      }
+    } catch (error) {
+      alert('❌ Test sırasında hata oluştu')
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">AdSense ayarları yükleniyor...</p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Başlık ve Navigasyon */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Google AdSense Yönetimi</h1>
+          <p className="text-gray-600">Reklam ayarlarınızı buradan yönetin ve takip edin</p>
+        </div>
+        
+        <div className="flex space-x-3 mt-4 md:mt-0">
+          <button
+            onClick={testAdSense}
+            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium"
+          >
+            🔗 Bağlantıyı Test Et
+          </button>
+          <Link
+            href="https://adsense.google.com"
+            target="_blank"
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium flex items-center"
+          >
+            🌐 AdSense'e Git
+          </Link>
+        </div>
+      </div>
+
+      {/* Durum Göstergesi */}
+      <div className={`p-4 rounded-lg ${config.isActive ? 'bg-green-50 border border-green-200' : 'bg-yellow-50 border border-yellow-200'}`}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className={`w-3 h-3 rounded-full ${config.isActive ? 'bg-green-500' : 'bg-yellow-500'}`} />
+            <div>
+              <p className="font-medium">
+                AdSense {config.isActive ? 'Aktif' : 'Devre Dışı'}
+              </p>
+              <p className="text-sm text-gray-600">
+                {config.isActive 
+                  ? 'Reklamlar sitenizde gösteriliyor' 
+                  : 'Reklamlar şu anda gösterilmiyor'}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setConfig({...config, isActive: !config.isActive})}
+            className={`px-4 py-2 rounded-lg font-medium ${
+              config.isActive
+                ? 'bg-red-100 hover:bg-red-200 text-red-700'
+                : 'bg-green-100 hover:bg-green-200 text-green-700'
+            }`}
+          >
+            {config.isActive ? 'Reklamları Durdur' : 'Reklamları Başlat'}
+          </button>
+        </div>
+      </div>
+
+      {/* Tab Navigation */}
+      <div className="bg-white rounded-xl shadow">
+        <div className="border-b">
+          <nav className="flex -mb-px">
+            {[
+              { id: 'settings' as const, name: 'Temel Ayarlar', icon: '⚙️' },
+              { id: 'units' as const, name: 'Reklam Üniteleri', icon: '📺' },
+              { id: 'performance' as const, name: 'Performans', icon: '📊' },
+              { id: 'code' as const, name: 'Kodlar', icon: '💻' }
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex-1 py-4 text-center font-medium border-b-2 ${
+                  activeTab === tab.id
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <span className="mr-2">{tab.icon}</span>
+                {tab.name}
+              </button>
+            ))}
+          </nav>
+        </div>
+
+        {/* Tab Content */}
+        <div className="p-6">
+          {/* AYARLAR TAB */}
+          {activeTab === 'settings' && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900 mb-4">AdSense Kimlik Bilgileri</h2>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      AdSense Client ID *
+                    </label>
+                    <input
+                      type="text"
+                      value={config.clientId}
+                      onChange={(e) => setConfig({...config, clientId: e.target.value})}
+                      placeholder="ca-pub-xxxxxxxxxxxxxxxx"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                    <p className="text-sm text-gray-500 mt-1">
+                      Google AdSense hesabınızdaki Publisher ID
+                    </p>
+                  </div>
+
+                  <div className="grid md:grid-cols-2 gap-6">
+                    <div className="space-y-4">
+                      <h3 className="font-medium text-gray-900">Reklam Ayarları</h3>
+                      
+                      <div className="flex items-center space-x-3">
+                        <input
+                          type="checkbox"
+                          checked={config.autoAds}
+                          onChange={(e) => setConfig({...config, autoAds: e.target.checked})}
+                          className="w-4 h-4 text-blue-600"
+                          id="autoAds"
+                        />
+                        <label htmlFor="autoAds" className="text-sm font-medium text-gray-700">
+                          Otomatik Reklamlar
+                        </label>
+                        <span className="text-xs text-gray-500">
+                          (Google en iyi yerlere reklam yerleştirir)
+                        </span>
+                      </div>
+
+                      <div className="flex items-center space-x-3">
+                        <input
+                          type="checkbox"
+                          checked={config.isActive}
+                          onChange={(e) => setConfig({...config, isActive: e.target.checked})}
+                          className="w-4 h-4 text-blue-600"
+                          id="isActive"
+                        />
+                        <label htmlFor="isActive" className="text-sm font-medium text-gray-700">
+                          Reklamları Aktif Et
+                        </label>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <h3 className="font-medium text-gray-900">Gelişmiş Ayarlar</h3>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          GDPR Uyumluluğu
+                        </label>
+                        <select className="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                          <option>Kullanıcı onayı iste</option>
+                          <option>Otomatik kabul et</option>
+                          <option>Sadece AB dışı</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Reklam Frekansı
+                        </label>
+                        <select className="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                          <option>Normal</option>
+                          <option>Düşük (daha az reklam)</option>
+                          <option>Yüksek (maksimum gelir)</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Kaydet Butonu */}
+              <div className="flex justify-end pt-6 border-t">
+                <button
+                  onClick={saveConfig}
+                  disabled={saving || !config.clientId}
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-8 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {saving ? 'Kaydediliyor...' : 'Ayarları Kaydet'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* REKLAM ÜNİTELERİ TAB */}
+          {activeTab === 'units' && (
+            <div>
+              <div className="mb-6">
+                <h2 className="text-lg font-bold text-gray-900 mb-2">Reklam Ünite Yönetimi</h2>
+                <p className="text-gray-600">
+                  Reklam ünitelerinizi ekleyin, düzenleyin ve yönetin
+                </p>
+              </div>
+              
+              <AdUnitManager 
+                adUnits={config.adUnits}
+                onUpdate={handleAdUnitsUpdate}
+                clientId={config.clientId}
+              />
+              
+              <div className="mt-6 bg-gray-50 p-4 rounded-lg">
+                <h3 className="font-medium text-gray-900 mb-2">💡 İpuçları</h3>
+                <ul className="text-sm text-gray-600 space-y-1">
+                  <li>• "Display" reklamlar genel amaçlıdır, her yerde kullanılabilir</li>
+                  <li>• "In-article" reklamlar makale içeriğine göre optimize edilir</li>
+                  <li>• "In-feed" reklamlar haber akışına entegre olur</li>
+                  <li>• 300x250 boyutu (Medium Rectangle) en yüksek tıklama oranına sahiptir</li>
+                </ul>
+              </div>
+            </div>
+          )}
+
+          {/* PERFORMANS TAB */}
+          {activeTab === 'performance' && (
+            <div>
+              <div className="mb-6">
+                <h2 className="text-lg font-bold text-gray-900 mb-2">Reklam Performansı</h2>
+                <p className="text-gray-600">
+                  Reklamlarınızın performansını takip edin ve optimize edin
+                </p>
+              </div>
+              
+              <AdPerformance />
+              
+              <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-white border border-gray-200 rounded-lg p-4">
+                  <h3 className="font-medium text-gray-900 mb-2">📈 Performans İpuçları</h3>
+                  <ul className="text-sm text-gray-600 space-y-2">
+                    <li>• CTR %1'in altındaysa reklam pozisyonunu değiştirin</li>
+                    <li>• RPM ₺5'in altındaysa reklam formatını gözden geçirin</li>
+                    <li>• Mobile trafik genellikle daha yüksek tıklama oranına sahiptir</li>
+                  </ul>
+                </div>
+                
+                <div className="bg-white border border-gray-200 rounded-lg p-4">
+                  <h3 className="font-medium text-gray-900 mb-2">🎯 Optimizasyon</h3>
+                  <ul className="text-sm text-gray-600 space-y-2">
+                    <li>• En çok tıklanan reklam boyutu: 300x250</li>
+                    <li>• En yüksek RPM: 970x250 (Leaderboard)</li>
+                    <li>• En iyi pozisyon: İçerik sonu</li>
+                  </ul>
+                </div>
+                
+                <div className="bg-white border border-gray-200 rounded-lg p-4">
+                  <h3 className="font-medium text-gray-900 mb-2">⚠️ Dikkat Edilecekler</h3>
+                  <ul className="text-sm text-gray-600 space-y-2">
+                    <li>• Sayfa başına 3'ten fazla reklam koymayın</li>
+                    <li>• Pop-up reklamlar kullanıcı deneyimini bozar</li>
+                    <li>• Reklam ile içerik oranı %30'u geçmemeli</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* KODLAR TAB - HATA DÜZELTİLDİ */}
+          {activeTab === 'code' && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900 mb-4">AdSense Kodları</h2>
+                <p className="text-gray-600 mb-6">
+                  Aşağıdaki kodları ilgili yerlere ekleyerek AdSense'i aktif edin
+                </p>
+              </div>
+
+              {/* Head Script */}
+              <div className="bg-gray-900 rounded-lg overflow-hidden">
+                <div className="bg-gray-800 px-4 py-3 flex justify-between items-center">
+                  <div>
+                    <h3 className="font-medium text-white">Head Script</h3>
+                    <p className="text-gray-400 text-sm">HTML &lt;head&gt; tag'i içine ekleyin</p>
+                  </div>
+                  <button
+                    onClick={() => copyToClipboard(generateAdCode('header'))}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm"
+                  >
+                    Kopyala
+                  </button>
+                </div>
+                <pre className="p-4 text-gray-300 text-sm overflow-x-auto">
+                  {generateAdCode('header')}
+                </pre>
+              </div>
+
+              {/* Auto Ads Script */}
+              <div className="bg-gray-900 rounded-lg overflow-hidden">
+                <div className="bg-gray-800 px-4 py-3 flex justify-between items-center">
+                  <div>
+                    <h3 className="font-medium text-white">Auto Ads Script</h3>
+                    <p className="text-gray-400 text-sm">&lt;body&gt; tag'inin hemen altına ekleyin</p>
+                  </div>
+                  <button
+                    onClick={() => copyToClipboard(generateAdCode('auto'))}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm"
+                  >
+                    Kopyala
+                  </button>
+                </div>
+                <pre className="p-4 text-gray-300 text-sm overflow-x-auto">
+                  {generateAdCode('auto')}
+                </pre>
+              </div>
+
+              {/* Manual Ad Unit */}
+              <div className="bg-gray-900 rounded-lg overflow-hidden">
+                <div className="bg-gray-800 px-4 py-3 flex justify-between items-center">
+                  <div>
+                    <h3 className="font-medium text-white">Manual Ad Unit</h3>
+                    <p className="text-gray-400 text-sm">İçerik içinde kullanmak için</p>
+                  </div>
+                  <button
+                    onClick={() => copyToClipboard(generateAdCode('unit'))}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm"
+                  >
+                    Kopyala
+                  </button>
+                </div>
+                <pre className="p-4 text-gray-300 text-sm overflow-x-auto">
+                  {generateAdCode('unit')}
+                </pre>
+              </div>
+
+              {/* Kurulum Talimatları */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                <h3 className="font-bold text-blue-900 mb-3">📋 Kurulum Talimatları</h3>
+                <ol className="space-y-3 text-blue-800">
+                  <li className="flex items-start">
+                    <span className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm mr-3 flex-shrink-0">1</span>
+                    <span>Yukarıdaki "Head Script" kodunu <code className="bg-white px-2 py-1 rounded">app/layout.tsx</code> dosyasındaki &lt;head&gt; içine ekleyin</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm mr-3 flex-shrink-0">2</span>
+                    <span>"Auto Ads Script" kodunu &lt;body&gt; tag'inin hemen altına ekleyin</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm mr-3 flex-shrink-0">3</span>
+                    <span>Manual ad unit kodunu istediğiniz sayfalara ekleyin</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm mr-3 flex-shrink-0">4</span>
+                    <span>Google AdSense'den siteyi doğrulayın (24-48 saat sürebilir)</span>
+                  </li>
+                </ol>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Hızlı İstatistikler */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-white rounded-lg shadow p-4">
+          <p className="text-sm text-gray-600">Aktif Reklam</p>
+          <p className="text-2xl font-bold text-gray-900">
+            {config.adUnits.filter(u => u.status === 'active').length}
+          </p>
+        </div>
+        <div className="bg-white rounded-lg shadow p-4">
+          <p className="text-sm text-gray-600">Toplam Gelir</p>
+          <p className="text-2xl font-bold text-gray-900">
+            {config.adUnits.reduce((sum, unit) => sum + unit.revenue, 0).toFixed(2)} ₺
+          </p>
+        </div>
+        <div className="bg-white rounded-lg shadow p-4">
+          <p className="text-sm text-gray-600">Ort. RPM</p>
+          <p className="text-2xl font-bold text-gray-900">
+            {(config.adUnits.reduce((sum, unit) => sum + unit.revenue, 0) / config.adUnits.length || 0).toFixed(2)} ₺
+          </p>
+        </div>
+        <div className="bg-white rounded-lg shadow p-4">
+          <p className="text-sm text-gray-600">Durum</p>
+          <p className={`text-2xl font-bold ${config.isActive ? 'text-green-600' : 'text-red-600'}`}>
+            {config.isActive ? 'Aktif' : 'Pasif'}
+          </p>
+        </div>
+      </div>
+
+      {/* Son Güncelleme */}
+      {config.lastSync && (
+        <div className="text-center text-sm text-gray-500">
+          Son güncelleme: {new Date(config.lastSync).toLocaleString('tr-TR')}
+        </div>
+      )}
+    </div>
+  )
+}
+
+📄 app/admin/page.tsx
+📊 96 satır
+────────────────────────────────────────────────────────────
+
+// app/admin/page.tsx - DÜZELTİLMİŞ
+'use client'
+
+import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
+import DashboardStats from '@/components/admin/DashboardStats'
+import RecentSpots from '@/components/admin/RecentSpots'
+import RevenueChart from '@/components/admin/RevenueChart'
+import AdSenseStatus from '@/components/admin/AdSenseStatus'
+
+interface DashboardStats {
+  totalUsers: number
+  totalSpots: number
+  totalShops: number
+  revenue: number
+  activeAds: number
+}
+
+// Payment interface'ini tanımla
+interface Payment {
+  amount: number
+  status?: string
+  [key: string]: any
+}
+
+export default function AdminDashboard() {
+  const [stats, setStats] = useState<DashboardStats>({
+    totalUsers: 0,
+    totalSpots: 0,
+    totalShops: 0,
+    revenue: 0,
+    activeAds: 0
+  })
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchDashboardData()
+  }, [])
+
+  const fetchDashboardData = async () => {
+    try {
+      // Paralel olarak tüm verileri çek
+      const [
+        usersData,
+        spotsData,
+        shopsData,
+        revenueData
+      ] = await Promise.all([
+        supabase.from('user_profiles').select('count', { count: 'exact', head: true }),
+        supabase.from('spots').select('count', { count: 'exact', head: true }),
+        supabase.from('shops').select('count', { count: 'exact', head: true }),
+        supabase.from('payments').select('amount').eq('status', 'completed')
+      ])
+
+      // DÜZELTİLMİŞ KISIM: reduce fonksiyonuna tipleri ekle
+      const totalRevenue = revenueData.data?.reduce(
+        (sum: number, payment: Payment) => sum + (payment.amount || 0), 
+        0
+      ) || 0
+
+      setStats({
+        totalUsers: usersData.count || 0,
+        totalSpots: spotsData.count || 0,
+        totalShops: shopsData.count || 0,
+        revenue: totalRevenue,
+        activeAds: 3 // Hardcoded şimdilik
+      })
+    } catch (error) {
+      console.error('Dashboard verileri alınamadı:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Üst Bilgi */}
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
+        <p className="text-gray-600">SpotItForMe yönetim paneline hoş geldiniz</p>
+      </div>
+
+      {/* İstatistik Kartları */}
+      <DashboardStats stats={stats} loading={loading} />
+
+      {/* AdSense Durumu */}
+      <AdSenseStatus />
+
+      {/* Grafikler ve Tablolar */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <RevenueChart />
+        <RecentSpots />
+      </div>
+    </div>
+  )
+}
+
+📄 app/admin/test/page.tsx
+📊 880 satır
+────────────────────────────────────────────────────────────
+
+// app/admin/test/page.tsx (TAM DÜZELTİLMİŞ)
+'use client'
+
+import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
+
+interface TestResult {
+  name: string
+  status: 'success' | 'error' | 'warning' | 'pending'
+  message: string
+  details?: any
+  duration?: number
+}
+
+interface EmailTestData {
+  to: string
+  template: string
+  data: {
+    name: string
+    spotTitle: string
+    spotId: string
+    spotterName: string
+  }
+}
+
+export default function SystemTestPage() {
+  const [testResults, setTestResults] = useState<TestResult[]>([])
+  const [runningTests, setRunningTests] = useState(false)
+  const [user, setUser] = useState<any>(null)
+  const [emailTestData, setEmailTestData] = useState<EmailTestData>({
+    to: '',
+    template: 'welcome',
+    data: {
+      name: 'Test User',
+      spotTitle: 'Test Spot Başlığı',
+      spotId: 'test-' + Date.now(),
+      spotterName: 'Test Yardımcı'
+    }
+  })
+
+  // Kullanıcı oturumunu kontrol et
+  useEffect(() => {
+    checkUserSession()
+  }, [])
+
+  const checkUserSession = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    setUser(user)
+    
+    if (!user) {
+      addTestResult({
+        name: 'Kullanıcı Oturumu',
+        status: 'error',
+        message: 'Oturum açılmamış. Lütfen giriş yapın.'
+      })
+    }
+  }
+
+  const addTestResult = (result: TestResult) => {
+    setTestResults(prev => [...prev, result])
+  }
+
+  // TİP GÜVENLİ TEST FONKSİYONU
+  const createTestResult = (
+    status: TestResult['status'],
+    message: string,
+    details?: any,
+    duration?: number
+  ): Omit<TestResult, 'name'> => {
+    return { status, message, details, duration }
+  }
+
+  // 1. TEMEL SİSTEM TESTLERİ
+  const runBasicTests = async () => {
+    const tests = [
+      {
+        name: 'Supabase Bağlantısı',
+        test: async () => {
+          const start = Date.now()
+          try {
+            const { data, error } = await supabase
+              .from('spots')
+              .select('count', { count: 'exact', head: true })
+            
+            const duration = Date.now() - start
+            
+            if (error) throw error
+            
+            return createTestResult(
+              'success',
+              `Bağlantı başarılı. ${data} tablo var.`,
+              null,
+              duration
+            )
+          } catch (error: any) {
+            return createTestResult(
+              'error',
+              `Bağlantı hatası: ${error.message}`,
+              error
+            )
+          }
+        }
+      },
+      {
+        name: 'Database Tabloları',
+        test: async () => {
+          const start = Date.now()
+          const requiredTables = ['spots', 'sightings', 'user_profiles', 'shops']
+          const results: any[] = []
+          
+          try {
+            for (const table of requiredTables) {
+              const { error } = await supabase
+                .from(table)
+                .select('*')
+                .limit(1)
+              
+              results.push({
+                table,
+                exists: !error,
+                error: error?.message
+              })
+            }
+            
+            const missingTables = results.filter(r => !r.exists)
+            const duration = Date.now() - start
+            
+            if (missingTables.length > 0) {
+              return createTestResult(
+                'warning',
+                `${missingTables.length} tablo eksik`,
+                results,
+                duration
+              )
+            }
+            
+            return createTestResult(
+              'success',
+              'Tüm tablolar mevcut',
+              results,
+              duration
+            )
+          } catch (error: any) {
+            return createTestResult(
+              'error',
+              `Tablo kontrol hatası: ${error.message}`,
+              error
+            )
+          }
+        }
+      },
+        {
+        name: 'Storage Bucket',
+        test: async () => {
+            const start = Date.now()
+            try {
+            // DIRECT TEST: Bucket'a dosya yükle
+            const testFile = new File(['test-content'], `test-${Date.now()}.txt`, {
+                type: 'text/plain'
+            })
+            
+            const { error: uploadError } = await supabase.storage
+                .from('spot-images')
+                .upload(`system-test/test-${Date.now()}.txt`, testFile)
+            
+            const duration = Date.now() - start
+            
+            if (uploadError) {
+                // Upload başarısız - bucket yok veya izin yok
+                return createTestResult(
+                uploadError.message.includes('bucket') ? 'error' : 'warning',
+                `Upload hatası: ${uploadError.message}`,
+                uploadError,
+                duration
+                )
+            }
+            
+            // Upload BAŞARILI - bucket çalışıyor!
+            return createTestResult(
+                'success',
+                'Storage bucket çalışıyor! Dosya yüklendi.',
+                { uploaded: true, timestamp: new Date().toISOString() },
+                duration
+            )
+            
+            } catch (error: any) {
+            return createTestResult(
+                'error',
+                `Storage test hatası: ${error.message}`,
+                error
+            )
+            }
+        }
+        },
+      {
+        name: 'Health Check API',
+        test: async () => {
+          const start = Date.now()
+          try {
+            const response = await fetch('/api/health')
+            const data = await response.json()
+            const duration = Date.now() - start
+            
+            if (!response.ok) {
+              return createTestResult(
+                'error',
+                `API hatalı: ${response.status}`,
+                data,
+                duration
+              )
+            }
+            
+            return createTestResult(
+              'success',
+              `API çalışıyor (${data.duration})`,
+              data,
+              duration
+            )
+          } catch (error: any) {
+            return createTestResult(
+              'error',
+              `API hatası: ${error.message}`,
+              error
+            )
+          }
+        }
+      }
+    ]
+
+    for (const test of tests) {
+      const result = await test.test()
+      addTestResult({ 
+        name: test.name, 
+        ...result 
+      })
+      await new Promise(resolve => setTimeout(resolve, 500))
+    }
+  }
+
+  // 2. EMAIL SİSTEM TESTLERİ
+  const runEmailTests = async () => {
+    const tests = [
+      {
+        name: 'Email API Bağlantısı',
+        test: async () => {
+          const start = Date.now()
+          try {
+            const response = await fetch('/api/send-email', { method: 'GET' })
+            const data = await response.json()
+            const duration = Date.now() - start
+            
+            if (!response.ok) {
+              return createTestResult(
+                'error',
+                `Email API hatalı: ${data.error || response.status}`,
+                data,
+                duration
+              )
+            }
+            
+            const status: TestResult['status'] = data.gmail_configured ? 'success' : 'warning'
+            
+            return createTestResult(
+              status,
+              data.gmail_configured 
+                ? 'Email API hazır' 
+                : 'Gmail konfigürasyonu eksik',
+              data,
+              duration
+            )
+          } catch (error: any) {
+            return createTestResult(
+              'error',
+              `Email API hatası: ${error.message}`,
+              error
+            )
+          }
+        }
+      },
+      {
+        name: 'Test Email Gönderimi',
+        test: async () => {
+          if (!emailTestData.to) {
+            return createTestResult(
+              'warning',
+              'Test email adresi gerekli',
+              'Lütfen bir email adresi girin'
+            )
+          }
+
+          const start = Date.now()
+          try {
+            const response = await fetch('/api/send-email', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                to: emailTestData.to,
+                template: emailTestData.template,
+                data: emailTestData.data,
+                subject: `✅ SpotItForMe Test Email - ${new Date().toLocaleString()}`,
+                html: `
+                  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px; text-align: center; border-radius: 10px 10px 0 0;">
+                      <h1 style="color: white; margin: 0;">✅ TEST EMAIL</h1>
+                      <p style="color: white; opacity: 0.9; margin-top: 10px;">SpotItForMe Email Sistemi Testi</p>
+                    </div>
+                    <div style="padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
+                      <p>Merhaba <strong>${emailTestData.data.name}</strong>,</p>
+                      <p>Bu email SpotItForMe sisteminin düzgün çalıştığını test etmek için gönderilmiştir.</p>
+                      
+                      <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                        <p><strong>Test Detayları:</strong></p>
+                        <p>📧 Template: ${emailTestData.template}</p>
+                        <p>⏰ Gönderim Zamanı: ${new Date().toLocaleString('tr-TR')}</p>
+                        <p>🆔 Spot ID: ${emailTestData.data.spotId}</p>
+                        <p>👤 Gönderen: ${emailTestData.data.spotterName}</p>
+                      </div>
+
+                      <div style="text-align: center; margin: 30px 0;">
+                        <div style="display: inline-block; background: #10b981; color: white; padding: 12px 30px; border-radius: 8px;">
+                          ✅ EMAIL SİSTEMİ ÇALIŞIYOR
+                        </div>
+                      </div>
+
+                      <p>Bu email başarıyla alındıysa, SpotItForMe email sisteminiz düzgün çalışıyor demektir.</p>
+                      
+                      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;" />
+
+                      <p style="font-size: 12px; color: #6b7280;">
+                        Bu bir test emailidir. Lütfen cevaplamayın.
+                      </p>
+                    </div>
+                  </div>
+                `,
+                text: `SpotItForMe Test Email - ${new Date().toLocaleString()}. Email sisteminiz çalışıyor!`
+              })
+            })
+
+            const data = await response.json()
+            const duration = Date.now() - start
+            
+            if (!response.ok) {
+              return createTestResult(
+                'error',
+                `Email gönderilemedi: ${data.error || response.status}`,
+                data,
+                duration
+              )
+            }
+            
+            return createTestResult(
+              'success',
+              `Email başarıyla gönderildi: ${data.messageId}`,
+              data,
+              duration
+            )
+          } catch (error: any) {
+            return createTestResult(
+              'error',
+              `Email gönderme hatası: ${error.message}`,
+              error
+            )
+          }
+        }
+      },
+      {
+        name: 'CRON Job Testi',
+        test: async () => {
+          const start = Date.now()
+          try {
+            const response = await fetch('/api/cron/process-emails')
+            const data = await response.json()
+            const duration = Date.now() - start
+            
+            if (!response.ok) {
+              const status: TestResult['status'] = data.error === 'Unauthorized' ? 'warning' : 'error'
+              
+              return createTestResult(
+                status,
+                data.error === 'Unauthorized' 
+                  ? 'CRON secret gerekli (normal)' 
+                  : `CRON hatası: ${data.error}`,
+                data,
+                duration
+              )
+            }
+            
+            return createTestResult(
+              'success',
+              `CRON çalışıyor: ${data.processed?.length || 0} email işlendi`,
+              data,
+              duration
+            )
+          } catch (error: any) {
+            return createTestResult(
+              'error',
+              `CRON test hatası: ${error.message}`,
+              error
+            )
+          }
+        }
+      },
+      {
+        name: 'Environment Variables',
+        test: async () => {
+          const start = Date.now()
+          try {
+            const response = await fetch('/api/env-check')
+            const data = await response.json()
+            const duration = Date.now() - start
+            
+            if (!response.ok || !data.success) {
+              return createTestResult(
+                'error',
+                `Environment hatası: ${data.message}`,
+                data,
+                duration
+              )
+            }
+            
+            return createTestResult(
+              'success',
+              'Environment variables mevcut',
+              data.envVars,
+              duration
+            )
+          } catch (error: any) {
+            return createTestResult(
+              'error',
+              `Environment check hatası: ${error.message}`,
+              error
+            )
+          }
+        }
+      }
+    ]
+
+    for (const test of tests) {
+      const result = await test.test()
+      addTestResult({ 
+        name: test.name, 
+        ...result 
+      })
+      await new Promise(resolve => setTimeout(resolve, 1000))
+    }
+  }
+
+  // 3. İŞLEVSEL TESTLER
+  const runFunctionalTests = async () => {
+    const tests = [
+      {
+        name: 'Spot API Testi',
+        test: async () => {
+          const start = Date.now()
+          try {
+            const response = await fetch('/api/spots')
+            const data = await response.json()
+            const duration = Date.now() - start
+            
+            if (!response.ok || data.status !== 'success') {
+              return createTestResult(
+                'error',
+                `Spot API hatası: ${data.message}`,
+                data,
+                duration
+              )
+            }
+            
+            return createTestResult(
+              'success',
+              `Spot API çalışıyor: ${data.data?.spots?.length || 0} spot`,
+              data.data,
+              duration
+            )
+          } catch (error: any) {
+            return createTestResult(
+              'error',
+              `Spot API hatası: ${error.message}`,
+              error
+            )
+          }
+        }
+      },
+      {
+        name: 'Kullanıcı API Testi',
+        test: async () => {
+          const start = Date.now()
+          try {
+            const response = await fetch('/api/users')
+            const data = await response.json()
+            const duration = Date.now() - start
+            
+            if (!response.ok || data.status !== 'success') {
+              return createTestResult(
+                'error',
+                `User API hatası: ${data.message}`,
+                data,
+                duration
+              )
+            }
+            
+            return createTestResult(
+              'success',
+              `User API çalışıyor: ${data.data?.users?.length || 0} kullanıcı`,
+              data.data,
+              duration
+            )
+          } catch (error: any) {
+            return createTestResult(
+              'error',
+              `User API hatası: ${error.message}`,
+              error
+            )
+          }
+        }
+      },
+      {
+        name: 'Spot Oluşturma Testi',
+        test: async () => {
+          if (!user) {
+            return createTestResult(
+              'warning',
+              'Spot oluşturmak için giriş yapmalısınız',
+              'Kullanıcı oturumu gerekiyor'
+            )
+          }
+
+          const start = Date.now()
+          try {
+            const testSpot = {
+              user_id: user.id,
+              title: `[TEST] Sistem Test Spotu - ${Date.now()}`,
+              description: 'Bu spot sistem testi için oluşturulmuştur.',
+              category: 'Diğer',
+              location: 'Test Şehri',
+              status: 'active',
+              image_url: null
+            }
+
+            const { data, error } = await supabase
+              .from('spots')
+              .insert([testSpot])
+              .select()
+            
+            const duration = Date.now() - start
+            
+            if (error) {
+              return createTestResult(
+                'error',
+                `Spot oluşturma hatası: ${error.message}`,
+                error,
+                duration
+              )
+            }
+            
+            if (data && data[0]) {
+              setTimeout(async () => {
+                await supabase.from('spots').delete().eq('id', data[0].id)
+              }, 5000)
+            }
+            
+            return createTestResult(
+              'success',
+              `Test spot'u oluşturuldu: ${data?.[0]?.title}`,
+              data,
+              duration
+            )
+          } catch (error: any) {
+            return createTestResult(
+              'error',
+              `Spot oluşturma hatası: ${error.message}`,
+              error
+            )
+          }
+        }
+      }
+    ]
+
+    for (const test of tests) {
+      const result = await test.test()
+      addTestResult({ 
+        name: test.name, 
+        ...result 
+      })
+      await new Promise(resolve => setTimeout(resolve, 500))
+    }
+  }
+
+  // TÜM TESTLERİ ÇALIŞTIR
+  const runAllTests = async () => {
+    setTestResults([])
+    setRunningTests(true)
+    
+    try {
+      addTestResult({
+        name: 'Test Başlatıldı',
+        status: 'pending',
+        message: 'Sistem testleri başlatılıyor...'
+      })
+      
+      await runBasicTests()
+      await runEmailTests()
+      await runFunctionalTests()
+      
+      addTestResult({
+        name: 'Testler Tamamlandı',
+        status: 'success',
+        message: 'Tüm sistem testleri tamamlandı.'
+      })
+      
+    } catch (error: any) {
+      addTestResult({
+        name: 'Test Hatası',
+        status: 'error',
+        message: `Test sırasında hata: ${error.message}`
+      })
+    } finally {
+      setRunningTests(false)
+    }
+  }
+
+  // TEST SONUÇLARINI ANALİZ ET
+  const getTestSummary = () => {
+    const total = testResults.length
+    const success = testResults.filter(r => r.status === 'success').length
+    const error = testResults.filter(r => r.status === 'error').length
+    const warning = testResults.filter(r => r.status === 'warning').length
+    
+    return { total, success, error, warning }
+  }
+
+  const summary = getTestSummary()
+
+  // STATUS RENKLERİ
+  const getStatusColor = (status: TestResult['status']) => {
+    switch (status) {
+      case 'success': return 'bg-green-100 text-green-800 border-green-200'
+      case 'error': return 'bg-red-100 text-red-800 border-red-200'
+      case 'warning': return 'bg-yellow-100 text-yellow-800 border-yellow-200'
+      case 'pending': return 'bg-blue-100 text-blue-800 border-blue-200'
+      default: return 'bg-gray-100 text-gray-800 border-gray-200'
+    }
+  }
+
+  const getStatusIcon = (status: TestResult['status']) => {
+    switch (status) {
+      case 'success': return '✅'
+      case 'error': return '❌'
+      case 'warning': return '⚠️'
+      case 'pending': return '⏳'
+      default: return 'ℹ️'
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white p-4 md:p-8">
+      <div className="max-w-6xl mx-auto">
+        {/* BAŞLIK */}
+        <div className="mb-8 text-center">
+          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+            🧪 SpotItForMe Sistem Test Merkezi
+          </h1>
+          <p className="text-gray-600">
+            Tüm sistem bileşenlerini test edin, hataları tespit edin.
+          </p>
+        </div>
+
+        {/* DURUM ÖZETİ */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          <div className="bg-white rounded-xl shadow p-6 text-center">
+            <div className="text-2xl font-bold text-gray-900">{summary.total}</div>
+            <div className="text-gray-600">Toplam Test</div>
+          </div>
+          <div className="bg-white rounded-xl shadow p-6 text-center">
+            <div className="text-2xl font-bold text-green-600">{summary.success}</div>
+            <div className="text-gray-600">Başarılı</div>
+          </div>
+          <div className="bg-white rounded-xl shadow p-6 text-center">
+            <div className="text-2xl font-bold text-red-600">{summary.error}</div>
+            <div className="text-gray-600">Hatalı</div>
+          </div>
+          <div className="bg-white rounded-xl shadow p-6 text-center">
+            <div className="text-2xl font-bold text-yellow-600">{summary.warning}</div>
+            <div className="text-gray-600">Uyarı</div>
+          </div>
+        </div>
+
+        {/* EMAIL TEST ALANI */}
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">📧 Email Testi</h2>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Test Email Adresi
+              </label>
+              <input
+                type="email"
+                value={emailTestData.to}
+                onChange={(e) => setEmailTestData({...emailTestData, to: e.target.value})}
+                placeholder="ornek@gmail.com"
+                className="w-full md:w-96 px-4 py-2 border border-gray-300 rounded-lg"
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                Test email'ini bu adrese göndereceğiz.
+              </p>
+            </div>
+            
+            <div className="flex flex-wrap gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Template
+                </label>
+                <select
+                  value={emailTestData.template}
+                  onChange={(e) => setEmailTestData({...emailTestData, template: e.target.value})}
+                  className="px-4 py-2 border border-gray-300 rounded-lg"
+                >
+                  <option value="welcome">Hoşgeldin</option>
+                  <option value="spot-created">Spot Oluşturuldu</option>
+                  <option value="spot-sighting">Yardım Bildirimi</option>
+                  <option value="test">Test</option>
+                </select>
+              </div>
+              
+              <div className="flex items-end">
+                <button
+                  onClick={() => {
+                    setTestResults([])
+                    runEmailTests()
+                  }}
+                  disabled={runningTests || !emailTestData.to}
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg disabled:opacity-50"
+                >
+                  Sadece Email Testi Çalıştır
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* TEST KONTROLLERİ */}
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">🔄 Test Kontrolleri</h2>
+          <div className="flex flex-wrap gap-4">
+
+            
+            <button
+              onClick={() => setTestResults([])}
+              className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-3 px-6 rounded-lg"
+            >
+              Sonuçları Temizle
+            </button>
+            
+            <button
+              onClick={() => window.location.reload()}
+              className="bg-blue-100 hover:bg-blue-200 text-blue-600 font-medium py-3 px-6 rounded-lg"
+            >
+              Sayfayı Yenile
+            </button>
+          </div>
+          
+          {user && (
+            <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+              <p className="text-sm">
+                👤 Oturum: <span className="font-medium">{user.email}</span>
+                <span className="ml-4">🆔 User ID: <code className="text-xs">{user.id.substring(0, 8)}...</code></span>
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* TEST SONUÇLARI */}
+        <div className="bg-white rounded-xl shadow-lg p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-bold text-gray-900">📊 Test Sonuçları</h2>
+            <span className="text-sm text-gray-500">
+              {testResults.length} test sonucu
+            </span>
+          </div>
+          
+          {testResults.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="text-4xl mb-4">🧪</div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                Henüz test çalıştırılmadı
+              </h3>
+              <p className="text-gray-600">
+                Yukarıdaki butonlarla testleri başlatın.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
+              {testResults.map((result, index) => (
+                <div
+                  key={index}
+                  className={`p-4 rounded-lg border ${getStatusColor(result.status)}`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start space-x-3">
+                      <span className="text-xl">{getStatusIcon(result.status)}</span>
+                      <div>
+                        <h4 className="font-bold">{result.name}</h4>
+                        <p className="text-sm mt-1">{result.message}</p>
+                        
+                        {result.duration && (
+                          <p className="text-xs text-gray-600 mt-1">
+                            ⏱️ {result.duration}ms
+                          </p>
+                        )}
+                        
+                        {result.details && (
+                          <details className="mt-2">
+                            <summary className="text-sm cursor-pointer text-gray-700">
+                              Detayları göster
+                            </summary>
+                            <pre className="mt-2 p-3 bg-black bg-opacity-5 rounded text-xs overflow-x-auto">
+                              {JSON.stringify(result.details, null, 2)}
+                            </pre>
+                          </details>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center">
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${
+                        result.status === 'success' ? 'bg-green-200 text-green-800' :
+                        result.status === 'error' ? 'bg-red-200 text-red-800' :
+                        result.status === 'warning' ? 'bg-yellow-200 text-yellow-800' :
+                        'bg-blue-200 text-blue-800'
+                      }`}>
+                        {result.status.toUpperCase()}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* HIZLI İPUÇLARI */}
+        <div className="mt-8 grid md:grid-cols-3 gap-6">
+          <div className="bg-blue-50 rounded-xl p-6">
+            <div className="text-2xl mb-3">🔧</div>
+            <h4 className="font-bold text-gray-900 mb-2">Sık Karşılaşılan Hatalar</h4>
+            <ul className="text-sm text-gray-600 space-y-1">
+              <li>• Gmail App Password eksik</li>
+              <li>• Supabase RLS politikaları</li>
+              <li>• Environment variables eksik</li>
+              <li>• Storage bucket oluşturulmamış</li>
+            </ul>
+          </div>
+          
+          <div className="bg-green-50 rounded-xl p-6">
+            <div className="text-2xl mb-3">✅</div>
+            <h4 className="font-bold text-gray-900 mb-2">Test Edilen Sistemler</h4>
+            <ul className="text-sm text-gray-600 space-y-1">
+              <li>• Supabase Database & Auth</li>
+              <li>• Gmail Email API</li>
+              <li>• CRON Job System</li>
+              <li>• Rate Limiting</li>
+              <li>• Health Check Endpoints</li>
+            </ul>
+          </div>
+          
+          <div className="bg-purple-50 rounded-xl p-6">
+            <div className="text-2xl mb-3">📝</div>
+            <h4 className="font-bold text-gray-900 mb-2">Sonraki Adımlar</h4>
+            <ul className="text-sm text-gray-600 space-y-1">
+              <li>1. Hataları düzelt</li>
+              <li>2. Email sistemini test et</li>
+              <li>3. Spot oluşturmayı test et</li>
+              <li>4. Tüm API'leri doğrula</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+📄 app/admin/users/page.tsx
+📊 308 satır
+────────────────────────────────────────────────────────────
+
+// app/admin/users/page.tsx - DÜZELTİLMİŞ
+'use client';
+
+import { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
+
+interface UserProfile {
+  id: string;
+  email: string;
+  name: string | null;
+  created_at: string;
+  is_admin: boolean;
+  total_spots: number;
+  total_helps: number;
+}
+
+interface UserWithStats extends UserProfile {
+  total_spots: number;
+  total_helps: number;
+}
+
+interface SupabaseUserProfile {
+  id: string;
+  email: string;
+  name: string | null;
+  created_at: string;
+  is_admin: boolean;
+  avatar_url?: string;
+}
+
+export default function AdminUsersPage() {
+  const [users, setUsers] = useState<UserWithStats[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [page, search]);
+
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      
+      // Arama sorgusu
+      let query = supabase
+        .from('user_profiles')
+        .select('*', { count: 'exact' });
+
+      if (search) {
+        query = query.or(`email.ilike.%${search}%,name.ilike.%${search}%`);
+      }
+
+      // Pagination
+      const { data, count, error } = await query
+        .range((page - 1) * 20, page * 20 - 1)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Kullanıcı istatistiklerini getir
+      const usersWithStats = await Promise.all(
+        (data || []).map(async (user: SupabaseUserProfile) => {
+          const [spotsRes, sightingsRes] = await Promise.all([
+            supabase.from('spots').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
+            supabase.from('sightings').select('id', { count: 'exact', head: true }).eq('spotter_id', user.id)
+          ]);
+
+          return {
+            ...user,
+            total_spots: spotsRes.count || 0,
+            total_helps: sightingsRes.count || 0
+          } as UserWithStats;
+        })
+      );
+
+      setUsers(usersWithStats);
+      setTotalCount(count || 0);
+    } catch (error) {
+      console.error('Kullanıcılar yüklenemedi:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleAdmin = async (userId: string, currentStatus: boolean) => {
+    if (!confirm(`${currentStatus ? 'Admin yetkisini kaldırmak' : 'Admin yetkisi vermek'} istediğinize emin misiniz?`)) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('user_profiles')
+        .update({ is_admin: !currentStatus })
+        .eq('id', userId);
+
+      if (error) throw error;
+
+      // Listeyi güncelle
+      setUsers(users.map(user => 
+        user.id === userId 
+          ? { ...user, is_admin: !currentStatus }
+          : user
+      ));
+
+      alert('Kullanıcı yetkisi güncellendi!');
+    } catch (error) {
+      console.error('Yetki güncellenemedi:', error);
+      alert('Yetki güncellenirken bir hata oluştu');
+    }
+  };
+
+  const deleteUser = async (userId: string, email: string) => {
+    if (!confirm(`${email} kullanıcısını silmek istediğinize emin misiniz? Bu işlem geri alınamaz!`)) {
+      return;
+    }
+
+    try {
+      // Önce ilişkili verileri sil
+      await supabase.from('spots').delete().eq('user_id', userId);
+      await supabase.from('sightings').delete().eq('spotter_id', userId);
+      await supabase.from('user_profiles').delete().eq('id', userId);
+
+      // Auth kullanıcısını sil (admin yetkisi gerektirir)
+      const { error } = await supabase.auth.admin.deleteUser(userId);
+      
+      if (error) throw error;
+
+      // Listeden kaldır
+      setUsers(users.filter(user => user.id !== userId));
+      
+      alert('Kullanıcı başarıyla silindi!');
+    } catch (error) {
+      console.error('Kullanıcı silinemedi:', error);
+      alert('Kullanıcı silinirken bir hata oluştu. Supabase dashboard üzerinden deneyin.');
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Kullanıcı Yönetimi</h1>
+        <p className="text-gray-600">Tüm kullanıcıları görüntüleyin ve yönetin</p>
+      </div>
+
+      {/* Arama ve Filtreler */}
+      <div className="bg-white rounded-xl shadow p-6">
+        <div className="flex flex-col md:flex-row gap-4 mb-6">
+          <div className="flex-1">
+            <input
+              type="text"
+              placeholder="Email veya isim ile ara..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          <button
+            onClick={fetchUsers}
+            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium"
+          >
+            Ara
+          </button>
+        </div>
+
+        {/* Kullanıcı Listesi */}
+        {loading ? (
+          <div className="text-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-2 text-gray-600">Kullanıcılar yükleniyor...</p>
+          </div>
+        ) : (
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="py-3 px-4 text-left text-sm font-medium text-gray-700">Kullanıcı</th>
+                    <th className="py-3 px-4 text-left text-sm font-medium text-gray-700">Kayıt Tarihi</th>
+                    <th className="py-3 px-4 text-left text-sm font-medium text-gray-700">Spot'lar</th>
+                    <th className="py-3 px-4 text-left text-sm font-medium text-gray-700">Yardım</th>
+                    <th className="py-3 px-4 text-left text-sm font-medium text-gray-700">Yetki</th>
+                    <th className="py-3 px-4 text-left text-sm font-medium text-gray-700">İşlemler</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {users.map((user: UserWithStats) => (
+                    <tr key={user.id} className="hover:bg-gray-50">
+                      <td className="py-3 px-4">
+                        <div>
+                          <p className="font-medium">{user.name || 'İsimsiz Kullanıcı'}</p>
+                          <p className="text-sm text-gray-500">{user.email}</p>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 text-sm text-gray-600">
+                        {new Date(user.created_at).toLocaleDateString('tr-TR')}
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                          {user.total_spots}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                          {user.total_helps}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4">
+                        <button
+                          onClick={() => toggleAdmin(user.id, user.is_admin)}
+                          className={`px-3 py-1 rounded-full text-xs font-medium ${
+                            user.is_admin
+                              ? 'bg-purple-100 text-purple-800 hover:bg-purple-200'
+                              : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                          }`}
+                        >
+                          {user.is_admin ? 'Admin' : 'Kullanıcı'}
+                        </button>
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => deleteUser(user.id, user.email)}
+                            className="px-3 py-1 bg-red-50 hover:bg-red-100 text-red-700 rounded text-xs font-medium border border-red-200"
+                          >
+                            Sil
+                          </button>
+                          <button
+                            onClick={() => {
+                              // Kullanıcı detay sayfasına git
+                              window.open(`/profile?user=${user.id}`, '_blank');
+                            }}
+                            className="px-3 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded text-xs font-medium border border-blue-200"
+                          >
+                            Görüntüle
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            {totalCount > 20 && (
+              <div className="mt-6 flex justify-center">
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                    className="px-3 py-2 border rounded-lg disabled:opacity-50"
+                  >
+                    ← Önceki
+                  </button>
+                  <span className="px-4 py-2">
+                    Sayfa {page} / {Math.ceil(totalCount / 20)}
+                  </span>
+                  <button
+                    onClick={() => setPage(p => p + 1)}
+                    disabled={page >= Math.ceil(totalCount / 20)}
+                    className="px-3 py-2 border rounded-lg disabled:opacity-50"
+                  >
+                    Sonraki →
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {!loading && users.length === 0 && (
+          <div className="text-center py-8 text-gray-500">
+            {search ? 'Arama kriterlerinize uygun kullanıcı bulunamadı' : 'Henüz kullanıcı kaydı yok'}
+          </div>
+        )}
+      </div>
+
+      {/* İstatistikler */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-white rounded-xl shadow p-6">
+          <h3 className="font-bold text-gray-900 mb-2">Toplam Kullanıcı</h3>
+          <p className="text-3xl font-bold text-blue-600">{totalCount}</p>
+          <p className="text-sm text-gray-600 mt-1">Kayıtlı toplam kullanıcı</p>
+        </div>
+        <div className="bg-white rounded-xl shadow p-6">
+          <h3 className="font-bold text-gray-900 mb-2">Admin Sayısı</h3>
+          <p className="text-3xl font-bold text-purple-600">
+            {users.filter(u => u.is_admin).length}
+          </p>
+          <p className="text-sm text-gray-600 mt-1">Yönetici yetkisine sahip</p>
+        </div>
+        <div className="bg-white rounded-xl shadow p-6">
+          <h3 className="font-bold text-gray-900 mb-2">Aktif Bugün</h3>
+          <p className="text-3xl font-bold text-green-600">
+            {users.filter(u => {
+              const userDate = new Date(u.created_at);
+              const today = new Date();
+              return userDate.toDateString() === today.toDateString();
+            }).length}
+          </p>
+          <p className="text-sm text-gray-600 mt-1">Bugün kayıt olanlar</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+====================================================================================================
+🏗️  APP LAYOUT'LARI
+====================================================================================================
+
+📄 app/admin/layout.tsx
+📊 163 satır
+────────────────────────────────────────────────────────────
+
+// app/admin/layout.tsx - YENİ VERSİYON (RLS OLMADAN)
+'use client'
+
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
+import AdminSidebar from '@/components/admin/AdminSidebar'
+import AdminHeader from '@/components/admin/AdminHeader'
+
+export default function AdminLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  const router = useRouter()
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [debugInfo, setDebugInfo] = useState('')
+
+  useEffect(() => {
+    checkAdmin()
+  }, [])
+
+  const checkAdmin = async () => {
+    try {
+      setDebugInfo('Admin kontrolü başlıyor...')
+      
+      // 1. Kullanıcı kontrolü
+      const { data: { user }, error: authError } = await supabase.auth.getUser()
+      
+      if (authError || !user) {
+        setDebugInfo('Kullanıcı giriş yapmamış')
+        router.push('/login?redirect=/admin')
+        return
+      }
+
+      setDebugInfo(`Kullanıcı: ${user.email}`)
+
+      // 2. DOĞRUDAN user_profiles TABLOSUNDAN KONTROL (RLS YOK)
+      // Bu artık çalışacak çünkü RLS kapalı
+      const { data: profile, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('is_admin')
+        .eq('id', user.id)
+        .single()
+
+      console.log('🔍 Profile sorgusu sonucu:', { profile, profileError })
+
+      // 3. HATA DURUMUNDA EMAİL BAZLI KONTROL
+      let isUserAdmin = false
+      
+      if (profileError || !profile) {
+        console.log('Profile sorgusu hatası, email bazlı kontrol yapılıyor...')
+        // Email bazlı fallback
+        const adminEmails = [
+          'prolinemama@gmail.com',
+          'mehmet@spotitforme.com', 
+          'saniy@spotitforme.com',
+          'senasilmailin@gmail.com'  // KENDİ EMAİL'İNİ YAZ
+        ]
+        isUserAdmin = adminEmails.includes(user.email?.toLowerCase() || '')
+      } else {
+        isUserAdmin = profile.is_admin === true
+      }
+
+      setDebugInfo(`Admin durumu: ${isUserAdmin}`)
+      console.log('✅ Final admin kontrolü:', {
+        email: user.email,
+        isAdminFromDB: profile?.is_admin,
+        finalIsAdmin: isUserAdmin
+      })
+
+      if (!isUserAdmin) {
+        setDebugInfo('Admin değil, yönlendiriliyor...')
+        // Development'da bile admin panelini göster
+        if (process.env.NODE_ENV === 'development') {
+          console.log('🛠️ Development modu: Admin panele izin veriliyor')
+          setIsAdmin(true)
+        } else {
+          router.push('/')
+        }
+        return
+      }
+
+      setIsAdmin(true)
+      
+    } catch (error: any) {
+      console.error('❌ Admin kontrol hatası:', error)
+      setDebugInfo(`Hata: ${error.message}`)
+      
+      // Development'da hata olsa bile devam et
+      if (process.env.NODE_ENV === 'development') {
+        console.log('⚠️ Hata durumunda development modu: Admin panele izin veriliyor')
+        setIsAdmin(true)
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Admin kontrolü yapılıyor...</p>
+          <p className="text-sm text-gray-500 mt-2 max-w-md">{debugInfo}</p>
+          <button
+            onClick={() => setIsAdmin(true)}
+            className="mt-4 px-4 py-2 bg-yellow-500 text-white rounded-lg text-sm"
+          >
+            Devam et (development)
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-4xl mb-4">🚫</div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Erişim Reddedildi</h1>
+          <p className="text-gray-600 mb-4">Bu sayfaya erişim yetkiniz yok.</p>
+          <p className="text-sm text-gray-500 mb-6 max-w-md">{debugInfo}</p>
+          <div className="space-x-4">
+            <button
+              onClick={() => router.push('/')}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg"
+            >
+              Ana Sayfaya Dön
+            </button>
+            <button
+              onClick={() => window.location.reload()}
+              className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-6 rounded-lg"
+            >
+              Tekrar Dene
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <AdminHeader />
+      <div className="flex">
+        <AdminSidebar />
+        <main className="flex-1 p-6 overflow-auto">
+          {/* Debug info - sadece development'da */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="mb-4 p-3 bg-yellow-50 text-yellow-800 text-sm rounded-lg">
+              🛠️ Development Modu: Admin kontrolü aktif
+            </div>
+          )}
+          {children}
+        </main>
+      </div>
+    </div>
+  )
+}
+
+====================================================================================================
+🧩 COMPONENT'LER
+====================================================================================================
+
+📄 components/admin/AdminHeader.tsx
+📊 46 satır
+────────────────────────────────────────────────────────────
+
+// components/admin/AdminHeader.tsx
+'use client'
+
+import { useState } from 'react'
+import { supabase } from '@/lib/supabase'
+import { useRouter } from 'next/navigation'
+
+export default function AdminHeader() {
+  const router = useRouter()
+  const [user, setUser] = useState<any>(null)
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    router.push('/')
+  }
+
+  return (
+    <header className="bg-white shadow">
+      <div className="px-6 py-4 flex justify-between items-center">
+        <div className="flex items-center space-x-3">
+          <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+            <span className="text-white font-bold text-xl">A</span>
+          </div>
+          <div>
+            <h1 className="text-lg font-bold text-gray-900">Admin Panel</h1>
+            <p className="text-sm text-gray-600">spotitforme.com yönetimi</p>
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-4">
+          <div className="text-right">
+            <p className="font-medium text-gray-900">Admin</p>
+            <p className="text-sm text-gray-600">Yönetici</p>
+          </div>
+          
+          <button
+            onClick={handleLogout}
+            className="bg-red-100 hover:bg-red-200 text-red-700 font-medium py-2 px-4 rounded-lg"
+          >
+            Çıkış
+          </button>
+        </div>
+      </div>
+    </header>
+  )
+}
+
+📄 components/admin/AdminSidebar.tsx
+📊 59 satır
+────────────────────────────────────────────────────────────
+
+// components/admin/AdminSidebar.tsx
+'use client'
+
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+
+export default function AdminSidebar() {
+  const pathname = usePathname()
+  
+  const menuItems = [
+    { name: 'Dashboard', href: '/admin', icon: '📊' },
+    { name: 'Kullanıcılar', href: '/admin/users', icon: '👥' },
+    { name: 'Spot\'lar', href: '/admin/spots', icon: '📍' },
+    { name: 'Mağazalar', href: '/admin/shops', icon: '🏪' },
+    { name: 'AdSense', href: '/admin/adsense', icon: '💰' },
+    { name: 'Ödemeler', href: '/admin/payments', icon: '💳' },
+    { name: 'Ayarlar', href: '/admin/settings', icon: '⚙️' },
+    { name: 'Loglar', href: '/admin/logs', icon: '📋' },
+  ]
+
+  return (
+    <aside className="w-64 bg-gray-900 text-white min-h-screen">
+      <div className="p-6">
+        <h2 className="text-xl font-bold">Admin Panel</h2>
+        <p className="text-gray-400 text-sm mt-1">SpotItForMe Yönetim</p>
+      </div>
+
+      <nav className="mt-6">
+        {menuItems.map((item) => {
+          const isActive = pathname === item.href
+          
+          return (
+            <Link
+              key={item.name}
+              href={item.href}
+              className={`flex items-center space-x-3 px-6 py-3 hover:bg-gray-800 ${
+                isActive ? 'bg-blue-600 text-white' : 'text-gray-300'
+              }`}
+            >
+              <span>{item.icon}</span>
+              <span>{item.name}</span>
+            </Link>
+          )
+        })}
+      </nav>
+
+      {/* Footer */}
+      <div className="absolute bottom-0 w-full p-4 border-t border-gray-800">
+        <Link
+          href="/"
+          className="flex items-center space-x-3 text-gray-400 hover:text-white"
+        >
+          <span>←</span>
+          <span>Siteye Dön</span>
+        </Link>
+      </div>
+    </aside>
+  )
+}
+
+📄 components/admin/AdPerformance.tsx
+📊 167 satır
+────────────────────────────────────────────────────────────
+
+// components/admin/AdPerformance.tsx
+'use client'
+
+import { useState } from 'react'
+
+interface AdPerformanceData {
+  name: string
+  impressions: number
+  clicks: number
+  revenue: number
+  ctr: number
+  rpm: number
+}
+
+export default function AdPerformance() {
+  const [timeRange, setTimeRange] = useState<'today' | 'week' | 'month'>('week')
+
+  const performanceData: AdPerformanceData[] = [
+    {
+      name: 'Header Reklam',
+      impressions: 3245,
+      clicks: 58,
+      revenue: 24.50,
+      ctr: 1.79,
+      rpm: 7.55
+    },
+    {
+      name: 'Sidebar Reklam',
+      impressions: 2890,
+      clicks: 42,
+      revenue: 18.75,
+      ctr: 1.45,
+      rpm: 6.49
+    },
+    {
+      name: 'In-Article Reklam',
+      impressions: 1567,
+      clicks: 31,
+      revenue: 15.20,
+      ctr: 1.98,
+      rpm: 9.70
+    },
+    {
+      name: 'Footer Reklam',
+      impressions: 4321,
+      clicks: 65,
+      revenue: 28.90,
+      ctr: 1.50,
+      rpm: 6.69
+    },
+    {
+      name: 'Mobile Banner',
+      impressions: 2789,
+      clicks: 49,
+      revenue: 21.30,
+      ctr: 1.76,
+      rpm: 7.64
+    }
+  ]
+
+  const totals = performanceData.reduce(
+    (acc, item) => ({
+      impressions: acc.impressions + item.impressions,
+      clicks: acc.clicks + item.clicks,
+      revenue: acc.revenue + item.revenue
+    }),
+    { impressions: 0, clicks: 0, revenue: 0 }
+  )
+
+  return (
+    <div className="bg-white rounded-xl shadow p-6">
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h3 className="text-lg font-bold text-gray-900">Reklam Performansı</h3>
+          <p className="text-gray-600">Reklam ünitelerinin performansı</p>
+        </div>
+        <div className="flex space-x-2">
+          {(['today', 'week', 'month'] as const).map((range) => (
+            <button
+              key={range}
+              onClick={() => setTimeRange(range)}
+              className={`px-3 py-1 rounded-lg text-sm font-medium ${
+                timeRange === range
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              {range === 'today' ? 'Bugün' : range === 'week' ? 'Bu Hafta' : 'Bu Ay'}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Performans Tablosu */}
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="bg-gray-50">
+              <th className="py-3 px-4 text-left text-sm font-medium text-gray-700">Reklam Adı</th>
+              <th className="py-3 px-4 text-left text-sm font-medium text-gray-700">Gösterim</th>
+              <th className="py-3 px-4 text-left text-sm font-medium text-gray-700">Tıklama</th>
+              <th className="py-3 px-4 text-left text-sm font-medium text-gray-700">CTR</th>
+              <th className="py-3 px-4 text-left text-sm font-medium text-gray-700">Gelir</th>
+              <th className="py-3 px-4 text-left text-sm font-medium text-gray-700">RPM</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {performanceData.map((item, index) => (
+              <tr key={index} className="hover:bg-gray-50">
+                <td className="py-3 px-4 font-medium">{item.name}</td>
+                <td className="py-3 px-4">{item.impressions.toLocaleString()}</td>
+                <td className="py-3 px-4">{item.clicks}</td>
+                <td className="py-3 px-4">
+                  <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                    {item.ctr}%
+                  </span>
+                </td>
+                <td className="py-3 px-4 font-medium">{item.revenue.toFixed(2)} ₺</td>
+                <td className="py-3 px-4">{item.rpm.toFixed(2)} ₺</td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot className="bg-gray-50 font-bold">
+            <tr>
+              <td className="py-3 px-4">TOPLAM</td>
+              <td className="py-3 px-4">{totals.impressions.toLocaleString()}</td>
+              <td className="py-3 px-4">{totals.clicks}</td>
+              <td className="py-3 px-4">
+                {((totals.clicks / totals.impressions) * 100).toFixed(2)}%
+              </td>
+              <td className="py-3 px-4">{totals.revenue.toFixed(2)} ₺</td>
+              <td className="py-3 px-4">
+                {((totals.revenue / totals.impressions) * 1000).toFixed(2)} ₺
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      {/* Özet */}
+      <div className="mt-6 grid grid-cols-3 gap-4">
+        <div className="text-center p-4 bg-blue-50 rounded-lg">
+          <p className="text-sm text-blue-600">Ortalama CTR</p>
+          <p className="text-xl font-bold">
+            {(
+              performanceData.reduce((sum, item) => sum + item.ctr, 0) / performanceData.length
+            ).toFixed(2)}%
+          </p>
+        </div>
+        <div className="text-center p-4 bg-green-50 rounded-lg">
+          <p className="text-sm text-green-600">Ortalama RPM</p>
+          <p className="text-xl font-bold">
+            {(
+              performanceData.reduce((sum, item) => sum + item.rpm, 0) / performanceData.length
+            ).toFixed(2)} ₺
+          </p>
+        </div>
+        <div className="text-center p-4 bg-purple-50 rounded-lg">
+          <p className="text-sm text-purple-600">Günlük Ortalama</p>
+          <p className="text-xl font-bold">
+            {(totals.revenue / (timeRange === 'week' ? 7 : timeRange === 'month' ? 30 : 1)).toFixed(2)} ₺
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+📄 components/admin/AdSenseStatus.tsx
+📊 179 satır
+────────────────────────────────────────────────────────────
+
+// components/admin/AdSenseStatus.tsx
+'use client'
+
+import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
+
+interface AdSenseStatus {
+  isActive: boolean
+  clientId: string
+  revenue: number
+  impressions: number
+  ctr: number
+  lastUpdate: string
+}
+
+export default function AdSenseStatus() {
+  const [status, setStatus] = useState<AdSenseStatus>({
+    isActive: false,
+    clientId: '',
+    revenue: 0,
+    impressions: 0,
+    ctr: 0,
+    lastUpdate: new Date().toISOString()
+  })
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchAdSenseStatus()
+  }, [])
+
+  const fetchAdSenseStatus = async () => {
+    try {
+      // Database'den AdSense durumunu getir
+      const { data } = await supabase
+        .from('site_settings')
+        .select('value')
+        .eq('key', 'adsense_config')
+        .single()
+
+      if (data) {
+        const config = JSON.parse(data.value)
+        // Mock data - gerçek uygulamada Google AdSense API'sına bağlanacak
+        setStatus({
+          isActive: config.isActive || false,
+          clientId: config.clientId || '',
+          revenue: 245.67,
+          impressions: 12543,
+          ctr: 1.8,
+          lastUpdate: new Date().toISOString()
+        })
+      }
+    } catch (error) {
+      console.error('AdSense durumu yüklenemedi:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const toggleAdSense = async () => {
+    try {
+      const newStatus = !status.isActive
+      
+      // Database'de güncelle
+      const { data } = await supabase
+        .from('site_settings')
+        .select('value')
+        .eq('key', 'adsense_config')
+        .single()
+
+      if (data) {
+        const config = JSON.parse(data.value)
+        config.isActive = newStatus
+
+        await supabase
+          .from('site_settings')
+          .update({ value: JSON.stringify(config) })
+          .eq('key', 'adsense_config')
+
+        setStatus(prev => ({ ...prev, isActive: newStatus }))
+        alert(`AdSense ${newStatus ? 'aktif' : 'devre dışı'} edildi`)
+      }
+    } catch (error) {
+      console.error('AdSense durumu güncellenemedi:', error)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="bg-white rounded-xl shadow p-6">
+        <div className="animate-pulse">
+          <div className="h-6 bg-gray-200 rounded w-1/3 mb-4"></div>
+          <div className="space-y-3">
+            <div className="h-4 bg-gray-200 rounded w-full"></div>
+            <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="bg-white rounded-xl shadow p-6">
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h3 className="text-lg font-bold text-gray-900">AdSense Durumu</h3>
+          <p className="text-gray-600">
+            Son güncelleme: {new Date(status.lastUpdate).toLocaleDateString('tr-TR')}
+          </p>
+        </div>
+        
+        <button
+          onClick={toggleAdSense}
+          className={`px-4 py-2 rounded-lg font-medium ${
+            status.isActive
+              ? 'bg-red-100 hover:bg-red-200 text-red-700'
+              : 'bg-green-100 hover:bg-green-200 text-green-700'
+          }`}
+        >
+          {status.isActive ? 'Reklamları Durdur' : 'Reklamları Başlat'}
+        </button>
+      </div>
+
+      {/* Status Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-blue-50 p-4 rounded-lg">
+          <p className="text-sm text-blue-600">Durum</p>
+          <div className="flex items-center mt-2">
+            <div className={`w-3 h-3 rounded-full mr-2 ${status.isActive ? 'bg-green-500' : 'bg-red-500'}`} />
+            <p className="font-bold">
+              {status.isActive ? 'Aktif' : 'Devre Dışı'}
+            </p>
+          </div>
+        </div>
+
+        <div className="bg-green-50 p-4 rounded-lg">
+          <p className="text-sm text-green-600">Toplam Gelir</p>
+          <p className="text-2xl font-bold text-gray-900 mt-2">
+            {status.revenue.toFixed(2)} ₺
+          </p>
+        </div>
+
+        <div className="bg-purple-50 p-4 rounded-lg">
+          <p className="text-sm text-purple-600">Gösterim</p>
+          <p className="text-2xl font-bold text-gray-900 mt-2">
+            {status.impressions.toLocaleString()}
+          </p>
+        </div>
+
+        <div className="bg-yellow-50 p-4 rounded-lg">
+          <p className="text-sm text-yellow-600">Tıklama Oranı (CTR)</p>
+          <p className="text-2xl font-bold text-gray-900 mt-2">
+            {status.ctr}%
+          </p>
+        </div>
+      </div>
+
+      {/* Client ID */}
+      {status.clientId && (
+        <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+          <p className="text-sm font-medium text-gray-700 mb-2">Client ID</p>
+          <code className="text-sm bg-white px-3 py-2 rounded border">
+            {status.clientId}
+          </code>
+        </div>
+      )}
+
+      {!status.clientId && (
+        <div className="mt-6 p-4 bg-yellow-50 rounded-lg">
+          <p className="text-yellow-800">
+            ⚠️ AdSense Client ID henüz ayarlanmamış. 
+            <a href="/admin/adsense" className="font-medium underline ml-1">
+              Hemen ayarla
+            </a>
+          </p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+📄 components/admin/AdUnitManager.tsx
+📊 351 satır
+────────────────────────────────────────────────────────────
+
+// components/admin/AdUnitManager.tsx
+'use client'
+
+import { useState } from 'react'
+
+// Tip tanımları - export edelim
+export interface AdUnit {
+  id: string
+  name: string
+  type: 'display' | 'in-article' | 'in-feed'
+  size: string
+  position: string
+  status: 'active' | 'paused'
+  revenue: number
+}
+
+export interface AdUnitManagerProps {
+  adUnits: AdUnit[]
+  onUpdate: (units: AdUnit[]) => void
+  clientId: string
+}
+
+export default function AdUnitManager({ adUnits, onUpdate, clientId }: AdUnitManagerProps) {
+  const [showForm, setShowForm] = useState(false)
+  const [newAdUnit, setNewAdUnit] = useState({
+    name: '',
+    type: 'display' as 'display' | 'in-article' | 'in-feed',
+    size: '300x250',
+    position: 'sidebar',
+    status: 'active' as 'active' | 'paused'
+  })
+
+  const sizes = [
+    '300x250', '336x280', '728x90', '970x250',
+    '300x600', '320x100', '160x600'
+  ]
+
+  const positions = [
+    'header', 'sidebar', 'footer',
+    'content-top', 'content-middle', 'content-bottom',
+    'in-article', 'in-feed'
+  ]
+
+  const addAdUnit = () => {
+    if (!newAdUnit.name.trim()) {
+      alert('Lütfen reklam adı girin')
+      return
+    }
+
+    const unit: AdUnit = {
+      id: `ad-${Date.now()}`,
+      name: newAdUnit.name,
+      type: newAdUnit.type,
+      size: newAdUnit.size,
+      position: newAdUnit.position,
+      status: newAdUnit.status,
+      revenue: 0
+    }
+
+    // onUpdate'i çağır - TİP GÜVENLİ
+    onUpdate([...adUnits, unit])
+    
+    // Formu sıfırla
+    setNewAdUnit({
+      name: '',
+      type: 'display',
+      size: '300x250',
+      position: 'sidebar',
+      status: 'active'
+    })
+    setShowForm(false)
+  }
+
+  const toggleAdStatus = (id: string) => {
+    // updated değişkenine açık tip ataması yap
+    const updated: AdUnit[] = adUnits.map(unit => {
+      if (unit.id === id) {
+        return {
+          ...unit,
+          status: unit.status === 'active' ? 'paused' : 'active'
+        }
+      }
+      return unit
+    })
+    
+    // onUpdate'i çağır - artık tip güvenli
+    onUpdate(updated)
+  }
+
+  const deleteAdUnit = (id: string) => {
+    const updated = adUnits.filter(unit => unit.id !== id)
+    onUpdate(updated)
+  }
+
+  return (
+    <div className="bg-white rounded-xl shadow p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-lg font-bold text-gray-900">Reklam Üniteleri</h2>
+        <button
+          onClick={() => setShowForm(!showForm)}
+          className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg"
+        >
+          {showForm ? 'İptal' : '+ Yeni Reklam'}
+        </button>
+      </div>
+
+      {/* Yeni Reklam Formu */}
+      {showForm && (
+        <div className="bg-gray-50 p-4 rounded-lg mb-6 border border-gray-200">
+          <h3 className="font-bold text-gray-900 mb-4">Yeni Reklam Ünitesi</h3>
+          
+          <div className="grid md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Reklam Adı *
+              </label>
+              <input
+                type="text"
+                value={newAdUnit.name}
+                onChange={(e) => setNewAdUnit(prev => ({...prev, name: e.target.value}))}
+                placeholder="Örn: Ana Sayfa Sidebar"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Reklam Tipi
+              </label>
+              <select
+                value={newAdUnit.type}
+                onChange={(e) => setNewAdUnit(prev => ({
+                  ...prev, 
+                  type: e.target.value as 'display' | 'in-article' | 'in-feed'
+                }))}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="display">Display Reklam</option>
+                <option value="in-article">Makale İçi</option>
+                <option value="in-feed">Feed İçi</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Boyut
+              </label>
+              <select
+                value={newAdUnit.size}
+                onChange={(e) => setNewAdUnit(prev => ({...prev, size: e.target.value}))}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              >
+                {sizes.map(size => (
+                  <option key={size} value={size}>{size}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Pozisyon
+              </label>
+              <select
+                value={newAdUnit.position}
+                onChange={(e) => setNewAdUnit(prev => ({...prev, position: e.target.value}))}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              >
+                {positions.map(pos => (
+                  <option key={pos} value={pos}>{pos}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                Başlangıç Durumu
+              </label>
+              <div className="flex space-x-6">
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="status"
+                    value="active"
+                    checked={newAdUnit.status === 'active'}
+                    onChange={() => setNewAdUnit(prev => ({...prev, status: 'active'}))}
+                    className="w-4 h-4 text-blue-600"
+                  />
+                  <span className="text-sm font-medium text-gray-700">Aktif</span>
+                  <span className="text-xs text-gray-500">(Hemen yayında)</span>
+                </label>
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="status"
+                    value="paused"
+                    checked={newAdUnit.status === 'paused'}
+                    onChange={() => setNewAdUnit(prev => ({...prev, status: 'paused'}))}
+                    className="w-4 h-4 text-blue-600"
+                  />
+                  <span className="text-sm font-medium text-gray-700">Duraklatılmış</span>
+                  <span className="text-xs text-gray-500">(Daha sonra aktif edilecek)</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 flex justify-end space-x-3">
+            <button
+              type="button"
+              onClick={() => setShowForm(false)}
+              className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium"
+            >
+              İptal
+            </button>
+            <button
+              onClick={addAdUnit}
+              disabled={!newAdUnit.name.trim()}
+              className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-6 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Reklam Ekle
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Reklam Listesi */}
+      {adUnits.length === 0 ? (
+        <div className="text-center py-12 text-gray-500 border-2 border-dashed border-gray-200 rounded-lg">
+          <div className="text-4xl mb-4">📺</div>
+          <p className="text-lg font-medium">Henüz reklam üniteniz yok</p>
+          <p className="text-sm mt-2">Yeni reklam eklemek için "Yeni Reklam" butonuna tıklayın</p>
+        </div>
+      ) : (
+        <>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Ad
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Tip
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Boyut
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Pozisyon
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Durum
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Gelir
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    İşlemler
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {adUnits.map((unit) => (
+                  <tr key={unit.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="font-medium text-gray-900">{unit.name}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                        {unit.type === 'display' ? 'Display' : 
+                         unit.type === 'in-article' ? 'Makale İçi' : 'Feed İçi'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {unit.size}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {unit.position}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                        unit.status === 'active' 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-red-100 text-red-800'
+                      }`}>
+                        {unit.status === 'active' ? 'Aktif' : 'Duraklatıldı'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {unit.revenue.toFixed(2)} ₺
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => toggleAdStatus(unit.id)}
+                          className={`px-3 py-1 rounded text-xs font-medium ${
+                            unit.status === 'active'
+                              ? 'bg-red-50 text-red-700 hover:bg-red-100 border border-red-200'
+                              : 'bg-green-50 text-green-700 hover:bg-green-100 border border-green-200'
+                          }`}
+                        >
+                          {unit.status === 'active' ? 'Duraklat' : 'Aktif Et'}
+                        </button>
+                        <button
+                          onClick={() => deleteAdUnit(unit.id)}
+                          className="px-3 py-1 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded text-xs font-medium border border-gray-300"
+                        >
+                          Sil
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* İstatistikler */}
+          <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-4 rounded-lg border border-blue-200">
+              <p className="text-sm font-medium text-blue-700">Toplam Reklam</p>
+              <p className="text-2xl font-bold text-blue-900">{adUnits.length}</p>
+              <p className="text-xs text-blue-600 mt-1">
+                {adUnits.filter(u => u.status === 'active').length} aktif
+              </p>
+            </div>
+            <div className="bg-gradient-to-r from-green-50 to-green-100 p-4 rounded-lg border border-green-200">
+              <p className="text-sm font-medium text-green-700">Toplam Gelir</p>
+              <p className="text-2xl font-bold text-green-900">
+                {adUnits.reduce((sum, unit) => sum + unit.revenue, 0).toFixed(2)} ₺
+              </p>
+              <p className="text-xs text-green-600 mt-1">
+                Ortalama: {(adUnits.reduce((sum, unit) => sum + unit.revenue, 0) / adUnits.length || 0).toFixed(2)} ₺
+              </p>
+            </div>
+            <div className="bg-gradient-to-r from-purple-50 to-purple-100 p-4 rounded-lg border border-purple-200">
+              <p className="text-sm font-medium text-purple-700">Tahmini Aylık</p>
+              <p className="text-2xl font-bold text-purple-900">
+                {(adUnits.reduce((sum, unit) => sum + unit.revenue, 0) * 30).toFixed(2)} ₺
+              </p>
+              <p className="text-xs text-purple-600 mt-1">
+                Tüm reklamlar aktifse
+              </p>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+📄 components/admin/DashboardStats.tsx
+📊 92 satır
+────────────────────────────────────────────────────────────
+
+// components/admin/DashboardStats.tsx
+interface DashboardStatsProps {
+  stats: {
+    totalUsers: number
+    totalSpots: number
+    totalShops: number
+    revenue: number
+    activeAds: number
+  }
+  loading: boolean
+}
+
+export default function DashboardStats({ stats, loading }: DashboardStatsProps) {
+  const statCards = [
+    {
+      title: 'Toplam Kullanıcı',
+      value: stats.totalUsers,
+      icon: '👥',
+      color: 'bg-blue-500',
+      change: '+12%'
+    },
+    {
+      title: 'Aktif Spot',
+      value: stats.totalSpots,
+      icon: '📍',
+      color: 'bg-green-500',
+      change: '+8%'
+    },
+    {
+      title: 'Kayıtlı Mağaza',
+      value: stats.totalShops,
+      icon: '🏪',
+      color: 'bg-purple-500',
+      change: '+5%'
+    },
+    {
+      title: 'Toplam Gelir',
+      value: `${stats.revenue.toFixed(2)} ₺`,
+      icon: '💰',
+      color: 'bg-yellow-500',
+      change: '+23%'
+    },
+    {
+      title: 'Aktif Reklam',
+      value: stats.activeAds,
+      icon: '📢',
+      color: 'bg-red-500',
+      change: '+3'
+    },
+    {
+      title: 'Bugünkü Ziyaret',
+      value: '1,234',
+      icon: '👁️',
+      color: 'bg-indigo-500',
+      change: '+15%'
+    }
+  ]
+
+  if (loading) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {[1, 2, 3, 4, 5, 6].map((i) => (
+          <div key={i} className="bg-white rounded-xl shadow p-6">
+            <div className="animate-pulse">
+              <div className="h-4 bg-gray-200 rounded w-1/2 mb-4"></div>
+              <div className="h-8 bg-gray-200 rounded w-1/4"></div>
+            </div>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {statCards.map((stat, index) => (
+        <div key={index} className="bg-white rounded-xl shadow p-6 hover:shadow-lg transition-shadow">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-sm text-gray-600">{stat.title}</p>
+              <p className="text-2xl font-bold text-gray-900 mt-2">{stat.value}</p>
+              <p className="text-sm text-green-600 mt-1">{stat.change} geçen aya göre</p>
+            </div>
+            <div className={`${stat.color} w-12 h-12 rounded-lg flex items-center justify-center`}>
+              <span className="text-2xl">{stat.icon}</span>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+📄 components/admin/RecentSpots.tsx
+📊 136 satır
+────────────────────────────────────────────────────────────
+
+// components/admin/RecentSpots.tsx - DÜZELTİLMİŞ
+'use client'
+
+import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
+import Link from 'next/link'
+
+interface Spot {
+  id: string
+  title: string
+  user_id: string
+  status: string
+  created_at: string
+  user?: {
+    id: string
+    name: string
+  }
+}
+
+interface UserProfile {
+  id: string
+  name: string
+}
+
+export default function RecentSpots() {
+  const [spots, setSpots] = useState<Spot[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchRecentSpots()
+  }, [])
+
+  const fetchRecentSpots = async () => {
+    try {
+      const { data } = await supabase
+        .from('spots')
+        .select('id, title, user_id, status, created_at')
+        .order('created_at', { ascending: false })
+        .limit(10)
+
+      // Kullanıcı isimlerini getir
+      if (data) {
+        const userIds = data.map((spot: Spot) => spot.user_id)
+        const { data: users } = await supabase
+          .from('user_profiles')
+          .select('id, name')
+          .in('id', userIds)
+
+        const spotsWithUsers = data.map((spot: Spot) => ({
+          ...spot,
+          user: (users as UserProfile[] | null)?.find((u: UserProfile) => u.id === spot.user_id)
+        }))
+
+        setSpots(spotsWithUsers)
+      }
+    } catch (error) {
+      console.error('Spotlar yüklenemedi:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'active': return 'bg-green-100 text-green-800'
+      case 'found': return 'bg-blue-100 text-blue-800'
+      case 'expired': return 'bg-gray-100 text-gray-800'
+      default: return 'bg-yellow-100 text-yellow-800'
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="bg-white rounded-xl shadow p-6">
+        <h3 className="text-lg font-bold text-gray-900 mb-4">Son Spot'lar</h3>
+        <div className="space-y-4">
+          {[1, 2, 3, 4, 5].map((i: number) => (
+            <div key={i} className="animate-pulse">
+              <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+              <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="bg-white rounded-xl shadow p-6">
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-lg font-bold text-gray-900">Son Spot'lar</h3>
+        <Link
+          href="/admin/spots"
+          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+        >
+          Tümünü Gör →
+        </Link>
+      </div>
+
+      <div className="space-y-4">
+        {spots.map((spot: Spot) => (
+          <div key={spot.id} className="border-b border-gray-100 pb-4 last:border-0">
+            <div className="flex justify-between items-start">
+              <div className="flex-1">
+                <Link
+                  href={`/spots/${spot.id}`}
+                  className="font-medium text-gray-900 hover:text-blue-600"
+                >
+                  {spot.title.length > 50 ? spot.title.substring(0, 50) + '...' : spot.title}
+                </Link>
+                <div className="flex items-center space-x-3 mt-1">
+                  <span className="text-sm text-gray-600">
+                    {spot.user?.name || 'Anonim'}
+                  </span>
+                  <span className="text-xs text-gray-500">
+                    {new Date(spot.created_at).toLocaleDateString('tr-TR')}
+                  </span>
+                </div>
+              </div>
+              <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(spot.status)}`}>
+                {spot.status === 'active' ? 'Aktif' : 
+                 spot.status === 'found' ? 'Bulundu' : spot.status}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {spots.length === 0 && (
+        <div className="text-center py-8 text-gray-500">
+          Henüz spot oluşturulmamış
+        </div>
+      )}
+    </div>
+  )
+}
+
+📄 components/admin/RevenueChart.tsx
+📊 82 satır
+────────────────────────────────────────────────────────────
+
+// components/admin/RevenueChart.tsx
+'use client'
+
+import { useState } from 'react'
+
+export default function RevenueChart() {
+  const [timeRange, setTimeRange] = useState<'7gün' | '30gün' | '90gün'>('30gün')
+  
+  // Örnek veri
+  const chartData = {
+    '7gün': [120, 190, 300, 500, 200, 300, 450],
+    '30gün': Array.from({ length: 30 }, (_, i) => Math.floor(Math.random() * 500) + 100),
+    '90gün': Array.from({ length: 90 }, (_, i) => Math.floor(Math.random() * 500) + 100)
+  }
+
+  const data = chartData[timeRange]
+  const maxValue = Math.max(...data)
+  const total = data.reduce((sum, value) => sum + value, 0)
+
+  return (
+    <div className="bg-white rounded-xl shadow p-6">
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h3 className="text-lg font-bold text-gray-900">Gelir Grafiği</h3>
+          <p className="text-gray-600">Toplam: <span className="font-bold">{total.toFixed(2)} ₺</span></p>
+        </div>
+        <div className="flex space-x-2">
+          {(['7gün', '30gün', '90gün'] as const).map((range) => (
+            <button
+              key={range}
+              onClick={() => setTimeRange(range)}
+              className={`px-3 py-1 rounded-lg text-sm font-medium ${
+                timeRange === range
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              {range}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Basit Chart */}
+      <div className="h-64 flex items-end space-x-1">
+        {data.map((value, index) => (
+          <div
+            key={index}
+            className="flex-1 flex flex-col items-center"
+            title={`${value} ₺`}
+          >
+            <div
+              className="w-full bg-gradient-to-t from-blue-500 to-blue-600 rounded-t-lg hover:opacity-80 transition-opacity"
+              style={{ height: `${(value / maxValue) * 100}%` }}
+            />
+            <span className="text-xs text-gray-500 mt-1">
+              {timeRange === '7gün' ? ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'][index] : index + 1}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {/* Legend */}
+      <div className="mt-6 pt-6 border-t border-gray-100">
+        <div className="grid grid-cols-3 gap-4">
+          <div className="text-center">
+            <p className="text-sm text-gray-600">Ortalama Günlük</p>
+            <p className="text-lg font-bold">{(total / data.length).toFixed(2)} ₺</p>
+          </div>
+          <div className="text-center">
+            <p className="text-sm text-gray-600">En Yüksek Gün</p>
+            <p className="text-lg font-bold">{maxValue.toFixed(2)} ₺</p>
+          </div>
+          <div className="text-center">
+            <p className="text-sm text-gray-600">Tahmini Aylık</p>
+            <p className="text-lg font-bold">{(total * 1.15).toFixed(2)} ₺</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+====================================================================================================
+📊 ÖZET
+====================================================================================================
+Toplam Dosya: 15
+App Sayfaları: 6
+App Layout'ları: 1
+Diğer App: 0
+Component'ler: 8
+Utility'ler: 0
+Diğer: 0
+Toplam Satır: 3461
+
+📋 BULUNAN SAYFA ROUTE'LARI:
+  • /admin
+  • /admin/ads
+  • /admin/ads/create-manual
+  • /admin/adsense
+  • /admin/test
+  • /admin/users
+====================================================================================================
