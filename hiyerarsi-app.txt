@@ -1,0 +1,114 @@
+📁 app
+==================================================
+├── 📁 admin
+    ├── 📁 ads
+    │   ├── 📁 create-manual
+    │   │   └── 📄 page.tsx
+    │   └── 📄 page.tsx
+    ├── 📁 adsense
+    │   └── 📄 page.tsx
+    ├── 📁 test
+    │   └── 📄 page.tsx
+    ├── 📁 users
+    │   └── 📄 page.tsx
+    ├── 📄 layout.tsx
+    └── 📄 page.tsx
+├── 📁 api
+    ├── 📁 cron
+    │   └── 📁 process-emails
+    │   │   └── 📄 route.ts
+    ├── 📁 debug
+    │   └── 📁 shop
+    │   │   └── 📁 [id]
+    │   │       └── 📄 route.ts
+    ├── 📁 env-check
+    │   └── 📄 route.ts
+    ├── 📁 health
+    │   └── 📄 route.ts
+    ├── 📁 send-email
+    │   └── 📄 route.ts
+    ├── 📁 shop
+    │   └── 📁 match-check
+    │   │   └── 📄 route.ts
+    ├── 📁 spots
+    │   └── 📄 route.ts
+    ├── 📁 test
+    │   └── 📁 email
+    │   │   └── 📄 route.ts
+    ├── 📁 test-db
+    │   └── 📄 route.ts
+    └── 📁 users
+    │   └── 📄 route.ts
+├── 📁 auth
+    └── 📁 callback
+    │   └── 📄 route.ts
+├── 📁 create-spot
+    └── 📄 page.tsx
+├── 📁 discovery
+    └── 📄 page.tsx
+├── 📁 for-business
+    └── 📄 page.tsx
+├── 📁 forgot-password
+    └── 📄 page.tsx
+├── 📁 help
+    └── 📁 [id]
+    │   └── 📄 page.tsx
+├── 📁 privacy
+    └── 📄 page.tsx
+├── 📁 product
+    └── 📁 [id]
+    │   └── 📄 page.tsx
+├── 📁 products
+    ├── 📁 [id]
+    │   └── 📄 page.tsx
+    └── 📄 page.tsx
+├── 📁 profile
+    ├── 📁 [id]
+    │   └── 📄 page.tsx
+    └── 📄 page.tsx
+├── 📁 reputation
+    └── 📄 page.tsx
+├── 📁 reset-password
+    └── 📄 page.tsx
+├── 📁 settings
+    └── 📄 page.tsx
+├── 📁 shop
+    ├── 📁 [id]
+    │   ├── 📁 inventory
+    │   │   ├── 📁 [productId]
+    │   │   │   └── 📄 page.tsx
+    │   │   ├── 📁 add
+    │   │   │   └── 📄 page.tsx
+    │   │   └── 📄 page.tsx
+    │   └── 📄 page.tsx
+    ├── 📁 analytics
+    │   └── 📄 page.tsx
+    ├── 📁 dashboard
+    │   └── 📄 page.tsx
+    └── 📁 spots
+    │   └── 📄 page.tsx
+├── 📁 shops
+    └── 📄 route.ts
+├── 📁 spots
+    ├── 📁 [id]
+    │   └── 📄 page.tsx
+    └── 📄 page.tsx
+├── 📁 terms
+    └── 📄 page.tsx
+├── 📁 test
+    └── 📄 page.tsx
+├── 📁 test-email
+    ├── 📄 layout.tsx
+    └── 📄 page.tsx
+├── 📁 test-geolocation
+    └── 📄 page.tsx
+├── 📁 test-panel
+    ├── 📄 middleware.ts
+    └── 📄 page.tsx
+├── 📄 favicon.ico
+├── 📄 globals.css
+├── 📄 layout.tsx
+└── 📄 page.tsx
+
+==================================================
+📊 Toplam: C:\Users\saniy\OneDrive\Masaüstü\spotitforme\app

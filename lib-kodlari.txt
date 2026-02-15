@@ -1,0 +1,2297 @@
+================================================================================
+📦 LIB DİZİNİ - TÜM KOD DOSYALARI
+📅 15.02.2026 03:40:23
+📊 Toplam Dosya: 22
+================================================================================
+
+
+────────────────────────────────────────────────────────────────────────────────
+📄 analytics\events.ts
+📊 9 satır | 0.27 KB
+────────────────────────────────────────────────────────────────────────────────
+
+// lib/analytics/events.ts
+export const GAMIFICATION_EVENTS = {
+  POINTS_EARNED: 'points_earned',
+  BADGE_EARNED: 'badge_earned',
+  LEVEL_UP: 'level_up',
+  DAILY_STREAK: 'daily_streak',
+  CHALLENGE_COMPLETED: 'challenge_completed',
+  LEADERBOARD_VIEW: 'leaderboard_view'
+}
+
+────────────────────────────────────────────────────────────────────────────────
+📄 analytics\social-events.ts
+📊 17 satır | 0.51 KB
+────────────────────────────────────────────────────────────────────────────────
+
+// lib/analytics/social-events.ts
+export const SOCIAL_EVENTS = {
+  POST_CREATED: 'post_created',
+  POST_LIKED: 'post_liked',
+  POST_SHARED: 'post_shared',
+  POST_VIEWED: 'post_viewed',
+  COMMENT_ADDED: 'comment_added',
+  USER_FOLLOWED: 'user_followed',
+  HASHTAG_CLICKED: 'hashtag_clicked',
+  STORY_VIEWED: 'story_viewed',
+  NOTIFICATION_CLICKED: 'notification_clicked',
+  
+  // Engagement metrics
+  SESSION_DURATION: 'session_duration',
+  SCROLL_DEPTH: 'scroll_depth',
+  RETURN_VISIT: 'return_visit'
+}
+
+────────────────────────────────────────────────────────────────────────────────
+📄 email-client.ts
+📊 94 satır | 3.17 KB
+────────────────────────────────────────────────────────────────────────────────
+
+// lib/email-client.ts - YENİ VE BASİT
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || ''
+
+// TÜM email fonksiyonları için ortak gönderici
+async function sendEmailAPI(to: string, subject: string, html: string): Promise<boolean> {
+  console.log(`📤 Email gönderiliyor: ${to}`)
+  
+  try {
+    const response = await fetch('/api/email/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to, subject, html })
+    })
+    
+    if (!response.ok) {
+      console.error('❌ API response not OK:', response.status)
+      return false
+    }
+    
+    const result = await response.json()
+    console.log('📨 API Response:', result)
+    
+    return result.success === true
+    
+  } catch (error) {
+    console.error('❌ Email API çağrı hatası:', error)
+    
+    // Development'da her zaman başarılı
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔧 DEV MOD: Simulating success')
+      return true
+    }
+    
+    return false
+  }
+}
+
+// 1. Hoşgeldin Email'i
+export async function sendWelcomeEmail(to: string, name: string): Promise<boolean> {
+  const subject = `🤝 Hoş Geldin ${name}! - SpotItForMe`
+  const html = `
+    <h1>Hoş Geldin ${name}! 👋</h1>
+    <p>SpotItForMe topluluğuna katıldığınız için teşekkür ederiz.</p>
+    <p>Artık kayıp ürünlerinizi bulabilir veya başkalarına yardım edebilirsiniz.</p>
+    <p><strong>App Password Test:</strong> ahfd vrzy kuen opmj</p>
+  `
+  
+  return sendEmailAPI(to, subject, html)
+}
+
+// 2. Spot Oluşturma Email'i
+export async function sendSpotCreatedEmail(to: string, spotTitle: string, spotId: string): Promise<boolean> {
+  const subject = `🎉 Spot Oluşturuldu: "${spotTitle}"`
+  const html = `
+    <h1>Spot'unuz Oluşturuldu! 🎯</h1>
+    <p><strong>"${spotTitle}"</strong> başlıklı spot'unuz başarıyla oluşturuldu.</p>
+    <p>Topluluğumuz şimdi bu ürünü aramaya başladı!</p>
+    <p>Spot ID: ${spotId}</p>
+  `
+  
+  return sendEmailAPI(to, subject, html)
+}
+
+// 3. Yardım Bildirimi Email'i
+export async function sendSightingNotificationEmail(
+  to: string, 
+  spotTitle: string, 
+  spotterName: string,
+  spotId: string
+): Promise<boolean> {
+  const subject = `🎯 Yeni Yardım: "${spotTitle}" ürünü görüldü!`
+  const html = `
+    <h1>🎉 Müjdeli Haber!</h1>
+    <p><strong>${spotterName}</strong> adlı kullanıcı, aradığınız ürünü gördüğünü bildirdi!</p>
+    <p>Ürün: <strong>"${spotTitle}"</strong></p>
+    <p>Hemen uygulamaya gidip detayları görüntüleyin.</p>
+  `
+  
+  return sendEmailAPI(to, subject, html)
+}
+
+// 4. Şifre Sıfırlama Email'i
+export async function sendPasswordResetEmail(to: string, resetLink: string): Promise<boolean> {
+  const subject = '🔐 SpotItForMe - Şifre Sıfırlama'
+  const html = `
+    <h1>Şifre Sıfırlama</h1>
+    <p>Şifrenizi sıfırlamak için aşağıdaki linke tıklayın:</p>
+    <p><a href="${resetLink}">${resetLink}</a></p>
+    <p>Bu link 1 saat geçerlidir.</p>
+    <p>Eğer bu talebi siz yapmadıysanız, bu emaili görmezden gelebilirsiniz.</p>
+  `
+  
+  return sendEmailAPI(to, subject, html)
+}
+
+────────────────────────────────────────────────────────────────────────────────
+📄 email-hooks.ts
+📊 159 satır | 4.49 KB
+────────────────────────────────────────────────────────────────────────────────
+
+// lib/email-hooks.ts
+import { emailService } from './email-service'
+import { supabase } from './supabase'
+
+// 1. Kullanıcı kayıt olduğunda
+export async function onUserRegistered(userId: string) {
+  try {
+    const { data: user } = await supabase.auth.admin.getUserById(userId)
+    
+    if (user?.user?.email) {
+      await emailService.sendWelcomeEmail(
+        user.user.email,
+        user.user.user_metadata?.name || 'Kullanıcı'
+      )
+    }
+  } catch (error) {
+    console.error('Kullanıcı kayıt email hatası:', error)
+  }
+}
+
+// 2. Spot oluşturulduğunda
+export async function onSpotCreated(spotId: string) {
+  try {
+    // Spot bilgilerini getir
+    const { data: spot } = await supabase
+      .from('spots')
+      .select('*, user:user_id(email)')
+      .eq('id', spotId)
+      .single()
+
+    if (spot?.user?.email && spot.title) {
+      await emailService.sendSpotCreatedEmail(
+        spot.user.email,
+        spot.title,
+        spotId
+      )
+    }
+  } catch (error) {
+    console.error('Spot oluşturma email hatası:', error)
+  }
+}
+
+// 3. Yardım bildirimi geldiğinde
+export async function onSightingCreated(sightingId: string) {
+  try {
+    // Sightings ve spot bilgilerini getir
+    const { data: sighting } = await supabase
+      .from('sightings')
+      .select(`
+        *,
+        spot:spots!inner(title, user_id),
+        spotter:spotter_id(email, user_metadata)
+      `)
+      .eq('id', sightingId)
+      .single()
+
+    if (sighting?.spot?.user_id && sighting.spotter?.email) {
+      // Spot sahibinin email'ini al
+      const { data: spotOwner } = await supabase.auth.admin.getUserById(sighting.spot.user_id)
+      
+      if (spotOwner?.user?.email && sighting.spot.title) {
+        await emailService.sendSightingNotification(
+          spotOwner.user.email,
+          sighting.spot.title,
+          sighting.spotter.user_metadata?.name || sighting.spotter.email,
+          sighting.spot_id,
+          sighting.notes,
+          sighting.price?.toString(),
+          sighting.location_description
+        )
+      }
+    }
+  } catch (error) {
+    console.error('Yardım bildirimi email hatası:', error)
+  }
+}
+
+// 4. Spot bulunduğunda
+export async function onSpotFound(spotId: string) {
+  try {
+    const { data: spot } = await supabase
+      .from('spots')
+      .select('*, user:user_id(email)')
+      .eq('id', spotId)
+      .single()
+
+    if (spot?.user?.email && spot.title) {
+      // Kullanıcının toplam spot sayısını getir
+      const { count: totalSpots } = await supabase
+        .from('spots')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', spot.user_id)
+
+      const { count: foundSpots } = await supabase
+        .from('spots')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', spot.user_id)
+        .eq('status', 'found')
+
+      await emailService.sendSpotFoundEmail(
+        spot.user.email,
+        spot.title,
+        spotId,
+        undefined, // foundBy (opsiyonel)
+        totalSpots || 0,
+        foundSpots || 0
+      )
+    }
+  } catch (error) {
+    console.error('Spot bulundu email hatası:', error)
+  }
+}
+
+// 5. İşletme kaydı olduğunda
+export async function onBusinessRegistered(shopId: string) {
+  try {
+    const { data: shop } = await supabase
+      .from('shops')
+      .select('*, owner:owner_id(email, user_metadata)')
+      .eq('id', shopId)
+      .single()
+
+    if (shop?.owner?.email && shop.shop_name) {
+      await emailService.sendBusinessWelcomeEmail(
+        shop.owner.email,
+        shop.shop_name,
+        shop.owner.user_metadata?.name || 'İşletme Sahibi',
+        shop.subscription_type || 'free',
+        `${shop.free_images_used || 0}/${shop.total_images || 20}`
+      )
+    }
+  } catch (error) {
+    console.error('İşletme kayıt email hatası:', error)
+  }
+}
+
+// 6. Şifre sıfırlama
+export async function onPasswordResetRequested(email: string, resetLink: string) {
+  try {
+    await emailService.sendPasswordResetEmail(email, resetLink)
+  } catch (error) {
+    console.error('Şifre sıfırlama email hatası:', error)
+  }
+}
+
+// 7. Admin alert
+export async function sendSystemAlert(title: string, details: any) {
+  try {
+    const adminEmails = process.env.ADMIN_EMAILS?.split(',') || ['admin@spotitforme.com']
+    
+    await emailService.sendAdminAlert(
+      title,
+      details,
+      adminEmails
+    )
+  } catch (error) {
+    console.error('Admin alert email hatası:', error)
+  }
+}
+
+────────────────────────────────────────────────────────────────────────────────
+📄 email-queue.ts
+📊 140 satır | 3.71 KB
+────────────────────────────────────────────────────────────────────────────────
+
+// lib/email-queue.ts
+import { supabase } from './supabase'
+
+export interface EmailQueueItem {
+  id?: string
+  type: string
+  recipient: string
+  subject: string
+  data: any
+  status: 'pending' | 'processing' | 'sent' | 'failed'
+  attempts: number
+  created_at?: string
+  sent_at?: string
+}
+
+export class EmailQueue {
+  static async addToQueue(item: Omit<EmailQueueItem, 'status' | 'attempts'>) {
+    try {
+      const { data, error } = await supabase
+        .from('email_queue')
+        .insert({
+          type: item.type,
+          recipient: item.recipient,
+          subject: item.subject,
+          data: item.data,
+          status: 'pending',
+          attempts: 0
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+      return data
+    } catch (error) {
+      console.error('Email kuyruğa eklenemedi:', error)
+      return null
+    }
+  }
+
+  static async processQueue(limit: number = 50) {
+    try {
+      // Bekleyen email'leri al
+      const { data: pendingEmails } = await supabase
+        .from('email_queue')
+        .select('*')
+        .eq('status', 'pending')
+        .lt('attempts', 3)
+        .limit(limit)
+        .order('created_at', { ascending: true })
+
+      if (!pendingEmails || pendingEmails.length === 0) {
+        return { processed: 0, success: 0, failed: 0 }
+      }
+
+      let success = 0
+      let failed = 0
+
+      for (const email of pendingEmails) {
+        try {
+          // Durumu processing'e çevir
+          await supabase
+            .from('email_queue')
+            .update({ status: 'processing' })
+            .eq('id', email.id)
+
+          // Email gönder
+          const response = await fetch('/api/send-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              to: email.recipient,
+              template: email.type,
+              data: email.data,
+              subject: email.subject
+            })
+          })
+
+          const result = await response.json()
+
+          if (response.ok) {
+            // Başarılı
+            await supabase
+              .from('email_queue')
+              .update({
+                status: 'sent',
+                sent_at: new Date().toISOString()
+              })
+              .eq('id', email.id)
+            success++
+          } else {
+            // Başarısız
+            await supabase
+              .from('email_queue')
+              .update({
+                attempts: email.attempts + 1,
+                status: email.attempts >= 2 ? 'failed' : 'pending'
+              })
+              .eq('id', email.id)
+            failed++
+          }
+
+          // Rate limiting
+          if ((success + failed) % 10 === 0) {
+            await new Promise(resolve => setTimeout(resolve, 1000))
+          }
+
+        } catch (error) {
+          console.error(`Email işleme hatası (${email.id}):`, error)
+          failed++
+          
+          await supabase
+            .from('email_queue')
+            .update({
+              attempts: email.attempts + 1,
+              status: 'failed'
+            })
+            .eq('id', email.id)
+        }
+      }
+
+      return { processed: pendingEmails.length, success, failed }
+    } catch (error) {
+      console.error('Email queue işleme hatası:', error)
+      return { processed: 0, success: 0, failed: 0 }
+    }
+  }
+
+  static async getQueueStats() {
+    try {
+      const { data, error } = await supabase
+        .rpc('get_email_queue_stats')
+
+      if (error) throw error
+      return data
+    } catch (error) {
+      console.error('Queue stats alınamadı:', error)
+      return null
+    }
+  }
+}
+
+────────────────────────────────────────────────────────────────────────────────
+📄 email-server.ts
+📊 332 satır | 17.70 KB
+────────────────────────────────────────────────────────────────────────────────
+
+// lib/email-server.ts
+'use server'
+
+import nodemailer from 'nodemailer'
+
+// Email transporter oluştur
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_APP_PASS
+  }
+})
+
+// Server Action: Hoşgeldin emaili gönder
+export async function sendWelcomeEmail(to: string, name: string): Promise<{ success: boolean; message: string }> {
+  try {
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://spotitforme.vercel.app'
+    
+    await transporter.sendMail({
+      from: `"SpotItForMe" <${process.env.GMAIL_USER}>`,
+      to,
+      subject: `🎉 SpotItForMe Topluluğuna Hoş Geldin ${name}!`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f5f7fa; padding: 20px;">
+          <div style="background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+            <h1 style="color: white; margin: 0; font-size: 24px;">🤝 Hoş Geldiniz!</h1>
+          </div>
+          
+          <div style="background: white; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
+            <p>Merhaba <strong>${name}</strong>,</p>
+            <p>SpotItForMe topluluğuna katıldığınız için çok mutluyuz! 🎉</p>
+            
+            <div style="background: #faf5ff; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <p><strong>🚀 Hemen Başlayın:</strong></p>
+              <div style="display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 15px;">
+                <a href="${siteUrl}/create-spot" style="background: #8b5cf6; color: white; padding: 12px; text-align: center; border-radius: 8px; text-decoration: none; font-weight: bold;">
+                  İlk Spot'unu Oluştur
+                </a>
+                <a href="${siteUrl}/spots" style="background: #f1f5f9; color: #475569; padding: 12px; text-align: center; border-radius: 8px; text-decoration: none;">
+                  Spot'ları Keşfet
+                </a>
+                <a href="${siteUrl}/how-it-works" style="background: #f1f5f9; color: #475569; padding: 12px; text-align: center; border-radius: 8px; text-decoration: none;">
+                  Nasıl Çalışır?
+                </a>
+              </div>
+            </div>
+
+            <p><strong>✨ Platform Özellikleri:</strong></p>
+            <ul style="padding-left: 20px;">
+              <li>✅ Ücretsiz spot oluşturma</li>
+              <li>✅ Binlerce aktif topluluk üyesi</li>
+              <li>✅ Anlık yardım bildirimleri</li>
+              <li>✅ Mobil uyumlu tasarım</li>
+              <li>✅ Güvenli ve gizli</li>
+            </ul>
+
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;" />
+
+            <p style="font-size: 12px; color: #6b7280; text-align: center;">
+              Sorularınız için: <a href="mailto:${process.env.GMAIL_USER}" style="color: #6b7280;">${process.env.GMAIL_USER}</a><br/>
+              <a href="${siteUrl}" style="color: #6b7280;">${siteUrl}</a>
+            </p>
+          </div>
+        </div>
+      `,
+      text: `SpotItForMe'ye Hoş Geldiniz!\n\nMerhaba ${name},\n\nSpotItForMe topluluğuna katıldığınız için teşekkür ederiz.\n\nHemen başlayın: ${siteUrl}/create-spot\n\nİyi kullanımlar!`
+    })
+
+    console.log('✅ Hoşgeldin emaili gönderildi:', to)
+    return { success: true, message: 'Email gönderildi' }
+  } catch (error) {
+    console.error('❌ Hoşgeldin emaili gönderilemedi:', error)
+    return { success: false, message: 'Email gönderilemedi' }
+  }
+}
+
+// Server Action: Mağaza kayıt emaili gönder
+export async function sendBusinessRegistrationEmail(to: string, shopName: string, ownerId: string): Promise<{ success: boolean; message: string }> {
+  try {
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://spotitforme.vercel.app'
+    
+    await transporter.sendMail({
+      from: `"SpotItForme İşletme" <${process.env.GMAIL_USER}>`,
+      to,
+      cc: process.env.ADMIN_EMAIL,
+      subject: `🏪 Mağaza Kaydınız Alındı: ${shopName}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f5f7fa; padding: 20px;">
+          <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+            <h1 style="color: white; margin: 0; font-size: 24px;">🏪 Mağaza Kaydınız Alındı!</h1>
+          </div>
+          
+          <div style="background: white; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
+            <p>Merhaba,</p>
+            <p><strong>${shopName}</strong> mağazanız için kaydınız başarıyla alındı! 🎉</p>
+            
+            <div style="background: #f0fdf4; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10b981;">
+              <p><strong>🎯 Sonraki Adımlar:</strong></p>
+              <ol style="margin-left: 20px;">
+                <li>Mağaza profilinizi tamamlayın</li>
+                <li>İlk ürünlerinizi ekleyin</li>
+                <li>Spot'lara cevap verin</li>
+                <li>Premium paketlere geçerek limitlerinizi artırın</li>
+              </ol>
+            </div>
+
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${siteUrl}/shop/dashboard" style="background: #10b981; color: white; padding: 12px 30px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: bold; margin: 5px;">
+                Mağaza Paneline Git
+              </a>
+              <a href="${siteUrl}/create-spot" style="background: #3b82f6; color: white; padding: 12px 30px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: bold; margin: 5px;">
+                İlk Spot'u Oluştur
+              </a>
+            </div>
+
+            <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <p><strong>📊 Mağaza İstatistikleriniz:</strong></p>
+              <p>✅ <strong>Paket:</strong> Ücretsiz Başlangıç</p>
+              <p>✅ <strong>Resim Limiti:</strong> 20 adet ücretsiz</p>
+              <p>✅ <strong>Spot Limiti:</strong> Sınırsız</p>
+              <p>✅ <strong>Destek:</strong> Email ile 7/24</p>
+            </div>
+
+            <p><strong>📞 İletişim:</strong></p>
+            <p>Herhangi bir sorunuz için: <a href="mailto:${process.env.GMAIL_USER}" style="color: #3b82f6;">${process.env.GMAIL_USER}</a></p>
+
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;" />
+
+            <p style="font-size: 12px; color: #6b7280; text-align: center;">
+              SpotItForme İşletme Ekibi<br/>
+              <a href="${siteUrl}" style="color: #6b7280;">${siteUrl}</a>
+            </p>
+          </div>
+        </div>
+      `,
+      text: `Mağaza Kaydı\n\n${shopName} mağazanız için kaydınız alındı.\n\nMağaza Paneliniz: ${siteUrl}/shop/dashboard\n\nTeşekkür ederiz!`
+    })
+
+    console.log('✅ Mağaza kayıt emaili gönderildi:', to)
+    return { success: true, message: 'Email gönderildi' }
+  } catch (error) {
+    console.error('❌ Mağaza kayıt emaili gönderilemedi:', error)
+    return { success: false, message: 'Email gönderilemedi' }
+  }
+}
+// Server Action: Şifre sıfırlama emaili gönder
+export async function sendPasswordResetEmail(to: string, resetLink: string): Promise<{ success: boolean; message: string }> {
+  try {
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://spotitforme.vercel.app'
+    
+    await transporter.sendMail({
+      from: `"SpotItForMe Şifre Sıfırlama" <${process.env.GMAIL_USER}>`,
+      to,
+      subject: '🔐 SpotItForMe Şifre Sıfırlama İsteği',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f5f7fa; padding: 20px;">
+          <div style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+            <h1 style="color: white; margin: 0; font-size: 24px;">🔐 Şifre Sıfırlama</h1>
+          </div>
+          
+          <div style="background: white; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
+            <p>Merhaba,</p>
+            <p>SpotItForMe hesabınız için şifre sıfırlama talebinde bulundunuz.</p>
+            
+            <div style="background: #fef2f2; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ef4444;">
+              <p><strong>⚠️ Güvenlik Uyarısı:</strong></p>
+              <p>Bu isteği siz yapmadıysanız, bu email'i görmezden gelebilirsiniz.</p>
+              <p>Hesabınızla ilgili endişeleriniz varsa lütfen bizimle iletişime geçin.</p>
+            </div>
+
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${resetLink}" style="background: #ef4444; color: white; padding: 12px 30px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: bold;">
+                Şifremi Sıfırla
+              </a>
+            </div>
+
+            <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <p><strong>🔒 Güvenlik İpuçları:</strong></p>
+              <ul style="margin-left: 20px; color: #4b5563;">
+                <li>Şifrenizi kimseyle paylaşmayın</li>
+                <li>Link'e tıkladıktan sonra yeni bir şifre belirleyin</li>
+                <li>Güçlü bir şifre kullanın (harf, rakam, özel karakter)</li>
+                <li>Bu link 24 saat sonra geçersiz olacaktır</li>
+              </ul>
+            </div>
+
+            <p><strong>📝 Link çalışmıyor mu?</strong></p>
+            <p>Eğer buton çalışmıyorsa, aşağıdaki linki tarayıcınıza kopyalayıp yapıştırın:</p>
+            <p style="word-break: break-all; background: #f3f4f6; padding: 10px; border-radius: 5px; font-size: 12px;">
+              ${resetLink}
+            </p>
+
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;" />
+
+            <p style="font-size: 12px; color: #6b7280; text-align: center;">
+              Bu email SpotItForMe platformundan otomatik olarak gönderilmiştir.<br/>
+              <a href="${siteUrl}" style="color: #6b7280;">${siteUrl}</a> | 
+              <a href="mailto:${process.env.GMAIL_USER}" style="color: #6b7280;">Yardım</a>
+            </p>
+          </div>
+        </div>
+      `,
+      text: `SpotItForMe Şifre Sıfırlama\n\nŞifrenizi sıfırlamak için bu linke tıklayın: ${resetLink}\n\nBu link 24 saat geçerlidir.\n\nEğer bu isteği siz yapmadıysanız, bu email'i görmezden gelebilirsiniz.\n\nTeşekkür ederiz!`
+    })
+
+    console.log('✅ Şifre sıfırlama emaili gönderildi:', to)
+    return { success: true, message: 'Şifre sıfırlama emaili gönderildi' }
+  } catch (error) {
+    console.error('❌ Şifre sıfırlama emaili gönderilemedi:', error)
+    return { success: false, message: 'Şifre sıfırlama emaili gönderilemedi' }
+  }
+}
+// Server Action: Spot oluşturma emaili
+export async function sendSpotCreatedEmail(to: string, spotTitle: string, spotId: string): Promise<{ success: boolean; message: string }> {
+  try {
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://spotitforme.vercel.app'
+    
+    await transporter.sendMail({
+      from: `"SpotItForMe" <${process.env.GMAIL_USER}>`,
+      to,
+      subject: `🎉 Spot Oluşturuldu: ${spotTitle}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f5f7fa; padding: 20px;">
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+            <h1 style="color: white; margin: 0; font-size: 24px;">🎉 Spot'unuz Oluşturuldu!</h1>
+          </div>
+          <div style="background: white; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
+            <p>Merhaba,</p>
+            <p><strong>"${spotTitle}"</strong> başlıklı spot'unuz başarıyla oluşturuldu.</p>
+            
+            <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #3b82f6;">
+              <p><strong>Spot Detayları:</strong></p>
+              <p>📌 <strong>Başlık:</strong> ${spotTitle}</p>
+              <p>🔗 <strong>Spot Linki:</strong> <a href="${siteUrl}/spots/${spotId}" style="color: #3b82f6;">${siteUrl}/spots/${spotId}</a></p>
+              <p>⏰ <strong>Tarih:</strong> ${new Date().toLocaleDateString('tr-TR')}</p>
+            </div>
+
+            <p>Spot'unuz şu anda topluluğumuzun yardımına sunuldu. Binlerce kullanıcı şehirlerinde gezerken sizin için göz kulak olacak.</p>
+            
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${siteUrl}/spots/${spotId}" style="background: #3b82f6; color: white; padding: 12px 30px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: bold;">
+                Spot'u Görüntüle
+              </a>
+            </div>
+
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;" />
+
+            <p style="font-size: 12px; color: #6b7280; text-align: center;">
+              Bu e-posta SpotItForMe platformundan otomatik olarak gönderilmiştir.<br/>
+              <a href="${siteUrl}/unsubscribe" style="color: #6b7280;">Bildirimleri devre dışı bırak</a>
+            </p>
+          </div>
+        </div>
+      `,
+      text: `SpotItForMe - Spot Oluşturuldu\n\n"${spotTitle}" başlıklı spot'unuz başarıyla oluşturuldu.\n\nSpot Linki: ${siteUrl}/spots/${spotId}\n\nTeşekkür ederiz!`
+    })
+
+    console.log('✅ Spot oluşturma emaili gönderildi:', to)
+    return { success: true, message: 'Email gönderildi' }
+  } catch (error) {
+    console.error('❌ Email gönderilemedi:', error)
+    return { success: false, message: 'Email gönderilemedi' }
+  }
+}
+
+// Server Action: Yardım bildirimi emaili
+export async function sendSightingNotificationEmail(
+  to: string, 
+  spotTitle: string, 
+  spotterName: string,
+  spotId: string
+): Promise<{ success: boolean; message: string }> {
+  try {
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://spotitforme.vercel.app'
+    
+    await transporter.sendMail({
+      from: `"SpotItForMe" <${process.env.GMAIL_USER}>`,
+      to,
+      subject: `🎯 YENİ YARDIM: "${spotTitle}" için bildirim!`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f5f7fa; padding: 20px;">
+          <div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+            <h1 style="color: white; margin: 0; font-size: 24px;">🎯 YENİ YARDIM BİLDİRİMİ!</h1>
+            <p style="color: white; opacity: 0.9; margin-top: 10px;">Birisi aradığınız ürünü gördü!</p>
+          </div>
+          
+          <div style="background: white; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
+            <p>Merhaba,</p>
+            <p><strong>${spotterName}</strong> adlı kullanıcı, <strong>"${spotTitle}"</strong> spot'unuz için yardım bildirimi gönderdi! 🎉</p>
+            
+            <div style="background: #fffbeb; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f59e0b;">
+              <p><strong>🎉 Müjdeli Haber!</strong></p>
+              <p>Bir topluluk üyemiz aradığınız ürünü gördüğünü bildirdi.</p>
+              <p>Hemen spot sayfasına giderek detayları görüntüleyin!</p>
+            </div>
+
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${siteUrl}/spots/${spotId}" style="background: #f59e0b; color: white; padding: 12px 30px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: bold;">
+                Yardım Detaylarını Görüntüle
+              </a>
+            </div>
+
+            <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <p><strong>📋 Sonraki Adımlar:</strong></p>
+              <ol style="margin-left: 20px;">
+                <li>Yardım detaylarını inceleyin</li>
+                <li>Gerekirse spotter ile iletişime geçin</li>
+                <li>Ürünü bulduysanız spot durumunu "Bulundu" olarak güncelleyin</li>
+                <li>Yardım eden kullanıcıya teşekkür edin</li>
+              </ol>
+            </div>
+
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;" />
+
+            <p style="font-size: 12px; color: #6b7280; text-align: center;">
+              Topluluğumuzun yardımıyla kayıp ürünlerinizi bulmanızı umuyoruz!<br/>
+              <a href="${siteUrl}" style="color: #6b7280;">${siteUrl}</a>
+            </p>
+          </div>
+        </div>
+      `,
+      text: `Yeni Yardım Bildirimi!\n\n${spotterName}, "${spotTitle}" spot'unuz için yardım bildirimi gönderdi.\n\nDetaylar için: ${siteUrl}/spots/${spotId}\n\nTeşekkür ederiz!`
+    })
+
+    console.log('✅ Yardım bildirimi emaili gönderildi:', to)
+    return { success: true, message: 'Email gönderildi' }
+  } catch (error) {
+    console.error('❌ Yardım bildirimi emaili gönderilemedi:', error)
+    return { success: false, message: 'Email gönderilemedi' }
+  }
+}
+
+────────────────────────────────────────────────────────────────────────────────
+📄 email-service.ts
+📊 220 satır | 5.37 KB
+────────────────────────────────────────────────────────────────────────────────
+
+// lib/email-service.ts
+import { emailTemplates, generateTextVersion } from './email-templates'
+
+export interface EmailOptions {
+  to: string | string[]
+  template: string
+  data: any
+  cc?: string | string[]
+  bcc?: string | string[]
+  replyTo?: string
+  attachments?: Array<{
+    filename: string
+    content: Buffer | string
+    contentType?: string
+  }>
+}
+
+export interface EmailResult {
+  success: boolean
+  messageId?: string
+  error?: string
+  devMode?: boolean
+}
+
+class EmailService {
+  private static instance: EmailService
+
+  static getInstance(): EmailService {
+    if (!EmailService.instance) {
+      EmailService.instance = new EmailService()
+    }
+    return EmailService.instance
+  }
+
+  async sendEmail(options: EmailOptions): Promise<EmailResult> {
+    try {
+      console.log('📧 Email gönderiliyor:', {
+        to: typeof options.to === 'string' ? options.to.substring(0, 3) + '...' : options.to.length + ' alıcı',
+        template: options.template,
+        timestamp: new Date().toISOString()
+      })
+
+      // 1. Template'i al
+      const templateGenerator = emailTemplates[options.template]
+      if (!templateGenerator) {
+        throw new Error(`Template bulunamadı: ${options.template}`)
+      }
+
+      const template = templateGenerator(options.data)
+
+      // 2. Email verilerini hazırla
+      const emailData = {
+        to: Array.isArray(options.to) ? options.to.join(',') : options.to,
+        template: options.template,
+        data: options.data,
+        subject: template.subject,
+        html: template.html,
+        text: template.text || generateTextVersion(template.html),
+        cc: options.cc ? (Array.isArray(options.cc) ? options.cc.join(',') : options.cc) : undefined,
+        bcc: options.bcc ? (Array.isArray(options.bcc) ? options.bcc.join(',') : options.bcc) : undefined,
+        replyTo: options.replyTo,
+        attachments: options.attachments
+      }
+
+      // 3. API'ye gönder
+      const response = await fetch('/api/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(emailData)
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Email gönderilemedi')
+      }
+
+      console.log('✅ Email gönderildi:', result.messageId || 'ID yok')
+      return {
+        success: true,
+        messageId: result.messageId,
+        devMode: result.devMode
+      }
+
+    } catch (error: any) {
+      console.error('❌ Email gönderme hatası:', error.message)
+      
+      // Production'da hatayı log'la
+      if (process.env.NODE_ENV === 'production') {
+        // Burada Sentry, LogRocket gibi bir servise log'layabilirsiniz
+        console.error('Production email hatası:', {
+          error: error.message,
+          template: options.template,
+          to: options.to
+        })
+      }
+
+      return {
+        success: false,
+        error: error.message
+      }
+    }
+  }
+
+  // Kolay kullanım için yardımcı metodlar
+  async sendWelcomeEmail(to: string, name: string) {
+    return this.sendEmail({
+      to,
+      template: 'welcome',
+      data: { name }
+    })
+  }
+
+  async sendSpotCreatedEmail(to: string, spotTitle: string, spotId: string) {
+    return this.sendEmail({
+      to,
+      template: 'spot-created',
+      data: { spotTitle, spotId }
+    })
+  }
+
+  async sendSightingNotification(
+    to: string, 
+    spotTitle: string, 
+    spotterName: string, 
+    spotId: string,
+    spotterMessage?: string,
+    price?: string,
+    location?: string
+  ) {
+    return this.sendEmail({
+      to,
+      template: 'spot-sighting',
+      data: { 
+        spotTitle, 
+        spotterName, 
+        spotId,
+        spotterMessage,
+        price,
+        location
+      }
+    })
+  }
+
+  async sendSpotFoundEmail(
+    to: string,
+    spotTitle: string,
+    spotId: string,
+    foundBy?: string,
+    totalSpots?: number,
+    foundSpots?: number
+  ) {
+    return this.sendEmail({
+      to,
+      template: 'spot-found',
+      data: {
+        spotTitle,
+        spotId,
+        foundBy,
+        totalSpots,
+        foundSpots
+      }
+    })
+  }
+
+  async sendBusinessWelcomeEmail(
+    to: string,
+    businessName: string,
+    contactName: string,
+    plan: string,
+    imageLimit: string
+  ) {
+    return this.sendEmail({
+      to,
+      template: 'business-welcome',
+      data: {
+        businessName,
+        contactName,
+        plan,
+        imageLimit
+      }
+    })
+  }
+
+  async sendPasswordResetEmail(to: string, resetLink: string, name?: string) {
+    return this.sendEmail({
+      to,
+      template: 'password-reset',
+      data: {
+        resetLink,
+        name: name || 'Kullanıcı'
+      }
+    })
+  }
+
+  async sendVerificationEmail(to: string, verificationLink: string, name?: string) {
+    return this.sendEmail({
+      to,
+      template: 'verify-email',
+      data: {
+        verificationLink,
+        name: name || 'Kullanıcı'
+      }
+    })
+  }
+
+  async sendAdminAlert(title: string, details: any, adminEmails: string | string[]) {
+    return this.sendEmail({
+      to: adminEmails,
+      template: 'admin-alert',
+      data: {
+        title,
+        details
+      }
+    })
+  }
+}
+
+// Singleton instance export
+export const emailService = EmailService.getInstance()
+
+────────────────────────────────────────────────────────────────────────────────
+📄 email-templates.ts
+📊 551 satır | 28.78 KB
+────────────────────────────────────────────────────────────────────────────────
+
+// lib/email-templates.ts
+export interface EmailTemplate {
+  subject: string
+  html: string
+  text?: string
+}
+
+export const emailTemplates: Record<string, (data: any) => EmailTemplate> = {
+  // 1. KAYIT/KULLANICI EMAİLLERİ
+  'welcome': (data) => ({
+    subject: `🎉 SpotItForMe Topluluğuna Hoş Geldin ${data.name}!`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px; text-align: center; border-radius: 10px 10px 0 0;">
+          <h1 style="color: white; margin: 0; font-size: 28px;">🤝 HOŞ GELDİNİZ!</h1>
+          <p style="color: white; opacity: 0.9; margin-top: 10px; font-size: 16px;">
+            SpotItForMe Topluluğuna Katıldığınız İçin Teşekkür Ederiz
+          </p>
+        </div>
+        
+        <div style="padding: 40px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px; background: white;">
+          <p style="font-size: 16px; line-height: 1.6; color: #374151;">
+            Merhaba <strong style="color: #1f2937;">${data.name}</strong>,
+          </p>
+          
+          <p style="font-size: 16px; line-height: 1.6; color: #374151; margin-top: 20px;">
+            SpotItForMe topluluğuna katıldığınız için çok mutluyuz! 🎉
+            Artık binlerce göz sizin için arama yapacak.
+          </p>
+          
+          <div style="background: #f9fafb; padding: 25px; border-radius: 8px; margin: 30px 0; border-left: 4px solid #667eea;">
+            <p style="font-size: 16px; font-weight: 600; color: #1f2937; margin-bottom: 15px;">
+              🚀 Hemen Başlayın:
+            </p>
+            <div style="display: flex; flex-direction: column; gap: 15px;">
+              <a href="${process.env.NEXT_PUBLIC_SITE_URL}/create-spot" 
+                 style="background: #667eea; color: white; padding: 14px 24px; text-align: center; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                 📝 İlk Spot'unu Oluştur
+              </a>
+              <a href="${process.env.NEXT_PUBLIC_SITE_URL}/spots" 
+                 style="background: white; color: #667eea; padding: 14px 24px; text-align: center; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; border: 2px solid #667eea;">
+                 🔍 Spot'ları Keşfet
+              </a>
+            </div>
+          </div>
+          
+          <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+            <p style="font-size: 14px; color: #6b7280; margin-bottom: 10px;">
+              <strong>İlk adım tavsiyemiz:</strong>
+            </p>
+            <ul style="font-size: 14px; color: #6b7280; padding-left: 20px; line-height: 1.6;">
+              <li>Profil fotoğrafınızı ekleyin</li>
+              <li>Aradığınız ilk ürünü spot olarak paylaşın</li>
+              <li>Diğer kullanıcılara yardım ederek puan kazanın</li>
+              <li>Topluluk kurallarını okuyun</li>
+            </ul>
+          </div>
+          
+          <p style="font-size: 14px; color: #6b7280; margin-top: 30px; text-align: center;">
+            Sorularınız için: <a href="mailto:destek@spotitforme.com" style="color: #667eea;">destek@spotitforme.com</a>
+          </p>
+        </div>
+        
+        <div style="text-align: center; margin-top: 20px;">
+          <p style="font-size: 12px; color: #9ca3af;">
+            SpotItForMe © ${new Date().getFullYear()} | 
+            <a href="${process.env.NEXT_PUBLIC_SITE_URL}/privacy" style="color: #9ca3af; text-decoration: underline;">Gizlilik Politikası</a>
+          </p>
+        </div>
+      </div>
+    `,
+    text: `
+      HOŞ GELDİNİZ!
+      
+      Merhaba ${data.name},
+      
+      SpotItForMe topluluğuna katıldığınız için çok mutluyuz! 🎉
+      Artık binlerce göz sizin için arama yapacak.
+      
+      Hemen Başlayın:
+      1. İlk spot'unuzu oluşturun: ${process.env.NEXT_PUBLIC_SITE_URL}/create-spot
+      2. Diğer spot'ları keşfedin: ${process.env.NEXT_PUBLIC_SITE_URL}/spots
+      
+      İlk adım tavsiyelerimiz:
+      - Profil fotoğrafınızı ekleyin
+      - Aradığınız ilk ürünü spot olarak paylaşın
+      - Diğer kullanıcılara yardım ederek puan kazanın
+      - Topluluk kurallarını okuyun
+      
+      Sorularınız için: destek@spotitforme.com
+      
+      SpotItForMe © ${new Date().getFullYear()}
+    `
+  }),
+
+  'verify-email': (data) => ({
+    subject: '✅ SpotItForMe - Email Adresinizi Doğrulayın',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 40px; text-align: center; border-radius: 10px 10px 0 0;">
+          <h1 style="color: white; margin: 0; font-size: 28px;">✅ EMAİL DOĞRULAMA</h1>
+          <p style="color: white; opacity: 0.9; margin-top: 10px; font-size: 16px;">
+            Hesabınızı aktive etmek için son adım
+          </p>
+        </div>
+        
+        <div style="padding: 40px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px; background: white;">
+          <p style="font-size: 16px; line-height: 1.6; color: #374151;">
+            Merhaba <strong style="color: #1f2937;">${data.name}</strong>,
+          </p>
+          
+          <p style="font-size: 16px; line-height: 1.6; color: #374151; margin-top: 20px;">
+            SpotItForMe hesabınızı oluşturduğunuz için teşekkür ederiz.
+            Hesabınızı tamamen aktive etmek için email adresinizi doğrulamanız gerekiyor.
+          </p>
+          
+          <div style="text-align: center; margin: 40px 0;">
+            <a href="${data.verificationLink}" 
+               style="background: #10b981; color: white; padding: 16px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 18px; display: inline-block;">
+               📧 EMAİL'İMİ DOĞRULA
+            </a>
+          </div>
+          
+          <div style="background: #f0fdf4; padding: 20px; border-radius: 8px; margin: 30px 0; border-left: 4px solid #10b981;">
+            <p style="font-size: 14px; color: #065f46; margin: 0;">
+              <strong>Not:</strong> Bu link 24 saat geçerlidir. Eğer buton çalışmıyorsa, 
+              aşağıdaki linki tarayıcınıza kopyalayıp yapıştırın:
+            </p>
+            <p style="font-size: 12px; color: #047857; background: #d1fae5; padding: 10px; border-radius: 4px; margin-top: 10px; word-break: break-all;">
+              ${data.verificationLink}
+            </p>
+          </div>
+          
+          <p style="font-size: 14px; color: #6b7280; margin-top: 30px; text-align: center;">
+            Bu işlemi siz yapmadıysanız, bu email'i görmezden gelebilirsiniz.
+          </p>
+        </div>
+      </div>
+    `
+  }),
+
+  'password-reset': (data) => ({
+    subject: '🔐 SpotItForMe - Şifre Sıfırlama',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); padding: 40px; text-align: center; border-radius: 10px 10px 0 0;">
+          <h1 style="color: white; margin: 0; font-size: 28px;">🔐 ŞİFRE SIFIRLAMA</h1>
+          <p style="color: white; opacity: 0.9; margin-top: 10px; font-size: 16px;">
+            Hesabınızın şifresini yenileyin
+          </p>
+        </div>
+        
+        <div style="padding: 40px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px; background: white;">
+          <p style="font-size: 16px; line-height: 1.6; color: #374151;">
+            Şifre sıfırlama talebinde bulundunuz. Yeni şifrenizi belirlemek için aşağıdaki butona tıklayın:
+          </p>
+          
+          <div style="text-align: center; margin: 40px 0;">
+            <a href="${data.resetLink}" 
+               style="background: #f59e0b; color: white; padding: 16px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 18px; display: inline-block;">
+               🔑 ŞİFREMİ YENİLE
+            </a>
+          </div>
+          
+          <div style="background: #fffbeb; padding: 20px; border-radius: 8px; margin: 30px 0; border-left: 4px solid #f59e0b;">
+            <p style="font-size: 14px; color: #92400e; margin: 0;">
+              <strong>Güvenlik Notu:</strong>
+            </p>
+            <ul style="font-size: 14px; color: #92400e; padding-left: 20px; line-height: 1.6; margin-top: 10px;">
+              <li>Bu link 1 saat geçerlidir</li>
+              <li>Bu talebi siz yapmadıysanız, bu email'i görmezden gelebilirsiniz</li>
+              <li>Şifrenizi kimseyle paylaşmayın</li>
+            </ul>
+          </div>
+          
+          <p style="font-size: 14px; color: #6b7280; margin-top: 30px; text-align: center;">
+            Link çalışmıyorsa: ${data.resetLink}
+          </p>
+        </div>
+      </div>
+    `
+  }),
+
+  // 2. SPOT İLE İLGİLİ EMAİLLER
+  'spot-created': (data) => ({
+    subject: `🎉 Spot Oluşturuldu: "${data.spotTitle}"`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); padding: 40px; text-align: center; border-radius: 10px 10px 0 0;">
+          <h1 style="color: white; margin: 0; font-size: 28px;">🎉 SPOT OLUŞTURULDU!</h1>
+          <p style="color: white; opacity: 0.9; margin-top: 10px; font-size: 16px;">
+            Topluluğumuz sizin için aramaya başladı
+          </p>
+        </div>
+        
+        <div style="padding: 40px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px; background: white;">
+          <p style="font-size: 16px; line-height: 1.6; color: #374151;">
+            Tebrikler! <strong>"${data.spotTitle}"</strong> başlıklı spot'unuz başarıyla oluşturuldu.
+          </p>
+          
+          <div style="background: #faf5ff; padding: 25px; border-radius: 8px; margin: 30px 0; border: 2px solid #8b5cf6;">
+            <p style="font-size: 18px; font-weight: 600; color: #7c3aed; margin-bottom: 15px; text-align: center;">
+              📋 Spot Detayları
+            </p>
+            <div style="display: grid; grid-template-columns: 1fr; gap: 10px;">
+              <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e5e7eb;">
+                <span style="color: #6b7280;">Başlık:</span>
+                <span style="font-weight: 600; color: #1f2937;">${data.spotTitle}</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e5e7eb;">
+                <span style="color: #6b7280;">Spot ID:</span>
+                <span style="font-weight: 600; color: #1f2937;">${data.spotId}</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e5e7eb;">
+                <span style="color: #6b7280;">Oluşturulma:</span>
+                <span style="color: #1f2937;">${new Date().toLocaleDateString('tr-TR')}</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; padding: 8px 0;">
+                <span style="color: #6b7280;">Durum:</span>
+                <span style="color: #10b981; font-weight: 600;">AKTİF</span>
+              </div>
+            </div>
+          </div>
+          
+          <div style="text-align: center; margin: 40px 0;">
+            <a href="${process.env.NEXT_PUBLIC_SITE_URL}/spots/${data.spotId}" 
+               style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); color: white; padding: 16px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 18px; display: inline-block;">
+               👁️ SPOT'U GÖRÜNTÜLE
+            </a>
+          </div>
+          
+          <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin: 30px 0;">
+            <p style="font-size: 16px; font-weight: 600; color: #1f2937; margin-bottom: 15px;">
+              🕒 Bekleme Sürecinde:
+            </p>
+            <ul style="font-size: 14px; color: #4b5563; padding-left: 20px; line-height: 1.6;">
+              <li>Spot'unuz binlerce kullanıcı tarafından görüntülenecek</li>
+              <li>Ortalama ilk yardım 24 saat içinde gelir</li>
+              <li>Spot detaylarınızı güncelleyebilirsiniz</li>
+              <li>Daha fazla fotoğraf ekleyebilirsiniz</li>
+            </ul>
+          </div>
+          
+          <div style="text-align: center; margin-top: 40px;">
+            <a href="${process.env.NEXT_PUBLIC_SITE_URL}/spots" 
+               style="background: #f3f4f6; color: #374151; padding: 12px 30px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; display: inline-block; margin: 5px;">
+               🔍 Diğer Spot'lar
+            </a>
+            <a href="${process.env.NEXT_PUBLIC_SITE_URL}/create-spot" 
+               style="background: #f3f4f6; color: #374151; padding: 12px 30px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; display: inline-block; margin: 5px;">
+               📝 Yeni Spot Oluştur
+            </a>
+          </div>
+        </div>
+      </div>
+    `
+  }),
+
+  'spot-sighting': (data) => ({
+    subject: `🎯 "${data.spotTitle}" için YENİ YARDIM!`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 40px; text-align: center; border-radius: 10px 10px 0 0;">
+          <h1 style="color: white; margin: 0; font-size: 32px;">🎯 YENİ YARDIM!</h1>
+          <p style="color: white; opacity: 0.9; margin-top: 10px; font-size: 18px;">
+            "${data.spotTitle}" spot'unuz için yardım geldi!
+          </p>
+        </div>
+        
+        <div style="padding: 40px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px; background: white;">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <div style="background: #d1fae5; color: #065f46; width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; font-size: 36px;">
+              👁️
+            </div>
+            <h2 style="color: #1f2937; font-size: 24px; margin: 0;">
+              Birisi Ürününüzü Gördü!
+            </h2>
+          </div>
+          
+          <p style="font-size: 16px; line-height: 1.6; color: #374151; text-align: center;">
+            <strong>${data.spotterName}</strong> adlı topluluk üyemiz, 
+            <strong>"${data.spotTitle}"</strong> spot'unuz için yardım bildirimi gönderdi.
+          </p>
+          
+          ${data.spotterMessage ? `
+            <div style="background: #f0fdf4; padding: 20px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #10b981;">
+              <p style="font-size: 14px; color: #065f46; font-weight: 600; margin-bottom: 10px;">
+                📝 Spotter'ın Notu:
+              </p>
+              <p style="font-size: 16px; color: #065f46; font-style: italic; margin: 0;">
+                "${data.spotterMessage}"
+              </p>
+            </div>
+          ` : ''}
+          
+          ${data.price ? `
+            <div style="background: #fef3c7; padding: 15px; border-radius: 8px; margin: 20px 0; text-align: center;">
+              <p style="font-size: 16px; color: #92400e; margin: 0;">
+                💰 <strong>Görülen Fiyat:</strong> ${data.price} TL
+              </p>
+            </div>
+          ` : ''}
+          
+          ${data.location ? `
+            <div style="background: #e0f2fe; padding: 15px; border-radius: 8px; margin: 20px 0; text-align: center;">
+              <p style="font-size: 16px; color: #0369a1; margin: 0;">
+                📍 <strong>Konum:</strong> ${data.location}
+              </p>
+            </div>
+          ` : ''}
+          
+          <div style="text-align: center; margin: 40px 0;">
+            <a href="${process.env.NEXT_PUBLIC_SITE_URL}/spots/${data.spotId}" 
+               style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 18px 50px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 20px; display: inline-block;">
+               👉 YARDIM DETAYLARINI GÖR
+            </a>
+          </div>
+          
+          <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin: 30px 0;">
+            <p style="font-size: 16px; font-weight: 600; color: #1f2937; margin-bottom: 15px;">
+              🎯 Sonraki Adımlar:
+            </p>
+            <ol style="font-size: 14px; color: #4b5563; padding-left: 20px; line-height: 1.6;">
+              <li>Yardım detaylarını inceleyin</li>
+              <li>Gerekirse spotter ile iletişime geçin</li>
+              <li>Ürünü bulduysanız spot durumunu "BULUNDU" yapın</li>
+              <li>Yardım eden kullanıcıya teşekkür puanı verin</li>
+            </ol>
+          </div>
+          
+          <p style="font-size: 14px; color: #6b7280; text-align: center; margin-top: 30px;">
+            Bu yardım sayesinde ürününüzü bulmanızı umuyoruz! 🤝
+          </p>
+        </div>
+      </div>
+    `
+  }),
+
+  'spot-found': (data) => ({
+    subject: `✅ "${data.spotTitle}" BAŞARIYLA BULUNDU!`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); padding: 40px; text-align: center; border-radius: 10px 10px 0 0;">
+          <h1 style="color: white; margin: 0; font-size: 32px;">✅ BAŞARI HİKAYESİ!</h1>
+          <p style="color: white; opacity: 0.9; margin-top: 10px; font-size: 18px;">
+            "${data.spotTitle}" spot'unuz BULUNDU!
+          </p>
+        </div>
+        
+        <div style="padding: 40px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px; background: white;">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <div style="background: #fed7aa; color: #ea580c; width: 100px; height: 100px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; font-size: 48px;">
+              🎉
+            </div>
+            <h2 style="color: #1f2937; font-size: 28px; margin: 0;">
+              Tebrikler!
+            </h2>
+            <p style="color: #6b7280; font-size: 18px; margin-top: 10px;">
+              Topluluğumuz sayesinde ürününüzü buldunuz
+            </p>
+          </div>
+          
+          <div style="background: #ffedd5; padding: 25px; border-radius: 12px; margin: 30px 0; border: 3px solid #f97316; text-align: center;">
+            <p style="font-size: 20px; color: #ea580c; font-weight: 600; margin: 0;">
+              "${data.spotTitle}"
+            </p>
+            <p style="font-size: 16px; color: #92400e; margin-top: 10px;">
+              başlıklı spot'unuz başarıyla bulundu!
+            </p>
+          </div>
+          
+          ${data.foundBy ? `
+            <div style="text-align: center; margin: 30px 0;">
+              <p style="font-size: 16px; color: #374151; margin-bottom: 10px;">
+                Yardım Eden:
+              </p>
+              <div style="background: #f8fafc; padding: 15px; border-radius: 8px; display: inline-block;">
+                <p style="font-size: 18px; color: #1f2937; font-weight: 600; margin: 0;">
+                  👤 ${data.foundBy}
+                </p>
+              </div>
+            </div>
+          ` : ''}
+          
+          <div style="text-align: center; margin: 40px 0;">
+            <a href="${process.env.NEXT_PUBLIC_SITE_URL}/spots/${data.spotId}" 
+               style="background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); color: white; padding: 18px 50px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 20px; display: inline-block;">
+               🏆 BAŞARI HİKAYESİNİ GÖR
+            </a>
+          </div>
+          
+          <div style="background: #f8fafc; padding: 25px; border-radius: 8px; margin: 30px 0;">
+            <p style="font-size: 18px; font-weight: 600; color: #1f2937; text-align: center; margin-bottom: 20px;">
+              📊 İstatistikleriniz
+            </p>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
+              <div style="text-align: center;">
+                <div style="font-size: 24px; font-weight: 700; color: #f97316;">${data.totalSpots || '1'}</div>
+                <div style="font-size: 12px; color: #6b7280;">Toplam Spot</div>
+              </div>
+              <div style="text-align: center;">
+                <div style="font-size: 24px; font-weight: 700; color: #10b981;">${data.foundSpots || '1'}</div>
+                <div style="font-size: 12px; color: #6b7280;">Bulunan Spot</div>
+              </div>
+            </div>
+          </div>
+          
+          <div style="text-align: center; margin-top: 40px;">
+            <p style="font-size: 16px; color: #374151; margin-bottom: 20px;">
+              Başka ürünler de arıyor musunuz?
+            </p>
+            <a href="${process.env.NEXT_PUBLIC_SITE_URL}/create-spot" 
+               style="background: #f3f4f6; color: #374151; padding: 14px 30px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; display: inline-block;">
+               🚀 YENİ SPOT OLUŞTUR
+            </a>
+          </div>
+        </div>
+      </div>
+    `
+  }),
+
+  // 3. İŞLETME EMAİLLERİ
+  'business-welcome': (data) => ({
+    subject: `🏪 SpotItForMe İş Ortağınız! - ${data.businessName}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); padding: 40px; text-align: center; border-radius: 10px 10x 0 0;">
+          <h1 style="color: white; margin: 0; font-size: 28px;">🏪 İŞ ORTAĞIMIZ OLDUĞUNUZ İÇİN TEŞEKKÜRLER!</h1>
+          <p style="color: white; opacity: 0.9; margin-top: 10px; font-size: 16px;">
+            ${data.businessName} - SpotItForMe İşletme Programı
+          </p>
+        </div>
+        
+        <div style="padding: 40px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px; background: white;">
+          <p style="font-size: 16px; line-height: 1.6; color: #374151;">
+            Sayın <strong>${data.contactName}</strong>,
+          </p>
+          
+          <p style="font-size: 16px; line-height: 1.6; color: #374151; margin-top: 20px;">
+            <strong>${data.businessName}</strong> işletmesini SpotItForMe işletme programına kaydettiğiniz için teşekkür ederiz!
+            Artık binlerce potansiyel müşteriye ulaşabileceksiniz.
+          </p>
+          
+          <div style="background: #eef2ff; padding: 25px; border-radius: 8px; margin: 30px 0; border: 2px solid #6366f1;">
+            <p style="font-size: 18px; font-weight: 600; color: #4f46e5; text-align: center; margin-bottom: 20px;">
+              📋 İşletme Bilgileriniz
+            </p>
+            <div style="display: grid; grid-template-columns: 1fr; gap: 12px;">
+              <div style="display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #c7d2fe;">
+                <span style="color: #4b5563;">İşletme Adı:</span>
+                <span style="font-weight: 600; color: #1f2937;">${data.businessName}</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #c7d2fe;">
+                <span style="color: #4b5563;">Paket:</span>
+                <span style="color: #10b981; font-weight: 600;">${data.plan} PAKET</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #c7d2fe;">
+                <span style="color: #4b5563;">Resim Hakkı:</span>
+                <span style="color: #1f2937;">${data.imageLimit}</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; padding: 10px 0;">
+                <span style="color: #4b5563;">Başlangıç Tarihi:</span>
+                <span style="color: #1f2937;">${new Date().toLocaleDateString('tr-TR')}</span>
+              </div>
+            </div>
+          </div>
+          
+          <div style="text-align: center; margin: 40px 0;">
+            <a href="${process.env.NEXT_PUBLIC_SITE_URL}/dashboard" 
+               style="background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); color: white; padding: 16px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 18px; display: inline-block;">
+               🚀 İŞLETME PANELİNE GİT
+            </a>
+          </div>
+          
+          <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin: 30px 0;">
+            <p style="font-size: 16px; font-weight: 600; color: #1f2937; margin-bottom: 15px;">
+              🎯 İlk Adımlar:
+            </p>
+            <ol style="font-size: 14px; color: #4b5563; padding-left: 20px; line-height: 1.6;">
+              <li>İşletme profilinizi tamamlayın</li>
+              <li>Stoklarınızdaki ürünleri spot olarak ekleyin</li>
+              <li>Mağazanızı haritada görünür yapın</li>
+              <li>Özel kampanyalar oluşturun</li>
+              <li>Müşteri yorumlarını yönetin</li>
+            </ol>
+          </div>
+          
+          <div style="text-align: center; margin-top: 30px;">
+            <p style="font-size: 14px; color: #6b7280;">
+              İşletme destek ekibimiz: 
+              <a href="mailto:business@spotitforme.com" style="color: #6366f1;">business@spotitforme.com</a>
+            </p>
+          </div>
+        </div>
+      </div>
+    `
+  }),
+
+  // 4. SİSTEM EMAİLLERİ
+  'admin-alert': (data) => ({
+    subject: `🚨 ADMIN ALERT: ${data.title}`,
+    html: `
+      <div style="font-family: monospace; max-width: 800px; margin: 0 auto; padding: 20px; background: #0f172a; color: #e2e8f0;">
+        <div style="background: #dc2626; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+          <h1 style="color: white; margin: 0; font-size: 24px; font-family: monospace;">🚨 ADMIN ALERT</h1>
+        </div>
+        
+        <div style="padding: 30px; border: 1px solid #334155; border-top: none; border-radius: 0 0 8px 8px; background: #1e293b;">
+          <div style="background: #475569; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+            <p style="margin: 0; font-size: 18px; font-weight: 600;">${data.title}</p>
+            <p style="margin: 5px 0 0 0; font-size: 14px; color: #cbd5e1;">${new Date().toISOString()}</p>
+          </div>
+          
+          <div style="background: #334155; padding: 20px; border-radius: 4px; margin-bottom: 20px;">
+            <p style="margin: 0 0 10px 0; font-weight: 600;">📋 ALERT DETAILS:</p>
+            <pre style="margin: 0; font-size: 14px; color: #94a3b8; white-space: pre-wrap;">${JSON.stringify(data.details, null, 2)}</pre>
+          </div>
+          
+          <div style="background: #334155; padding: 15px; border-radius: 4px;">
+            <p style="margin: 0 0 10px 0; font-weight: 600;">🔧 SYSTEM INFO:</p>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; font-size: 12px;">
+              <div>
+                <span style="color: #94a3b8;">Environment:</span>
+                <span style="color: #fbbf24; margin-left: 10px;">${process.env.NODE_ENV}</span>
+              </div>
+              <div>
+                <span style="color: #94a3b8;">Timestamp:</span>
+                <span style="color: #fbbf24; margin-left: 10px;">${Date.now()}</span>
+              </div>
+            </div>
+          </div>
+          
+          <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #475569;">
+            <p style="margin: 0; font-size: 12px; color: #94a3b8; text-align: center;">
+              This is an automated alert from SpotItForMe monitoring system.
+            </p>
+          </div>
+        </div>
+      </div>
+    `
+  })
+}
+
+// Helper function to generate text version
+export function generateTextVersion(html: string): string {
+  return html
+    .replace(/<[^>]*>/g, '')
+    .replace(/\s+/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .trim()
+}
+
+────────────────────────────────────────────────────────────────────────────────
+📄 email.ts
+📊 111 satır | 2.99 KB
+────────────────────────────────────────────────────────────────────────────────
+
+// lib/email.ts (GÜNCELLENMİŞ - Ücretsiz versiyon)
+export async function sendSpotCreatedEmail(to: string, spotTitle: string, spotId: string) {
+  try {
+    console.log('📧 Spot oluşturma emaili gönderiliyor:', { to, spotTitle })
+    
+    const response = await fetch('/api/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        to,
+        template: 'spot-created',
+        data: { spotTitle, spotId }
+      })
+    })
+
+    if (!response.ok) {
+      throw new Error(`Email API hatası: ${response.status}`)
+    }
+
+    const result = await response.json()
+    console.log('✅ Email gönderildi:', result)
+    return true
+
+  } catch (error) {
+    console.error('Email gönderilemedi:', error)
+    
+    // Production'da hatayı log'la ama kullanıcıya gösterme
+    if (process.env.NODE_ENV === 'production') {
+      // Hata tracking servisine log'la (Sentry, LogRocket, vb.)
+      console.error('Production email hatası:', error)
+    }
+    
+    return false
+  }
+}
+
+export async function sendSightingNotificationEmail(
+  to: string, 
+  spotTitle: string, 
+  spotterName: string,
+  spotId: string
+) {
+  try {
+    console.log('🎯 Yardım bildirimi emaili:', { to, spotTitle })
+    
+    const response = await fetch('/api/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        to,
+        template: 'sighting-notification',
+        data: { spotTitle, spotterName, spotId }
+      })
+    })
+
+    if (!response.ok) {
+      throw new Error(`Email API hatası: ${response.status}`)
+    }
+
+    const result = await response.json()
+    console.log('✅ Yardım bildirimi gönderildi:', result)
+    return true
+
+  } catch (error) {
+    console.error('Yardım bildirimi gönderilemedi:', error)
+    
+    if (process.env.NODE_ENV === 'production') {
+      console.error('Production yardım bildirimi hatası:', error)
+    }
+    
+    return false
+  }
+}
+
+export async function sendWelcomeEmail(to: string, name: string) {
+  try {
+    console.log('👋 Hoşgeldin emaili:', { to, name })
+    
+    const response = await fetch('/api/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        to,
+        template: 'welcome',
+        data: { name }
+      })
+    })
+
+    if (!response.ok) {
+      throw new Error(`Email API hatası: ${response.status}`)
+    }
+
+    const result = await response.json()
+    console.log('✅ Hoşgeldin emaili gönderildi:', result)
+    return true
+
+  } catch (error) {
+    console.error('Hoşgeldin emaili gönderilemedi:', error)
+    
+    if (process.env.NODE_ENV === 'production') {
+      console.error('Production hoşgeldin emaili hatası:', error)
+    }
+    
+    return false
+  }
+}
+
+// Test email gönderme
+export async function sendTestEmail(to: string) {
+  return sendWelcomeEmail(to, 'Test Kullanıcı')
+}
+
+────────────────────────────────────────────────────────────────────────────────
+📄 gamification\game-engine.ts
+📊 32 satır | 1.30 KB
+────────────────────────────────────────────────────────────────────────────────
+
+// lib/gamification/game-engine.ts
+export class GamificationEngine {
+  // ROZET SİSTEMİ
+  static BADGES = {
+    FIRST_SIGHTING: { id: 'first-sighting', name: 'İlk İz', icon: '👁️', points: 10 },
+    HELPER_LEVEL_1: { id: 'helper-1', name: 'Yardımsever', icon: '🤝', points: 50 },
+    RARE_FINDER: { id: 'rare-finder', name: 'Nadir Avcısı', icon: '🔍', points: 100 },
+    QUICK_RESPONSE: { id: 'quick-response', name: 'Hızlı Tepki', icon: '⚡', points: 25 },
+    SOCIAL_INFLUENCER: { id: 'social-influencer', name: 'Topluluk Lideri', icon: '👑', points: 500 }
+  }
+
+  // SEVİYE SİSTEMİ
+  static LEVELS = [
+    { level: 1, name: 'Yeni Gözcü', minPoints: 0, color: 'gray' },
+    { level: 2, name: 'Aktif Avcı', minPoints: 100, color: 'blue' },
+    { level: 3, name: 'Uzman Bulucu', minPoints: 500, color: 'green' },
+    { level: 4, name: 'Master Dedektif', minPoints: 2000, color: 'purple' },
+    { level: 5, name: 'Efsane Avcı', minPoints: 5000, color: 'gold' }
+  ]
+
+  // PUAN SİSTEMİ
+  static POINT_RULES = {
+    SIGHTING_WITHOUT_PHOTO: 5,
+    SIGHTING_WITH_PHOTO: 15,
+    SIGHTING_WITH_PRICE: 10,
+    RARE_ITEM_REPORT: 25,
+    PURCHASE_FACILITATED: 50,
+    DAILY_LOGIN_STREAK: [5, 10, 15, 20, 25], // 5 gün üst üste
+    SOCIAL_SHARE: 10,
+    PROFILE_COMPLETION: 30
+  }
+}
+
+────────────────────────────────────────────────────────────────────────────────
+📄 imageLimiter.ts
+📊 110 satır | 3.34 KB
+────────────────────────────────────────────────────────────────────────────────
+
+// lib/imageLimiter.ts (GÜNCELLENMİŞ - React hooks olmadan)
+import { supabase } from './supabase'
+
+export interface ImageLimitStatus {
+  canUpload: boolean
+  freeImagesUsed: number
+  freeImagesTotal: number
+  isPremium: boolean
+  message?: string
+}
+
+export async function checkImageLimit(userId: string): Promise<ImageLimitStatus> {
+  try {
+    // 1. Kullanıcının mağazasını kontrol et
+    const { data: shop } = await supabase
+      .from('shops')
+      .select('free_images_used, total_images, subscription_type')
+      .eq('owner_id', userId)
+      .single()
+
+    // 2. Eğer mağaza kaydı yoksa, temel kullanıcı limiti
+    if (!shop) {
+      const { data: userSpots } = await supabase
+        .from('spots')
+        .select('image_url')
+        .eq('user_id', userId)
+        .not('image_url', 'is', null)
+
+      const freeImagesUsed = userSpots?.length || 0
+      const freeImagesTotal = 20 // Temel kullanıcı limiti
+
+      return {
+        canUpload: freeImagesUsed < freeImagesTotal,
+        freeImagesUsed,
+        freeImagesTotal,
+        isPremium: false,
+        message: freeImagesUsed >= freeImagesTotal 
+          ? `Resim limitiniz doldu. ${freeImagesUsed}/${freeImagesTotal} resim kullandınız.`
+          : undefined
+      }
+    }
+
+    // 3. Mağaza için limit kontrolü
+    const { free_images_used, total_images, subscription_type } = shop
+    const isPremium = subscription_type !== 'free'
+    
+    return {
+      canUpload: isPremium || free_images_used < total_images,
+      freeImagesUsed: free_images_used,
+      freeImagesTotal: total_images,
+      isPremium,
+      message: !isPremium && free_images_used >= total_images
+        ? `Ücretsiz resim hakkınız doldu. ${free_images_used}/${total_images} resim kullandınız. Premium paketlere yükselin.`
+        : undefined
+    }
+
+  } catch (error) {
+    console.error('Resim limit kontrol hatası:', error)
+    return {
+      canUpload: true, // Hata durumunda upload'a izin ver
+      freeImagesUsed: 0,
+      freeImagesTotal: 20,
+      isPremium: false
+    }
+  }
+}
+
+export async function incrementImageCount(userId: string): Promise<void> {
+  try {
+    // Mağaza kaydı var mı?
+    const { data: shop } = await supabase
+      .from('shops')
+      .select('id, free_images_used')
+      .eq('owner_id', userId)
+      .single()
+
+    if (shop) {
+      // Mağaza resim sayacını artır
+      await supabase
+        .from('shops')
+        .update({ free_images_used: (shop.free_images_used || 0) + 1 })
+        .eq('id', shop.id)
+    }
+    // Temel kullanıcılar için sayacı tutmuyoruz
+  } catch (error) {
+    console.error('Resim sayacı artırma hatası:', error)
+  }
+}
+
+export async function decrementImageCount(userId: string): Promise<void> {
+  try {
+    const { data: shop } = await supabase
+      .from('shops')
+      .select('id, free_images_used')
+      .eq('owner_id', userId)
+      .single()
+
+    if (shop && shop.free_images_used > 0) {
+      await supabase
+        .from('shops')
+        .update({ free_images_used: Math.max(0, shop.free_images_used - 1) })
+        .eq('id', shop.id)
+    }
+  } catch (error) {
+    console.error('Resim sayacı azaltma hatası:', error)
+  }
+}
+
+// Resim limit kontrolü için React component'i ayrı bir dosyada olsun
+// components/ImageLimitChecker.tsx olarak oluşturalım
+
+────────────────────────────────────────────────────────────────────────────────
+📄 messaging\disclaimer.ts
+📊 81 satır | 3.11 KB
+────────────────────────────────────────────────────────────────────────────────
+
+// lib/messaging/disclaimer.ts
+export const MESSAGING_DISCLAIMERS = {
+  // Tüm mesajlaşmalarda gösterilecek uyarı
+  GENERAL_DISCLAIMER: {
+    title: "⚠️ Önemli Güvenlik Uyarısı",
+    content: `SpotItForMe bir mesajlaşma platformu sağlar ancak:
+
+1. 🚫 **Platform dışı ödemelerden sorumlu değiliz**
+2. 🛡️ Kişisel bilgilerinizi (TCKN, kredi kartı, şifre) paylaşmayın
+3. 🔍 Karşı tarafı doğrulamak için profil bilgilerini kontrol edin
+4. 📞 Şüpheli durumlarda bize bildirin
+
+Platformumuz sadece iletişim amaçlıdır. Tüm alışveriş işlemleri tarafların sorumluluğundadır.`
+  },
+
+  // Mutabakat formu disclaimer'ı
+  TRADE_AGREEMENT_DISCLAIMER: `**SORUMLULUK REDDİ BEYANI**
+
+Bu mutabakat formu SpotItForMe platformu tarafından sağlanan bir araçtır. Ancak:
+
+1. SpotItForMe bu anlaşmanın tarafları DEĞİLDİR
+2. Ödeme, teslimat veya anlaşmazlıklarda arabuluculuk YAPMAYIZ
+3. Taraflar kendi aralarında güvenli işlem yapmakla YÜKÜMLÜDÜR
+4. Platform sadece iletişim ve belge kaydı sağlar
+
+✅ Bu formu kabul ederek yukarıdaki şartları kabul etmiş olursunuz.`,
+
+  // Güvenlik ipuçları
+  SAFETY_TIPS: [
+    "Yerel buluşmaları halka açık, güvenli yerlerde yapın",
+    "Ön ödeme talep edenlere dikkat edin",
+    "Ürünü görmeden, teslimat almadan ödeme yapmayın",
+    "Resmi fatura veya garanti belgesi isteyin",
+    "Şüpheli durumları platform@spotitforme.com'a bildirin"
+  ]
+}
+
+// Güvenlik kontrol fonksiyonları
+export class MessagingSecurity {
+  // Kullanıcıları otomatik olarak şüpheli içerik için tarar
+  static scanMessageForRisks(content: string): {
+    riskLevel: 'low' | 'medium' | 'high'
+    warnings: string[]
+    blocked: boolean
+  } {
+    const warnings: string[] = []
+    let riskLevel: 'low' | 'medium' | 'high' = 'low'
+    
+    const riskyPatterns = [
+      { pattern: /\b(TCKN|kimlik|numara)\b/i, warning: 'Kişisel bilgi paylaşımı' },
+      { pattern: /\b(kredi.?kartı|kart.?numarası)\b/i, warning: 'Finansal bilgi paylaşımı' },
+      { pattern: /\b(ön.?ödeme|havale|eft)\b.*\b(acil|hemen|şimdi)\b/i, warning: 'Acil ödeme talebi' },
+      { pattern: /\b(dışarıda|sokakta|ıssız)\b.*\b(buluş|teslim)\b/i, warning: 'Güvensiz buluşma önerisi' },
+      { pattern: /(http|https):\/\/[^\s]+(bank|ödeme|transfer)/i, warning: 'Şüpheli ödeme linki' }
+    ]
+    
+    for (const { pattern, warning } of riskyPatterns) {
+      if (pattern.test(content)) {
+        warnings.push(warning)
+        riskLevel = riskLevel === 'low' ? 'medium' : 'high'
+      }
+    }
+    
+    // Çok sayıda uyarı varsa blokla
+    const blocked = warnings.length >= 3
+    
+    return { riskLevel, warnings, blocked }
+  }
+  
+  // Kullanıcı güvenlik skoru
+  static calculateUserTrustScore(userId: string): Promise<number> {
+    // Bu fonksiyon kullanıcının:
+    // - Doğrulanmış email/telefon
+    // - Profil tamamlama oranı
+    // - Geçmiş işlemleri
+    // - Diğer kullanıcılardan aldığı puanlar
+    // baz alınarak hesaplanır
+    
+    return Promise.resolve(70) // Örnek değer
+  }
+}
+
+────────────────────────────────────────────────────────────────────────────────
+📄 messaging\legal.ts
+📊 43 satır | 1.74 KB
+────────────────────────────────────────────────────────────────────────────────
+
+// lib/messaging/legal.ts
+export const LEGAL_COMPLIANCE = {
+  // KVKK/GDPR uyumu
+  DATA_PROTECTION: {
+    messageRetentionDays: 365, // Mesajlar 1 yıl saklanır
+    autoDeleteAfterInactivity: 730, // 2 yıl hareketsiz kalırsa silinir
+    userRightToDelete: true, // Kullanıcı mesajlarını silebilir
+    dataExportEnabled: true // Kullanıcı verilerini dışa aktarabilir
+  },
+
+  // Türkiye yasaları
+  TURKISH_LAW: {
+    law5651: true, // İnternet ortamında yapılan yayınların düzenlenmesi
+    eSignatureLaw: false, // Mutabakat formları e-imza değildir
+    consumerProtection: {
+      applies: false, // B2B olduğu için Tüketici Koruma Kanunu uygulanmaz
+      note: 'Platform sadece iletişim sağlar, satış yapmaz'
+    }
+  },
+
+  // Uluslararası düzenlemeler
+  INTERNATIONAL: {
+    dmcaCompliant: true,
+    safeHarbor: true,
+    reportAbuseEmail: 'abuse@spotitforme.com',
+    lawEnforcementContact: 'legal@spotitforme.com'
+  }
+}
+
+// Kullanım şartları snippet'leri
+export const TERMS_SNIPPETS = {
+  MESSAGING: `6. MESAJLAŞMA HİZMETİ
+6.1. Platform kullanıcılar arasında mesajlaşma imkanı sağlar.
+6.2. Mesaj içeriklerinden kullanıcılar sorumludur.
+6.3. Platform dışı işlemlerde (ödeme, teslimat) hiçbir sorumluluk kabul edilmez.
+6.4. Şüpheli içerikler 5651 Sayılı Kanun gereği saklanır ve yetkililere bildirilir.`,
+
+  TRADE: `7. PLATFORM DIŞI İŞLEMLER
+7.1. Kullanıcılar platform dışında yaptıkları tüm işlemlerden kendileri sorumludur.
+7.2. Mutabakat formları sadece kayıt amaçlıdır, yasal bağlayıcılığı yoktur.
+7.3. Ödeme ve teslimat anlaşmazlıklarında platform arabuluculuk yapmaz.
+7.4. Dolandırıcılık şüphesi durumunda ilgili makamlara bilgi verilir.`
+}
+
+────────────────────────────────────────────────────────────────────────────────
+📄 shop\analytics.ts
+📊 56 satır | 1.30 KB
+────────────────────────────────────────────────────────────────────────────────
+
+// lib/shop/analytics.ts
+export const shopAnalyticsEvents = {
+  // Mağaza görüntüleme
+  SHOP_VIEWED: 'shop_viewed',
+  PRODUCT_VIEWED: 'product_viewed',
+  SEARCH_VIEWED: 'search_viewed',
+  
+  // Engagement
+  SHOP_FOLLOWED: 'shop_followed',
+  PRODUCT_INQUIRY: 'product_inquiry',
+  SEARCH_MATCH_CLICKED: 'search_match_clicked',
+  
+  // Conversion
+  CONTACT_CLICKED: 'contact_clicked',
+  DIRECT_MESSAGE_SENT: 'direct_message_sent',
+  
+  // Monetization
+  PREMIUM_UPGRADE: 'premium_upgrade',
+  FEATURED_PRODUCT: 'featured_product_purchased',
+  PROMOTION_PURCHASED: 'promotion_purchased'
+}
+
+// Premium özellikler
+export const shopPremiumFeatures = {
+  BASIC: {
+    price: 0,
+    features: [
+      '5 aktif arama',
+      '50 ürün listesi',
+      'Temel eşleşme sistemi',
+      'Email bildirimleri'
+    ]
+  },
+  PRO: {
+    price: 99,
+    features: [
+      '20 aktif arama',
+      '200 ürün listesi',
+      'Gelişmiş eşleşme algoritması',
+      'Öncelikli destek',
+      'Analytics dashboard',
+      'Özel mağaza teması'
+    ]
+  },
+  BUSINESS: {
+    price: 299,
+    features: [
+      '100 aktif arama',
+      '1000 ürün listesi',
+      'AI destekli eşleşme',
+      'API erişimi',
+      'Çoklu kullanıcı hesabı',
+      'Özel entegrasyonlar'
+    ]
+  }
+}
+
+────────────────────────────────────────────────────────────────────────────────
+📄 shop\optimizations.ts
+📊 31 satır | 0.77 KB
+────────────────────────────────────────────────────────────────────────────────
+
+// lib/shop/optimizations.ts
+export const shopOptimizations = {
+  // Cache strategies
+  CACHE_KEYS: {
+    SHOP_PROFILE: (shopId: string) => `shop:${shopId}:profile`,
+    SHOP_INVENTORY: (shopId: string) => `shop:${shopId}:inventory`,
+    SHOP_SEARCHES: (shopId: string) => `shop:${shopId}:searches`,
+    SHOP_MATCHES: (shopId: string) => `shop:${shopId}:matches`
+  },
+
+  // Pagination
+  PAGINATION: {
+    INVENTORY_PER_PAGE: 12,
+    SEARCHES_PER_PAGE: 10,
+    MATCHES_PER_PAGE: 20
+  },
+
+  // Image optimization
+  IMAGE_SIZES: {
+    THUMBNAIL: 'w_300,h_300,c_fill',
+    PRODUCT: 'w_800,h_800,c_limit',
+    GALLERY: 'w_1200,h_1200,c_limit'
+  },
+
+  // Search/match optimization
+  MATCH_ALGORITHM: {
+    BATCH_SIZE: 100,
+    MIN_SCORE: 50,
+    REINDEX_HOURS: 24
+  }
+}
+
+────────────────────────────────────────────────────────────────────────────────
+📄 social\optimizations.ts
+📊 26 satır | 0.53 KB
+────────────────────────────────────────────────────────────────────────────────
+
+// lib/social/optimizations.ts
+export const socialOptimizations = {
+  // Image optimization
+  IMAGE_SIZES: {
+    thumbnail: 'w_200,h_200,c_fill',
+    feed: 'w_1080,h_1080,c_limit',
+    story: 'w_1080,h_1920,c_fill'
+  },
+
+  // Lazy loading
+  LAZY_THRESHOLD: 0.1, // Intersection Observer threshold
+  
+  // Caching
+  CACHE_TTL: {
+    feed: 60, // 1 dakika
+    comments: 30, // 30 saniye
+    profile: 300 // 5 dakika
+  },
+
+  // Batch operations
+  BATCH_SIZES: {
+    comments: 20,
+    notifications: 50,
+    feed: 10
+  }
+}
+
+────────────────────────────────────────────────────────────────────────────────
+📄 supabase\client.ts
+📊 19 satır | 0.44 KB
+────────────────────────────────────────────────────────────────────────────────
+
+// lib/supabase/client.ts
+import { createClient } from '@supabase/supabase-js'
+
+export function createBrowserClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true
+      }
+    }
+  )
+}
+
+// Default instance
+export const supabase = createBrowserClient()
+
+────────────────────────────────────────────────────────────────────────────────
+📄 supabase\index.ts
+📊 9 satır | 0.29 KB
+────────────────────────────────────────────────────────────────────────────────
+
+// lib/supabase/index.ts
+// Client-side için (browser)
+export { createBrowserClient, supabase } from './client'
+
+// Server-side için (server components, API routes)
+export { createServerClient } from './server'
+
+// Type re-export
+export type { SupabaseClient } from '@supabase/supabase-js'
+
+────────────────────────────────────────────────────────────────────────────────
+📄 supabase\server.ts
+📊 14 satır | 0.38 KB
+────────────────────────────────────────────────────────────────────────────────
+
+// lib/supabase/server.ts - DÜZELTİLMİŞ (isim değişikliği)
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
+
+export function createServerClient() {
+  return createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      auth: {
+        persistSession: false,
+      }
+    }
+  )
+}
+
+────────────────────────────────────────────────────────────────────────────────
+📄 supabase.ts
+📊 13 satır | 0.36 KB
+────────────────────────────────────────────────────────────────────────────────
+
+// lib/supabase.ts - Güncellenmiş versiyon
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+
+export const supabase = createClient(supabaseUrl, supabaseKey, {
+  realtime: {
+    params: {
+      eventsPerSecond: 10
+    }
+  }
+})
+
+────────────────────────────────────────────────────────────────────────────────
+📄 types\admin.ts
+📊 32 satır | 0.63 KB
+────────────────────────────────────────────────────────────────────────────────
+
+// lib/types/admin.ts
+export interface AdUnit {
+  id: string
+  name: string
+  type: 'display' | 'in-article' | 'in-feed' | 'video'
+  size: string
+  position: string
+  status: 'active' | 'paused' | 'pending'
+  revenue: number
+  impressions: number
+  clicks: number
+  ctr: number
+  created_at: string
+}
+
+export interface AdSenseConfig {
+  clientId: string
+  isActive: boolean
+  autoAds: boolean
+  adUnits: AdUnit[]
+  lastSync: string
+}
+
+export interface AdminStats {
+  totalUsers: number
+  totalSpots: number
+  totalShops: number
+  activeUsers: number
+  revenue: number
+  adRevenue: number
+  conversionRate: number
+}
+
+────────────────────────────────────────────────────────────────────────────────
+📄 types.ts
+📊 50 satır | 1.02 KB
+────────────────────────────────────────────────────────────────────────────────
+
+// lib/types.ts
+export interface Spot {
+  id: string
+  user_id: string
+  title: string
+  description: string
+  category: string | null
+  location: string | null
+  image_url: string | null
+  status: 'active' | 'found'
+  views: number
+  helps: number
+  created_at: string
+  updated_at: string
+}
+
+export interface Sighting {
+  id: string
+  spot_id: string
+  spotter_id: string
+  image_url: string | null
+  location_description: string
+  price: number | null
+  notes: string | null
+  created_at: string
+}
+
+export interface UserProfile {
+  id: string
+  email: string
+  name: string | null
+  avatar_url: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface Shop {
+  id: string
+  owner_id: string
+  shop_name: string
+  description: string | null
+  address: string | null
+  city: string | null
+  phone: string | null
+  website: string | null
+  free_images_used: number
+  total_images: number
+  subscription_type: 'free' | 'pro' | 'business' | 'enterprise'
+  created_at: string
+}
+
+================================================================================
+📊 ÖZET BİLGİLER
+================================================================================
+📁 Dizin: lib
+📄 Toplam Dosya: 22
+📊 Toplam Satır: 2.149
+💾 Toplam Boyut: 0.08 MB
+📅 Oluşturulma: 15.02.2026 03:40:23
+================================================================================
