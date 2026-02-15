@@ -66,11 +66,7 @@
     ├── 📁 [id]
     │   └── 📄 page.tsx
     └── 📄 page.tsx
-├── 📁 reputation
-    └── 📄 page.tsx
 ├── 📁 reset-password
-    └── 📄 page.tsx
-├── 📁 settings
     └── 📄 page.tsx
 ├── 📁 shop
     ├── 📁 [id]

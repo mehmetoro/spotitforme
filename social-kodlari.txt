@@ -1,0 +1,2813 @@
+================================================================================
+📦 COMPONENTS/SOCIAL DİZİNİ - TÜM KOD DOSYALARI
+📅 15.02.2026 04:33:49
+📊 Toplam Dosya: 14
+================================================================================
+
+
+────────────────────────────────────────────────────────────────────────────────
+📄 CommentsSection.tsx
+📊 378 satır | 12.00 KB
+────────────────────────────────────────────────────────────────────────────────
+
+// components/social/CommentsSection.tsx
+'use client'
+
+import { useState, useEffect, useRef } from 'react'
+import { supabase } from '@/lib/supabase'
+import { Send, Heart, MoreVertical, Smile } from 'lucide-react'
+
+interface CommentsSectionProps {
+  postId: string
+  initialComments?: any[]
+  onClose?: () => void
+  autoFocus?: boolean
+}
+
+export default function CommentsSection({ 
+  postId, 
+  initialComments = [], 
+  onClose,
+  autoFocus = false 
+}: CommentsSectionProps) {
+  const [comments, setComments] = useState<any[]>(initialComments)
+  const [newComment, setNewComment] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [replyingTo, setReplyingTo] = useState<string | null>(null)
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+  
+  const commentsEndRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    if (initialComments.length === 0) {
+      fetchComments()
+    }
+  }, [postId])
+
+  useEffect(() => {
+    scrollToBottom()
+  }, [comments])
+
+  const fetchComments = async () => {
+    try {
+      const { data } = await supabase
+        .from('social_comments')
+        .select(`
+          *,
+          user:user_profiles(*)
+        `)
+        .eq('post_id', postId)
+        .order('created_at', { ascending: true })
+
+      setComments(data || [])
+    } catch (error) {
+      console.error('Yorumlar yüklenemedi:', error)
+    }
+  }
+
+  const scrollToBottom = () => {
+    commentsEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  const handleSubmitComment = async () => {
+    if (!newComment.trim()) return
+
+    setLoading(true)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        alert('Yorum yapmak için giriş yapmalısınız')
+        return
+      }
+
+      const { data: comment, error } = await supabase
+        .from('social_comments')
+        .insert({
+          post_id: postId,
+          user_id: user.id,
+          content: newComment,
+          parent_id: replyingTo || null
+        })
+        .select(`
+          *,
+          user:user_profiles(*)
+        `)
+        .single()
+
+      if (error) throw error
+
+      // Yeni yorumu listeye ekle
+      setComments(prev => [...prev, comment])
+      setNewComment('')
+      setReplyingTo(null)
+
+      // Bildirim gönder (post sahibine)
+      const postOwnerId = comments[0]?.post?.user_id || postId
+      if (postOwnerId !== user.id) {
+        await supabase.from('social_notifications').insert({
+          user_id: postOwnerId,
+          type: 'comment',
+          actor_id: user.id,
+          post_id: postId,
+          message: 'paylaşımına yorum yaptı'
+        })
+      }
+
+      // Emoji picker'ı kapat
+      setShowEmojiPicker(false)
+
+    } catch (error) {
+      console.error('Yorum gönderme hatası:', error)
+      alert('Yorum gönderilemedi')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleLikeComment = async (commentId: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      // Beğeni işlemi (like/unlike)
+      const existingLike = comments.find(c => c.id === commentId)?.liked_by_user
+      
+      if (existingLike) {
+        // Beğeniyi kaldır
+        await supabase
+          .from('comment_likes')
+          .delete()
+          .eq('comment_id', commentId)
+          .eq('user_id', user.id)
+      } else {
+        // Beğen
+        await supabase
+          .from('comment_likes')
+          .insert({
+            comment_id: commentId,
+            user_id: user.id
+          })
+      }
+
+      // UI güncelle
+      setComments(prev => prev.map(comment => {
+        if (comment.id === commentId) {
+          return {
+            ...comment,
+            like_count: existingLike ? comment.like_count - 1 : comment.like_count + 1,
+            liked_by_user: !existingLike
+          }
+        }
+        return comment
+      }))
+
+    } catch (error) {
+      console.error('Yorum beğenme hatası:', error)
+    }
+  }
+
+  const handleReply = (commentId: string, username: string) => {
+    setReplyingTo(commentId)
+    setNewComment(`@${username} `)
+    inputRef.current?.focus()
+  }
+
+  const addEmoji = (emoji: string) => {
+    setNewComment(prev => prev + emoji)
+    setShowEmojiPicker(false)
+  }
+
+  const emojis = ['😊', '😍', '😂', '😮', '😢', '👍', '❤️', '🔥', '🎉', '👏']
+
+  const renderComment = (comment: any, isChild = false) => {
+    const childComments = comments.filter(c => c.parent_id === comment.id)
+    
+    return (
+      <div key={comment.id} className={`${isChild ? 'ml-8' : ''}`}>
+        <div className={`flex space-x-3 ${isChild ? 'mt-3' : 'mt-4'}`}>
+          {/* Avatar */}
+          <div className="flex-shrink-0">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 overflow-hidden">
+              {comment.user?.avatar_url ? (
+                <img
+                  src={comment.user.avatar_url}
+                  alt={comment.user?.name}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-white text-sm font-bold">
+                  {comment.user?.name?.[0] || 'K'}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* İçerik */}
+          <div className="flex-1">
+            <div className="bg-gray-100 rounded-2xl rounded-tl-none p-3">
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center space-x-2">
+                  <span className="font-bold text-sm">{comment.user?.name || 'Kullanıcı'}</span>
+                  <span className="text-xs text-gray-500">
+                    {new Date(comment.created_at).toLocaleTimeString('tr-TR', {
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </span>
+                </div>
+                
+                <div className="relative">
+                  <button
+                    onClick={() => console.log('comment menu')}
+                    className="p-1 hover:bg-gray-200 rounded-full"
+                  >
+                    <MoreVertical className="w-3 h-3 text-gray-500" />
+                  </button>
+                </div>
+              </div>
+
+              <p className="text-gray-800 text-sm whitespace-pre-line">
+                {comment.content}
+              </p>
+            </div>
+
+            {/* Aksiyonlar */}
+            <div className="flex items-center space-x-4 mt-2 ml-3">
+              <button
+                onClick={() => handleLikeComment(comment.id)}
+                className={`text-xs flex items-center space-x-1 ${
+                  comment.liked_by_user ? 'text-red-600' : 'text-gray-500'
+                }`}
+              >
+                <Heart className="w-3 h-3" />
+                <span>{comment.like_count || 0}</span>
+              </button>
+              
+              <button
+                onClick={() => handleReply(comment.id, comment.user?.name)}
+                className="text-xs text-gray-500 hover:text-gray-700"
+              >
+                Yanıtla
+              </button>
+              
+              {!isChild && childComments.length > 0 && (
+                <button className="text-xs text-blue-600">
+                  {childComments.length} yanıt
+                </button>
+              )}
+            </div>
+
+            {/* Alt yorumlar */}
+            {childComments.length > 0 && (
+              <div className="mt-3">
+                {childComments.map(child => renderComment(child, true))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="border-t border-gray-100">
+      {/* Yorumlar listesi */}
+      <div className="max-h-80 overflow-y-auto px-6 py-4">
+        {comments.length === 0 ? (
+          <div className="text-center py-8">
+            <div className="text-3xl mb-3">💬</div>
+            <p className="text-gray-600">Henüz yorum yok</p>
+            <p className="text-sm text-gray-500 mt-1">İlk yorumu sen yap!</p>
+          </div>
+        ) : (
+          <div>
+            {comments
+              .filter(comment => !comment.parent_id) // Sadece parent yorumlar
+              .map(comment => renderComment(comment, false))}
+          </div>
+        )}
+        
+        <div ref={commentsEndRef} />
+      </div>
+
+      {/* Yanıtlama durumu */}
+      {replyingTo && (
+        <div className="px-6 py-2 bg-blue-50 flex items-center justify-between">
+          <div className="text-sm text-blue-700">
+            Yanıtlanıyor: @{comments.find(c => c.id === replyingTo)?.user?.name}
+          </div>
+          <button
+            onClick={() => setReplyingTo(null)}
+            className="text-sm text-gray-500 hover:text-gray-700"
+          >
+            × İptal
+          </button>
+        </div>
+      )}
+
+      {/* Yorum input */}
+      <div className="px-6 py-4 border-t border-gray-100">
+        <div className="flex space-x-3">
+          {/* Emoji picker */}
+          <div className="relative">
+            <button
+              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+              className="p-2 hover:bg-gray-100 rounded-full"
+            >
+              <Smile className="w-5 h-5 text-gray-500" />
+            </button>
+
+            {showEmojiPicker && (
+              <div className="absolute bottom-full left-0 mb-2 bg-white rounded-xl shadow-lg border p-2 grid grid-cols-5 gap-1 z-50">
+                {emojis.map(emoji => (
+                  <button
+                    key={emoji}
+                    onClick={() => addEmoji(emoji)}
+                    className="w-8 h-8 hover:bg-gray-100 rounded flex items-center justify-center text-lg"
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Textarea */}
+          <div className="flex-1">
+            <textarea
+              ref={inputRef}
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              placeholder="Yorum ekle..."
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+              rows={2}
+              autoFocus={autoFocus}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  handleSubmitComment()
+                }
+              }}
+            />
+          </div>
+
+          {/* Gönder butonu */}
+          <button
+            onClick={handleSubmitComment}
+            disabled={loading || !newComment.trim()}
+            className="self-end bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? (
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+            ) : (
+              <Send className="w-5 h-5" />
+            )}
+          </button>
+        </div>
+
+        {/* Yorum ipuçları */}
+        <div className="mt-3 text-xs text-gray-500">
+          • Enter ile gönder, Shift+Enter ile yeni satır<br />
+          • @kullanıcı ile etiketleyebilirsin<br />
+          • Nazik ve yardımsever olalım
+        </div>
+      </div>
+
+      {/* Kapatma butonu (mobile için) */}
+      {onClose && (
+        <div className="px-6 py-3 border-t border-gray-100 text-center">
+          <button
+            onClick={onClose}
+            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+          >
+            Yorumları Kapat
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+────────────────────────────────────────────────────────────────────────────────
+📄 CreatePostButton.tsx
+📊 48 satır | 1.63 KB
+────────────────────────────────────────────────────────────────────────────────
+
+// components/social/CreatePostButton.tsx
+'use client'
+
+import { useState } from 'react'
+import CreatePostModal from './CreatePostModal'
+
+export default function CreatePostButton({ variant = 'default' }: { variant?: 'default' | 'primary' }) {
+  const [showModal, setShowModal] = useState(false)
+
+  if (variant === 'primary') {
+    return (
+      <>
+        <button
+          onClick={() => setShowModal(true)}
+          className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white font-bold py-3 px-6 rounded-lg hover:from-blue-600 hover:to-purple-700 transition"
+        >
+          📝 Yeni Paylaşım
+        </button>
+        
+        <CreatePostModal
+                isOpen={showModal}
+                onClose={() => setShowModal(false)} onPostCreated={function (): void {
+                    throw new Error('Function not implemented.')
+                } }        />
+      </>
+    )
+  }
+
+  return (
+    <>
+      <button
+        onClick={() => setShowModal(true)}
+        className="fixed bottom-6 right-6 z-40 bg-gradient-to-r from-blue-500 to-purple-600 text-white p-4 rounded-full shadow-2xl hover:shadow-3xl transition-all hover:scale-110"
+      >
+        <div className="flex items-center space-x-2">
+          <span className="text-2xl">✏️</span>
+          <span className="font-bold hidden md:inline">Paylaş</span>
+        </div>
+      </button>
+      
+      <CreatePostModal
+              isOpen={showModal}
+              onClose={() => setShowModal(false)} onPostCreated={function (): void {
+                  throw new Error('Function not implemented.')
+              } }      />
+    </>
+  )
+}
+
+────────────────────────────────────────────────────────────────────────────────
+📄 CreatePostModal.tsx
+📊 453 satır | 16.98 KB
+────────────────────────────────────────────────────────────────────────────────
+
+// components/social/CreatePostModal.tsx
+'use client'
+
+import { useState, useRef } from 'react'
+import { supabase } from '@/lib/supabase'
+import ImageUpload from '../ImageUpload'
+import HashtagInput from './HashtagInput'
+import LocationPicker from './LocationPicker'
+
+interface CreatePostModalProps {
+  isOpen: boolean
+  onClose: () => void
+  onPostCreated: () => void
+}
+
+export default function CreatePostModal({ 
+  isOpen, 
+  onClose, 
+  onPostCreated 
+}: CreatePostModalProps) {
+  const [step, setStep] = useState(1)
+  const [loading, setLoading] = useState(false)
+  const [postData, setPostData] = useState({
+    type: 'sighting',
+    caption: '',
+    location: '',
+    category: '',
+    hashtags: [] as string[],
+    isPublic: true,
+    images: [] as File[]
+  })
+
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleImageUpload = (files: File[]) => {
+    setPostData({ ...postData, images: [...postData.images, ...files] })
+  }
+
+  const removeImage = (index: number) => {
+    setPostData({
+      ...postData,
+      images: postData.images.filter((_, i) => i !== index)
+    })
+  }
+
+  const handleHashtagAdd = (hashtag: string) => {
+    if (!postData.hashtags.includes(hashtag)) {
+      setPostData({
+        ...postData,
+        hashtags: [...postData.hashtags, hashtag]
+      })
+    }
+  }
+
+  const handleHashtagRemove = (hashtag: string) => {
+    setPostData({
+      ...postData,
+      hashtags: postData.hashtags.filter(h => h !== hashtag)
+    })
+  }
+
+  const handleSubmit = async () => {
+    setLoading(true)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Kullanıcı girişi gerekli')
+
+      // 1. Resimleri yükle
+      const imageUrls: string[] = []
+      for (const file of postData.images) {
+        const fileExt = file.name.split('.').pop()
+        const fileName = `${user.id}/social/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
+        
+        const { error: uploadError } = await supabase.storage
+          .from('spot-images')
+          .upload(fileName, file)
+
+        if (uploadError) throw uploadError
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('spot-images')
+          .getPublicUrl(fileName)
+
+        imageUrls.push(publicUrl)
+      }
+
+      // 2. Post'u oluştur
+      const { error: postError } = await supabase
+        .from('social_posts')
+        .insert({
+          user_id: user.id,
+          type: postData.type,
+          caption: postData.caption,
+          location: postData.location,
+          category: postData.category,
+          image_urls: imageUrls,
+          hashtags: postData.hashtags.map(tag => `#${tag.replace('#', '')}`),
+          is_public: postData.isPublic
+        })
+
+      if (postError) throw postError
+
+      // 3. Puan ver (gamification)
+      await supabase.rpc('add_user_points', {
+        user_id: user.id,
+        points_to_add: 10 + (postData.images.length * 5), // 10 puan + resim başına 5 puan
+        activity_type: 'social_post'
+      })
+
+      // 4. Başarılı
+      alert('🎉 Paylaşımınız yayınlandı! Puan kazandınız.')
+      onPostCreated()
+      onClose()
+      
+      // Formu temizle
+      setPostData({
+        type: 'sighting',
+        caption: '',
+        location: '',
+        category: '',
+        hashtags: [],
+        isPublic: true,
+        images: []
+      })
+      setStep(1)
+
+    } catch (error) {
+      console.error('Post oluşturma hatası:', error)
+      alert('Bir hata oluştu. Lütfen tekrar deneyin.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (!isOpen) return null
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
+        {/* Header */}
+        <div className="border-b p-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold text-gray-900">Yeni Paylaşım</h2>
+            <button
+              onClick={onClose}
+              className="text-gray-500 hover:text-gray-700 text-2xl"
+            >
+              ×
+            </button>
+          </div>
+          
+          {/* Step indicator */}
+          <div className="flex mt-4">
+            {[1, 2, 3].map((stepNum) => (
+              <div key={stepNum} className="flex-1">
+                <div className={`h-1 rounded-full ${
+                  step >= stepNum ? 'bg-blue-600' : 'bg-gray-200'
+                }`}></div>
+                <p className="text-xs text-center mt-2">
+                  {stepNum === 1 ? 'Medya' : stepNum === 2 ? 'Detaylar' : 'Paylaş'}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="p-6 overflow-y-auto max-h-[60vh]">
+          {step === 1 && (
+            <div>
+              <h3 className="text-lg font-bold mb-4">Medya Ekle</h3>
+              
+              {/* Image upload area */}
+              <div 
+                className="border-2 border-dashed border-gray-300 rounded-2xl p-8 text-center cursor-pointer hover:border-blue-400 transition"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {postData.images.length === 0 ? (
+                  <>
+                    <div className="text-4xl mb-4">📸</div>
+                    <p className="font-medium text-gray-700">Fotoğraf veya video yükleyin</p>
+                    <p className="text-sm text-gray-500 mt-2">
+                      Sürükle bırak veya tıkla
+                    </p>
+                  </>
+                ) : (
+                  <div className="grid grid-cols-3 gap-4">
+                    {postData.images.map((image, index) => (
+                      <div key={index} className="relative">
+                        <img
+                          src={URL.createObjectURL(image)}
+                          alt={`Preview ${index}`}
+                          className="w-full h-32 object-cover rounded-lg"
+                        />
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            removeImage(index)
+                          }}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white w-6 h-6 rounded-full"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                    <div 
+                      className="border-2 border-dashed border-gray-300 rounded-lg h-32 flex items-center justify-center"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <span className="text-2xl">+</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <input
+                type="file"
+                ref={fileInputRef}
+                multiple
+                accept="image/*,video/*"
+                onChange={(e) => {
+                  if (e.target.files) {
+                    handleImageUpload(Array.from(e.target.files))
+                  }
+                }}
+                className="hidden"
+              />
+
+              <div className="mt-6">
+                <h4 className="font-medium mb-3">Paylaşım Türü</h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {[
+                    { value: 'sighting', label: '👁️ Gördüm', desc: 'Nadir ürün gördüm' },
+                    { value: 'collection', label: '🏆 Koleksiyon', desc: 'Koleksiyonumu paylaşıyorum' },
+                    { value: 'question', label: '❓ Soru', desc: 'Bu nedir?' },
+                    { value: 'showcase', label: '✨ Vitrin', desc: 'Ürünümü sergiliyorum' }
+                  ].map((type) => (
+                    <button
+                      key={type.value}
+                      onClick={() => setPostData({...postData, type: type.value})}
+                      className={`p-4 rounded-xl border-2 text-center ${
+                        postData.type === type.value
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="text-2xl mb-2">{type.label.split(' ')[0]}</div>
+                      <div className="font-medium">{type.label.split(' ')[1]}</div>
+                      <div className="text-xs text-gray-500 mt-1">{type.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {step === 2 && (
+            <div>
+              <h3 className="text-lg font-bold mb-4">Detayları Ekle</h3>
+              
+              {/* Caption */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Açıklama
+                </label>
+                <textarea
+                  value={postData.caption}
+                  onChange={(e) => setPostData({...postData, caption: e.target.value})}
+                  placeholder="Paylaşımınızı anlatın..."
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 h-32"
+                  maxLength={2000}
+                />
+                <div className="text-right text-sm text-gray-500 mt-1">
+                  {postData.caption.length}/2000
+                </div>
+              </div>
+
+              {/* Hashtags */}
+              <div className="mb-6">
+                <HashtagInput
+                  hashtags={postData.hashtags}
+                  onAdd={handleHashtagAdd}
+                  onRemove={handleHashtagRemove}
+                />
+              </div>
+
+              {/* Location */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Konum (opsiyonel)
+                </label>
+                <LocationPicker
+                  value={postData.location}
+                  onChange={(location) => setPostData({...postData, location})}
+                />
+              </div>
+
+              {/* Category */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Kategori
+                </label>
+                <select
+                  value={postData.category}
+                  onChange={(e) => setPostData({...postData, category: e.target.value})}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                >
+                  <option value="">Kategori seçin</option>
+                  <option value="electronics">Elektronik</option>
+                  <option value="fashion">Giyim & Aksesuar</option>
+                  <option value="home">Ev & Bahçe</option>
+                  <option value="collectible">Koleksiyon</option>
+                  <option value="vehicle">Araç & Parça</option>
+                  <option value="other">Diğer</option>
+                </select>
+              </div>
+
+              {/* Privacy */}
+              <div className="flex items-center space-x-3">
+                <input
+                  type="checkbox"
+                  checked={postData.isPublic}
+                  onChange={(e) => setPostData({...postData, isPublic: e.target.checked})}
+                  className="w-4 h-4 text-blue-600"
+                  id="isPublic"
+                />
+                <label htmlFor="isPublic" className="text-sm font-medium text-gray-700">
+                  Herkese açık paylaş
+                </label>
+                <span className="text-xs text-gray-500">
+                  (Kapalıysa sadece takipçilerin görebilir)
+                </span>
+              </div>
+            </div>
+          )}
+
+          {step === 3 && (
+            <div>
+              <h3 className="text-lg font-bold mb-4">Önizleme</h3>
+              
+              {/* Post preview */}
+              <div className="bg-gray-50 rounded-xl p-4">
+                {/* Header preview */}
+                <div className="flex items-center space-x-3 mb-4">
+                  <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full"></div>
+                  <div>
+                    <div className="font-bold">Sen</div>
+                    <div className="text-sm text-gray-500">
+                      {postData.location || 'Konum belirtilmemiş'}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Caption preview */}
+                {postData.caption && (
+                  <p className="text-gray-800 mb-4 whitespace-pre-line">
+                    {postData.caption}
+                    {postData.hashtags.length > 0 && (
+                      <div className="mt-2">
+                        {postData.hashtags.map(tag => (
+                          <span key={tag} className="text-blue-600 mr-2">
+                            #{tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </p>
+                )}
+
+                {/* Images preview */}
+                {postData.images.length > 0 && (
+                  <div className="grid grid-cols-2 gap-2 mb-4">
+                    {postData.images.slice(0, 4).map((image, index) => (
+                      <div key={index} className="relative h-32 bg-gray-200 rounded-lg overflow-hidden">
+                        <img
+                          src={URL.createObjectURL(image)}
+                          alt={`Preview ${index}`}
+                          className="w-full h-full object-cover"
+                        />
+                        {postData.images.length > 4 && index === 3 && (
+                          <div className="absolute inset-0 bg-black bg-opacity-60 flex items-center justify-center text-white font-bold text-lg">
+                            +{postData.images.length - 4}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Stats preview */}
+                <div className="text-sm text-gray-500">
+                  {postData.type === 'sighting' && '👁️ Gördüm paylaşımı • '}
+                  {postData.type === 'collection' && '🏆 Koleksiyon paylaşımı • '}
+                  {postData.images.length} fotoğraf • Herkese açık
+                </div>
+              </div>
+
+              {/* Bonus points info */}
+              <div className="mt-6 bg-gradient-to-r from-green-50 to-emerald-50 p-4 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-green-800">🎉 Puan Kazanacaksınız!</p>
+                    <p className="text-sm text-green-600">
+                      • Paylaşım: <strong>10 puan</strong><br />
+                      • Fotoğraf başına: <strong>+5 puan</strong><br />
+                      • Hashtag başına: <strong>+2 puan</strong>
+                    </p>
+                  </div>
+                  <div className="text-2xl">🏆</div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="border-t p-6">
+          <div className="flex justify-between">
+            <button
+              onClick={() => step > 1 ? setStep(step - 1) : onClose()}
+              className="px-6 py-3 text-gray-700 hover:text-gray-900 font-medium"
+            >
+              {step === 1 ? 'İptal' : 'Geri'}
+            </button>
+            
+            <button
+              onClick={() => {
+                if (step < 3) {
+                  setStep(step + 1)
+                } else {
+                  handleSubmit()
+                }
+              }}
+              disabled={loading || (step === 1 && postData.images.length === 0)}
+              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-3 px-8 rounded-lg disabled:opacity-50"
+            >
+              {loading ? (
+                <span className="flex items-center">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                  Paylaşılıyor...
+                </span>
+              ) : step === 3 ? (
+                `Paylaş (${10 + (postData.images.length * 5)} puan kazan)`
+              ) : (
+                'Devam Et'
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+────────────────────────────────────────────────────────────────────────────────
+📄 Feed.tsx
+📊 285 satır | 7.99 KB
+────────────────────────────────────────────────────────────────────────────────
+
+// components/social/Feed.tsx - DÜZELTİLMİŞ
+'use client'
+
+import { useState, useEffect, useCallback } from 'react'
+import { supabase } from '@/lib/supabase'
+import FeedPost from './FeedPost'
+import FeedFilters, { FilterType } from './FeedFilters'
+import CreatePostButton from './CreatePostButton'
+import StoriesBar from './StoriesBar'
+import { useInView } from 'react-intersection-observer'
+
+interface FeedProps {
+  initialUserId?: string
+  type?: FilterType
+}
+
+// FOLLOWING İÇİN TİP TANIMI
+interface FollowingData {
+  following_id: string
+}
+
+export default function Feed({ initialUserId, type = 'for-you' }: FeedProps) {
+  const [posts, setPosts] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [hasMore, setHasMore] = useState(true)
+  const [page, setPage] = useState(0)
+  const [activeFilter, setActiveFilter] = useState<FilterType>(type)
+  
+  const { ref, inView } = useInView()
+  const PAGE_SIZE = 10
+
+  const fetchPosts = useCallback(async (pageNum: number, refresh = false) => {
+    try {
+      setLoading(true)
+      
+      let query = supabase
+        .from('social_posts')
+        .select(`
+          *,
+          user:user_profiles(*),
+          shop:shops(*),
+          likes:social_likes(count),
+          comments:social_comments(count),
+          saves:social_saves(count)
+        `)
+        .eq('status', 'active')
+        .eq('is_public', true)
+        .order('created_at', { ascending: false })
+
+      // Filtreler
+      switch (activeFilter) {
+        case 'following':
+          if (initialUserId) {
+            const { data: following } = await supabase
+              .from('social_follows')
+              .select('following_id')
+              .eq('follower_id', initialUserId)
+
+            if (following && following.length > 0) {
+              // DÜZELTME: 'f' parametresine tip ekle
+              const followingIds = following.map((f: FollowingData) => f.following_id)
+              query = query.in('user_id', followingIds)
+            } else {
+              setPosts([])
+              setHasMore(false)
+              return
+            }
+          }
+          break
+        
+        case 'popular':
+          query = query.order('like_count', { ascending: false })
+          break
+        
+        case 'category':
+          // Kategori filtresi
+          break
+      }
+
+      // Sayfalama
+      const from = pageNum * PAGE_SIZE
+      const to = from + PAGE_SIZE - 1
+      
+      query = query.range(from, to)
+
+      const { data, error } = await query
+
+      if (error) throw error
+
+      if (data) {
+        if (refresh) {
+          setPosts(data)
+        } else {
+          setPosts(prev => [...prev, ...data])
+        }
+        
+        setHasMore(data.length === PAGE_SIZE)
+      }
+    } catch (error) {
+      console.error('Feed yüklenemedi:', error)
+    } finally {
+      setLoading(false)
+    }
+  }, [activeFilter, initialUserId])
+
+  // Infinite scroll
+  useEffect(() => {
+    if (inView && hasMore && !loading) {
+      const nextPage = page + 1
+      setPage(nextPage)
+      fetchPosts(nextPage)
+    }
+  }, [inView, hasMore, loading, fetchPosts, page])
+
+  // Filtre değişince yenile
+  useEffect(() => {
+    setPage(0)
+    setPosts([])
+    fetchPosts(0, true)
+  }, [activeFilter, fetchPosts])
+
+  // İlk yükleme
+  useEffect(() => {
+    fetchPosts(0, true)
+  }, [])
+
+  const handleLike = async (postId: string, liked: boolean): Promise<void> => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      if (liked) {
+        await supabase
+          .from('social_likes')
+          .delete()
+          .eq('post_id', postId)
+          .eq('user_id', user.id)
+      } else {
+        await supabase
+          .from('social_likes')
+          .insert({
+            post_id: postId,
+            user_id: user.id
+          })
+
+        // Bildirim gönder
+        const post = posts.find(p => p.id === postId)
+        if (post && post.user_id !== user.id) {
+          await supabase.from('social_notifications').insert({
+            user_id: post.user_id,
+            type: 'like',
+            actor_id: user.id,
+            post_id: postId,
+            message: 'paylaşımını beğendi'
+          })
+        }
+      }
+
+      // UI güncelle
+      setPosts(prev => prev.map(post => {
+        if (post.id === postId) {
+          return {
+            ...post,
+            like_count: liked ? post.like_count - 1 : post.like_count + 1,
+            is_liked: !liked
+          }
+        }
+        return post
+      }))
+
+    } catch (error) {
+      console.error('Like hatası:', error)
+    }
+  }
+
+  const handleSave = async (postId: string, saved: boolean): Promise<void> => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      if (saved) {
+        await supabase
+          .from('social_saves')
+          .delete()
+          .eq('post_id', postId)
+          .eq('user_id', user.id)
+      } else {
+        await supabase
+          .from('social_saves')
+          .insert({
+            post_id: postId,
+            user_id: user.id
+          })
+      }
+
+      // UI güncelle
+      setPosts(prev => prev.map(post => {
+        if (post.id === postId) {
+          return {
+            ...post,
+            save_count: saved ? post.save_count - 1 : post.save_count + 1,
+            is_saved: !saved
+          }
+        }
+        return post
+      }))
+
+    } catch (error) {
+      console.error('Save hatası:', error)
+    }
+  }
+
+  return (
+    <div className="max-w-2xl mx-auto">
+      {/* Stories Bar */}
+      <StoriesBar />
+
+      {/* Create Post Button */}
+      <CreatePostButton />
+
+      {/* Filters */}
+      <FeedFilters 
+        activeFilter={activeFilter}
+        onFilterChange={setActiveFilter}
+      />
+
+      {/* Feed Posts */}
+      <div className="space-y-6 mt-6">
+        {posts.map((post) => (
+          <FeedPost
+            key={post.id}
+            post={post}
+            onLike={handleLike}
+            onSave={handleSave}
+            onComment={() => console.log('comment')}
+            onShare={() => console.log('share')}
+          />
+        ))}
+      </div>
+
+      {/* Loading & Infinite Scroll */}
+      {loading && (
+        <div className="mt-8 space-y-6">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="animate-pulse bg-white rounded-xl shadow p-6">
+              <div className="flex items-center space-x-3">
+                <div className="w-12 h-12 bg-gray-200 rounded-full"></div>
+                <div className="flex-1">
+                  <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+                  <div className="h-3 bg-gray-200 rounded w-1/2 mt-2"></div>
+                </div>
+              </div>
+              <div className="mt-4">
+                <div className="h-4 bg-gray-200 rounded w-full"></div>
+                <div className="h-4 bg-gray-200 rounded w-3/4 mt-2"></div>
+              </div>
+              <div className="mt-4 h-64 bg-gray-200 rounded-lg"></div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Infinite Scroll Trigger */}
+      {hasMore && !loading && (
+        <div ref={ref} className="py-8 text-center">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        </div>
+      )}
+
+      {/* No Posts */}
+      {!loading && posts.length === 0 && (
+        <div className="text-center py-12">
+          <div className="text-4xl mb-4">📭</div>
+          <h3 className="text-xl font-bold text-gray-900 mb-2">Henüz paylaşım yok</h3>
+          <p className="text-gray-600 mb-6">
+            {activeFilter === 'following' 
+              ? 'Takip ettiğin kişiler henüz paylaşım yapmamış'
+              : 'İlk paylaşımı sen yap!'}
+          </p>
+          <CreatePostButton variant="primary" />
+        </div>
+      )}
+    </div>
+  )
+}
+
+────────────────────────────────────────────────────────────────────────────────
+📄 FeedFilters.tsx
+📊 40 satır | 1.28 KB
+────────────────────────────────────────────────────────────────────────────────
+
+// components/social/FeedFilters.tsx - DÜZELTİLMİŞ
+'use client'
+
+export type FilterType = 'for-you' | 'following' | 'popular' | 'category'
+
+interface FeedFiltersProps {
+  activeFilter: FilterType
+  onFilterChange: (filter: FilterType) => void // TİP DÜZELTMESİ
+}
+
+export default function FeedFilters({ 
+  activeFilter, 
+  onFilterChange 
+}: FeedFiltersProps) {
+  const filters: Array<{ id: FilterType; label: string; icon: string }> = [
+    { id: 'for-you', label: 'Sana Özel', icon: '🎯' },
+    { id: 'following', label: 'Takip Edilenler', icon: '👥' },
+    { id: 'popular', label: 'Popüler', icon: '🔥' },
+    { id: 'category', label: 'Kategoriler', icon: '🏷️' }
+  ]
+
+  return (
+    <div className="flex overflow-x-auto space-x-2 pb-4">
+      {filters.map((filter) => (
+        <button
+          key={filter.id}
+          onClick={() => onFilterChange(filter.id)}
+          className={`flex items-center space-x-2 px-4 py-2 rounded-full whitespace-nowrap transition ${
+            activeFilter === filter.id
+              ? 'bg-blue-600 text-white'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          }`}
+        >
+          <span>{filter.icon}</span>
+          <span>{filter.label}</span>
+        </button>
+      ))}
+    </div>
+  )
+}
+
+────────────────────────────────────────────────────────────────────────────────
+📄 FeedPost.tsx
+📊 249 satır | 7.96 KB
+────────────────────────────────────────────────────────────────────────────────
+
+// components/social/FeedPost.tsx - DÜZELTİLMİŞ
+'use client'
+
+import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
+import Image from 'next/image'
+import Link from 'next/link'
+import PostActions from './PostActions'
+import CommentsSection from './CommentsSection' // ✅ DÜZELTİLDİ
+import PostHeader from './PostHeader' // ✅ DÜZELTİLDİ
+
+interface FeedPostProps {
+  post: any
+  onLike: (postId: string, liked: boolean) => void
+  onSave: (postId: string, saved: boolean) => void
+  onComment: () => void
+  onShare: () => void
+  showFull?: boolean
+}
+
+export default function FeedPost({ 
+  post, 
+  onLike, 
+  onSave, 
+  onComment, 
+  onShare,
+  showFull = false 
+}: FeedPostProps) {
+  const [isLiked, setIsLiked] = useState(false)
+  const [isSaved, setIsSaved] = useState(false)
+  const [showComments, setShowComments] = useState(false)
+  const [imageIndex, setImageIndex] = useState(0)
+  const [user, setUser] = useState<any>(null)
+
+  useEffect(() => {
+    checkUserInteractions()
+    fetchUser()
+  }, [post.id])
+
+  const checkUserInteractions = async () => {
+    try {
+      const { data: { user: authUser } } = await supabase.auth.getUser()
+      if (!authUser) return
+
+      // Beğeni kontrolü
+      const { data: like } = await supabase
+        .from('social_likes')
+        .select('id')
+        .eq('post_id', post.id)
+        .eq('user_id', authUser.id)
+        .single()
+
+      // Kaydetme kontrolü
+      const { data: save } = await supabase
+        .from('social_saves')
+        .select('id')
+        .eq('post_id', post.id)
+        .eq('user_id', authUser.id)
+        .single()
+
+      setIsLiked(!!like)
+      setIsSaved(!!save)
+    } catch (error) {
+      // Hata durumunda silent fail
+    }
+  }
+
+  const fetchUser = async () => {
+    if (!post.user_id) return
+    const { data } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('id', post.user_id)
+      .single()
+    setUser(data)
+  }
+
+  // TİP DÜZELTMESİ - async/await eklendi
+  const handleLikeClick = async () => {
+    const newLikedState = !isLiked
+    setIsLiked(newLikedState)
+    await onLike(post.id, isLiked)
+  }
+
+  // TİP DÜZELTMESİ - async/await eklendi
+  const handleSaveClick = async () => {
+    const newSavedState = !isSaved
+    setIsSaved(newSavedState)
+    await onSave(post.id, isSaved)
+  }
+
+  const hasMultipleImages = post.image_urls && post.image_urls.length > 1
+
+  return (
+    <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+      {/* Header - Kullanıcı bilgileri */}
+      <PostHeader 
+        user={user || post.user}
+        post={post}
+        onFollow={() => console.log('follow')}
+      />
+
+      {/* Caption */}
+      {post.caption && (
+        <div className="px-6 pt-4">
+          <p className="text-gray-800 whitespace-pre-line">
+            {post.caption}
+            
+            {/* Hashtag'ler */}
+            {post.hashtags && post.hashtags.length > 0 && (
+              <div className="mt-2">
+                {post.hashtags.map((tag: string) => (
+                  <Link
+                    key={tag}
+                    href={`/discover/tags/${tag.replace('#', '')}`}
+                    className="inline-block text-blue-600 hover:text-blue-800 mr-2 text-sm"
+                  >
+                    {tag}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </p>
+          
+          {/* Konum */}
+          {post.location && (
+            <div className="mt-2 flex items-center text-gray-600 text-sm">
+              <span className="mr-1">📍</span>
+              {post.location}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Medya - Image/Video */}
+      {post.image_urls && post.image_urls.length > 0 && (
+        <div className="relative mt-4">
+          {/* Ana resim */}
+          <div className="relative h-[500px] bg-gray-100">
+            <img
+              src={post.image_urls[imageIndex]}
+              alt={post.caption || 'Post image'}
+              className="w-full h-full object-contain"
+            />
+
+            {/* Çoklu resim navigasyonu */}
+            {hasMultipleImages && (
+              <>
+                {/* Dots indicator */}
+                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
+                  {post.image_urls.map((_: any, index: number) => (
+                    <button
+                      key={index}
+                      onClick={() => setImageIndex(index)}
+                      className={`w-2 h-2 rounded-full ${
+                        index === imageIndex ? 'bg-white' : 'bg-white bg-opacity-50'
+                      }`}
+                    />
+                  ))}
+                </div>
+
+                {/* Navigation buttons */}
+                {imageIndex > 0 && (
+                  <button
+                    onClick={() => setImageIndex(prev => prev - 1)}
+                    className="absolute left-4 top-1/2 transform -translate-y-1/2 w-10 h-10 bg-white bg-opacity-80 rounded-full flex items-center justify-center hover:bg-opacity-100"
+                  >
+                    ←
+                  </button>
+                )}
+                {imageIndex < post.image_urls.length - 1 && (
+                  <button
+                    onClick={() => setImageIndex(prev => prev + 1)}
+                    className="absolute right-4 top-1/2 transform -translate-y-1/2 w-10 h-10 bg-white bg-opacity-80 rounded-full flex items-center justify-center hover:bg-opacity-100"
+                  >
+                    →
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Image counter */}
+          {hasMultipleImages && (
+            <div className="absolute top-4 right-4 bg-black bg-opacity-60 text-white px-3 py-1 rounded-full text-sm">
+              {imageIndex + 1} / {post.image_urls.length}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* İstatistikler */}
+      <div className="px-6 py-3 border-t border-gray-100">
+        <div className="flex items-center justify-between text-sm text-gray-600">
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center">
+              <span className="mr-1">❤️</span>
+              <span className="font-medium">{post.like_count || 0}</span>
+            </div>
+            <div className="flex items-center">
+              <span className="mr-1">💬</span>
+              <span className="font-medium">{post.comment_count || 0}</span>
+            </div>
+            <div className="flex items-center">
+              <span className="mr-1">📤</span>
+              <span className="font-medium">{post.share_count || 0}</span>
+            </div>
+          </div>
+          <div className="flex items-center">
+            <span className="mr-1">👁️</span>
+            <span className="font-medium">{post.view_count || 0}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Aksiyon Butonları */}
+      <PostActions
+        isLiked={isLiked}
+        isSaved={isSaved}
+        onLike={handleLikeClick} // async fonksiyon
+        onSave={handleSaveClick} // async fonksiyon
+        onComment={() => {
+          setShowComments(!showComments)
+          onComment()
+        }}
+        onShare={onShare}
+      />
+
+      {/* Yorumlar Bölümü */}
+      {showComments && (
+        <CommentsSection 
+          postId={post.id}
+          initialComments={post.comments || []}
+          onClose={() => setShowComments(false)}
+        />
+      )}
+
+      {/* Zamansal bilgi */}
+      <div className="px-6 py-3 border-t border-gray-100">
+        <p className="text-xs text-gray-500">
+          {new Date(post.created_at).toLocaleDateString('tr-TR', {
+            hour: '2-digit',
+            minute: '2-digit'
+          })}
+        </p>
+      </div>
+    </div>
+  )
+}
+
+────────────────────────────────────────────────────────────────────────────────
+📄 HashtagInput.tsx
+📊 78 satır | 2.07 KB
+────────────────────────────────────────────────────────────────────────────────
+
+// components/social/HashtagInput.tsx
+'use client'
+
+import { useState } from 'react'
+
+interface HashtagInputProps {
+  hashtags: string[]
+  onAdd: (hashtag: string) => void
+  onRemove: (hashtag: string) => void
+}
+
+export default function HashtagInput({ hashtags, onAdd, onRemove }: HashtagInputProps) {
+  const [input, setInput] = useState('')
+
+  const handleAdd = () => {
+    const cleanTag = input.trim().replace(/#/g, '')
+    if (cleanTag && !hashtags.includes(cleanTag)) {
+      onAdd(cleanTag)
+      setInput('')
+    }
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault()
+      handleAdd()
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <label className="block text-sm font-medium text-gray-700">
+        Hashtag'ler (opsiyonel)
+      </label>
+      
+      <div className="flex">
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="#vintage #kamera #antika"
+          className="flex-1 px-4 py-2 border border-gray-300 rounded-l-lg"
+        />
+        <button
+          type="button"
+          onClick={handleAdd}
+          className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-r-lg"
+        >
+          Ekle
+        </button>
+      </div>
+
+      {/* Hashtag listesi */}
+      <div className="flex flex-wrap gap-2">
+        {hashtags.map((tag) => (
+          <div
+            key={tag}
+            className="flex items-center bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm"
+          >
+            #{tag}
+            <button
+              type="button"
+              onClick={() => onRemove(tag)}
+              className="ml-2 text-blue-600 hover:text-blue-900"
+            >
+              ×
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <p className="text-xs text-gray-500">
+        Hashtag başına +2 puan kazanırsınız. Max 5 hashtag.
+      </p>
+    </div>
+  )
+}
+
+────────────────────────────────────────────────────────────────────────────────
+📄 LocationPicker.tsx
+📊 45 satır | 1.31 KB
+────────────────────────────────────────────────────────────────────────────────
+
+// components/social/LocationPicker.tsx
+'use client'
+
+import { useState } from 'react'
+import { MapPin } from 'lucide-react'
+
+interface LocationPickerProps {
+  value: string
+  onChange: (value: string) => void
+}
+
+export default function LocationPicker({ value, onChange }: LocationPickerProps) {
+  const popularLocations = [
+    'İstanbul', 'Ankara', 'İzmir', 'Bursa', 'Antalya',
+    'Evim', 'İşyeri', 'Sahil', 'Alışveriş Merkezi'
+  ]
+
+  return (
+    <div className="space-y-3">
+      <div className="relative">
+        <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="Nerede çektiniz? (opsiyonel)"
+          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg"
+        />
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {popularLocations.map((location) => (
+          <button
+            key={location}
+            type="button"
+            onClick={() => onChange(location)}
+            className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-full text-sm"
+          >
+            {location}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+────────────────────────────────────────────────────────────────────────────────
+📄 MobileNavigation.tsx
+📊 50 satır | 1.67 KB
+────────────────────────────────────────────────────────────────────────────────
+
+// components/social/MobileNavigation.tsx
+'use client'
+
+import { useState } from 'react'
+import { usePathname } from 'next/navigation'
+import Link from 'next/link'
+
+export default function MobileNavigation() {
+  const pathname = usePathname()
+  const [showMenu, setShowMenu] = useState(false)
+
+  const navItems = [
+    { path: '/discovery', label: 'Keşfet', icon: '🔍' },
+    { path: '/discovery?tab=following', label: 'Takip', icon: '👥' },
+    { path: '/discovery/create', label: 'Oluştur', icon: '➕', highlight: true },
+    { path: '/discovery/notifications', label: 'Bildirim', icon: '🔔' },
+    { path: '/discovery/profile', label: 'Profil', icon: '👤' },
+  ]
+
+  return (
+    <>
+      {/* Mobile Bottom Nav */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40 md:hidden">
+        <div className="flex justify-around items-center h-16">
+          {navItems.map((item) => {
+            const isActive = pathname === item.path
+            
+            return (
+              <Link
+                key={item.path}
+                href={item.path}
+                className={`flex flex-col items-center justify-center ${
+                  isActive ? 'text-blue-600' : 'text-gray-600'
+                }`}
+              >
+                <div className={`text-2xl ${item.highlight ? 'text-blue-600' : ''}`}>
+                  {item.icon}
+                </div>
+                <span className="text-xs mt-1">{item.label}</span>
+              </Link>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Mobile için ekstra padding */}
+      <div className="pb-16 md:pb-0"></div>
+    </>
+  )
+}
+
+────────────────────────────────────────────────────────────────────────────────
+📄 PostActions.tsx
+📊 154 satır | 5.33 KB
+────────────────────────────────────────────────────────────────────────────────
+
+// components/social/PostActions.tsx - DÜZELTİLMİŞ
+'use client'
+
+import { useState } from 'react'
+
+interface PostActionsProps {
+  isLiked: boolean
+  isSaved: boolean
+  onLike: () => void | Promise<void> // TİP DÜZELTMESİ
+  onSave: () => void | Promise<void> // TİP DÜZELTMESİ
+  onComment: () => void
+  onShare: () => void
+}
+
+export default function PostActions({
+  isLiked,
+  isSaved,
+  onLike,
+  onSave,
+  onComment,
+  onShare
+}: PostActionsProps) {
+  const [showReactions, setShowReactions] = useState(false)
+  const [showShareMenu, setShowShareMenu] = useState(false)
+
+  const reactions = [
+    { emoji: '❤️', label: 'Like', value: 'like' },
+    { emoji: '😍', label: 'Love', value: 'love' },
+    { emoji: '😮', label: 'Wow', value: 'wow' },
+    { emoji: '😂', label: 'Haha', value: 'laugh' },
+    { emoji: '😢', label: 'Sad', value: 'sad' },
+    { emoji: '😠', label: 'Angry', value: 'angry' }
+  ]
+
+  const shareOptions = [
+    { icon: '📱', label: 'Mesaj', action: 'message' },
+    { icon: '📧', label: 'Email', action: 'email' },
+    { icon: '🔗', label: 'Kopyala', action: 'copy' },
+    { icon: '📘', label: 'Facebook', action: 'facebook' },
+    { icon: '🐦', label: 'Twitter', action: 'twitter' }
+  ]
+
+  const handleReaction = (reaction: string) => {
+    console.log('Reaction:', reaction)
+    setShowReactions(false)
+  }
+
+  const handleShare = (action: string) => {
+    console.log('Share action:', action)
+    setShowShareMenu(false)
+  }
+
+  return (
+    <div className="px-6 py-3 border-t border-gray-100">
+      <div className="flex items-center justify-between">
+        {/* Sol taraf - Beğeni ve yorum */}
+        <div className="flex items-center space-x-4">
+          {/* Beğeni butonu ve reactions */}
+          <div className="relative">
+            <button
+              onClick={onLike}
+              onMouseEnter={() => setShowReactions(true)}
+              onMouseLeave={() => setTimeout(() => setShowReactions(false), 500)}
+              className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition ${
+                isLiked 
+                  ? 'bg-red-50 text-red-600' 
+                  : 'hover:bg-gray-100 text-gray-700'
+              }`}
+            >
+              <span className="text-xl">{isLiked ? '❤️' : '🤍'}</span>
+              <span className="font-medium">Beğen</span>
+            </button>
+
+            {/* Reactions popup */}
+            {showReactions && (
+              <div 
+                className="absolute bottom-full left-0 mb-2 bg-white rounded-xl shadow-2xl border p-2 flex space-x-1 z-50"
+                onMouseEnter={() => setShowReactions(true)}
+                onMouseLeave={() => setShowReactions(false)}
+              >
+                {reactions.map((reaction) => (
+                  <button
+                    key={reaction.value}
+                    onClick={() => handleReaction(reaction.value)}
+                    className="w-10 h-10 hover:scale-125 transform transition duration-200 text-2xl"
+                    title={reaction.label}
+                  >
+                    {reaction.emoji}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Yorum butonu */}
+          <button
+            onClick={onComment}
+            className="flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700"
+          >
+            <span className="text-xl">💬</span>
+            <span className="font-medium">Yorum</span>
+          </button>
+        </div>
+
+        {/* Sağ taraf - Paylaş ve kaydet */}
+        <div className="flex items-center space-x-2">
+          {/* Kaydet butonu */}
+          <button
+            onClick={onSave}
+            className={`p-2 rounded-full ${
+              isSaved 
+                ? 'bg-yellow-50 text-yellow-600' 
+                : 'hover:bg-gray-100 text-gray-700'
+            }`}
+            title={isSaved ? 'Kaydedildi' : 'Kaydet'}
+          >
+            <span className="text-xl">
+              {isSaved ? '⭐' : '✰'}
+            </span>
+          </button>
+
+          {/* Paylaş butonu ve menu */}
+          <div className="relative">
+            <button
+              onClick={() => setShowShareMenu(!showShareMenu)}
+              className="p-2 rounded-full hover:bg-gray-100 text-gray-700"
+              title="Paylaş"
+            >
+              <span className="text-xl">📤</span>
+            </button>
+
+            {/* Share menu */}
+            {showShareMenu && (
+              <div className="absolute right-0 bottom-full mb-2 bg-white rounded-xl shadow-2xl border p-3 w-48 z-50">
+                <div className="space-y-2">
+                  {shareOptions.map((option) => (
+                    <button
+                      key={option.action}
+                      onClick={() => handleShare(option.action)}
+                      className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700"
+                    >
+                      <span className="text-xl">{option.icon}</span>
+                      <span>{option.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+────────────────────────────────────────────────────────────────────────────────
+📄 PostHeader.tsx
+📊 180 satır | 6.22 KB
+────────────────────────────────────────────────────────────────────────────────
+
+// components/social/PostHeader.tsx
+'use client'
+
+import { useState } from 'react'
+import { MoreVertical, MapPin, Calendar } from 'lucide-react'
+
+interface PostHeaderProps {
+  user: any
+  post: any
+  onFollow?: () => void
+  onReport?: () => void
+}
+
+export default function PostHeader({ user, post, onFollow, onReport }: PostHeaderProps) {
+  const [showMenu, setShowMenu] = useState(false)
+  const [isFollowing, setIsFollowing] = useState(false)
+
+  const handleFollow = () => {
+    setIsFollowing(!isFollowing)
+    if (onFollow) onFollow()
+  }
+
+  const handleReport = () => {
+    setShowMenu(false)
+    if (onReport) onReport()
+  }
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+    
+    if (diffHours < 1) {
+      return 'Az önce'
+    } else if (diffHours < 24) {
+      return `${diffHours} saat önce`
+    } else {
+      return date.toLocaleDateString('tr-TR')
+    }
+  }
+
+  return (
+    <div className="px-6 py-4">
+      <div className="flex items-start justify-between">
+        {/* Sol taraf - Kullanıcı bilgileri */}
+        <div className="flex items-center space-x-3">
+          {/* Avatar */}
+          <div className="relative">
+            <div className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-blue-400 to-purple-500">
+              {user?.avatar_url ? (
+                <img
+                  src={user.avatar_url}
+                  alt={user?.name || 'Kullanıcı'}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-white font-bold text-lg">
+                  {user?.name?.[0]?.toUpperCase() || 'K'}
+                </div>
+              )}
+            </div>
+            
+            {/* Online status indicator */}
+            <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
+          </div>
+
+          {/* Kullanıcı bilgileri */}
+          <div className="flex-1">
+            <div className="flex items-center space-x-2">
+              <h4 className="font-bold text-gray-900">
+                {user?.name || 'Kullanıcı'}
+              </h4>
+              
+              {/* Verified badge (mağaza veya premium kullanıcı) */}
+              {post?.shop_id && (
+                <span className="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded-full">
+                  🏪 Mağaza
+                </span>
+              )}
+              
+              {/* Seviye badge */}
+              {user?.reputation?.level && user.reputation.level > 2 && (
+                <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-0.5 rounded-full">
+                  ⭐ Lv.{user.reputation.level}
+                </span>
+              )}
+            </div>
+            
+            <div className="flex items-center text-sm text-gray-500 space-x-3 mt-1">
+              {post?.location && (
+                <div className="flex items-center">
+                  <MapPin className="w-3 h-3 mr-1" />
+                  <span>{post.location}</span>
+                </div>
+              )}
+              
+              <div className="flex items-center">
+                <Calendar className="w-3 h-3 mr-1" />
+                <span>{formatDate(post.created_at)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Sağ taraf - Menü ve takip butonu */}
+        <div className="flex items-center space-x-2">
+          {/* Takip butonu */}
+          <button
+            onClick={handleFollow}
+            className={`px-4 py-2 rounded-full text-sm font-medium ${
+              isFollowing
+                ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                : 'bg-blue-600 text-white hover:bg-blue-700'
+            }`}
+          >
+            {isFollowing ? 'Takip Ediliyor' : 'Takip Et'}
+          </button>
+
+          {/* Daha fazla menüsü */}
+          <div className="relative">
+            <button
+              onClick={() => setShowMenu(!showMenu)}
+              className="p-2 hover:bg-gray-100 rounded-full"
+            >
+              <MoreVertical className="w-5 h-5 text-gray-500" />
+            </button>
+
+            {showMenu && (
+              <div className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border w-48 z-50">
+                <button
+                  onClick={() => {
+                    setShowMenu(false)
+                    // Paylaşımı kaydet
+                  }}
+                  className="w-full text-left px-4 py-3 hover:bg-gray-50 text-gray-700"
+                >
+                  📌 Kaydet
+                </button>
+                <button
+                  onClick={() => {
+                    setShowMenu(false)
+                    // Bağlantıyı kopyala
+                  }}
+                  className="w-full text-left px-4 py-3 hover:bg-gray-50 text-gray-700"
+                >
+                  🔗 Bağlantıyı Kopyala
+                </button>
+                <button
+                  onClick={handleReport}
+                  className="w-full text-left px-4 py-3 hover:bg-gray-50 text-red-600 border-t"
+                >
+                  ⚠️ Bildir
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Post tipi indicator */}
+      {post?.type && (
+        <div className="mt-3">
+          <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
+            post.type === 'sighting' 
+              ? 'bg-green-100 text-green-800' 
+              : post.type === 'collection'
+              ? 'bg-purple-100 text-purple-800'
+              : 'bg-blue-100 text-blue-800'
+          }`}>
+            {post.type === 'sighting' && '👁️ Görüldü'}
+            {post.type === 'collection' && '🏆 Koleksiyon'}
+            {post.type === 'question' && '❓ Soru'}
+            {post.type === 'showcase' && '✨ Vitrin'}
+          </span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+────────────────────────────────────────────────────────────────────────────────
+📄 StoriesBar.tsx
+📊 36 satır | 1.37 KB
+────────────────────────────────────────────────────────────────────────────────
+
+// components/social/StoriesBar.tsx - BASİT
+'use client'
+
+export default function StoriesBar() {
+  const stories = [
+    { id: 1, user: 'Ahmet', hasNew: true },
+    { id: 2, user: 'Zeynep', hasNew: false },
+    { id: 3, user: 'Mehmet', hasNew: true },
+    { id: 4, user: 'Ayşe', hasNew: false },
+    { id: 5, user: 'Can', hasNew: true },
+  ]
+
+  return (
+    <div className="bg-white rounded-xl shadow p-4 mb-6">
+      <div className="flex space-x-4 overflow-x-auto pb-2">
+        {/* Kendi story */}
+        <button className="flex-shrink-0 text-center">
+          <div className="w-20 h-20 rounded-full border-4 border-blue-500 flex items-center justify-center text-2xl bg-gradient-to-br from-blue-400 to-purple-500 text-white">
+            +
+          </div>
+          <div className="text-xs mt-2">Sen</div>
+        </button>
+
+        {/* Diğer story'ler */}
+        {stories.map((story) => (
+          <button key={story.id} className="flex-shrink-0 text-center">
+            <div className={`w-20 h-20 rounded-full ${story.hasNew ? 'border-4 border-green-500' : 'border-2 border-gray-300'}`}>
+              <div className="w-full h-full rounded-full bg-gradient-to-br from-pink-400 to-orange-500"></div>
+            </div>
+            <div className="text-xs mt-2 truncate w-20">{story.user}</div>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+────────────────────────────────────────────────────────────────────────────────
+📄 SuggestedUsers.tsx
+📊 95 satır | 2.97 KB
+────────────────────────────────────────────────────────────────────────────────
+
+// components/social/SuggestedUsers.tsx
+'use client'
+
+import { useEffect, useState } from 'react'
+import { supabase } from '@/lib/supabase'
+import { useRouter } from 'next/navigation'
+
+export default function SuggestedUsers() {
+  const router = useRouter()
+  const [users, setUsers] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchSuggestedUsers()
+  }, [])
+
+  const fetchSuggestedUsers = async () => {
+    try {
+      // En aktif 5 kullanıcı
+      const { data } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .limit(5)
+        .order('created_at', { ascending: false })
+
+      setUsers(data || [])
+    } catch (error) {
+      console.error('Kullanıcılar yüklenemedi:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleFollow = async (userId: string) => {
+    // Takip etme işlemi
+    console.log('Takip ediliyor:', userId)
+  }
+
+  if (loading) {
+    return (
+      <div className="bg-white rounded-xl shadow p-6">
+        <h3 className="font-bold text-gray-900 mb-4">👥 Önerilen Kullanıcılar</h3>
+        <div className="space-y-4">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="animate-pulse flex items-center space-x-3">
+              <div className="w-10 h-10 bg-gray-200 rounded-full"></div>
+              <div className="flex-1">
+                <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                <div className="h-3 bg-gray-200 rounded w-1/4 mt-2"></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="bg-white rounded-xl shadow p-6">
+      <h3 className="font-bold text-gray-900 mb-4">👥 Önerilen Kullanıcılar</h3>
+      <div className="space-y-4">
+        {users.map((user) => (
+          <div key={user.id} className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-bold">
+                {user.name?.[0] || 'K'}
+              </div>
+              <div>
+                <div className="font-medium">{user.name}</div>
+                {user.bio && (
+                  <div className="text-xs text-gray-500 truncate max-w-[120px]">
+                    {user.bio}
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            <button
+              onClick={() => handleFollow(user.id)}
+              className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg"
+            >
+              Takip Et
+            </button>
+          </div>
+        ))}
+      </div>
+      
+      {users.length === 0 && (
+        <p className="text-gray-500 text-center py-4">
+          Henüz önerilecek kullanıcı yok
+        </p>
+      )}
+    </div>
+  )
+}
+
+────────────────────────────────────────────────────────────────────────────────
+📄 TrendingHashtags.tsx
+📊 78 satır | 2.39 KB
+────────────────────────────────────────────────────────────────────────────────
+
+// components/social/TrendingHashtags.tsx
+'use client'
+
+import { useEffect, useState } from 'react'
+import { supabase } from '@/lib/supabase'
+import { useRouter } from 'next/navigation'
+
+export default function TrendingHashtags() {
+  const router = useRouter()
+  const [hashtags, setHashtags] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchTrendingHashtags()
+  }, [])
+
+  const fetchTrendingHashtags = async () => {
+    try {
+      // Bu haftanın popüler hashtag'leri
+      const { data } = await supabase
+        .from('social_hashtags')
+        .select('*')
+        .order('post_count', { ascending: false })
+        .limit(8)
+
+      setHashtags(data || [])
+    } catch (error) {
+      console.error('Hashtag yüklenemedi:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="bg-white rounded-xl shadow p-6">
+        <h3 className="font-bold text-gray-900 mb-4">🔥 Popüler Hashtag'ler</h3>
+        <div className="space-y-2">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="animate-pulse h-8 bg-gray-200 rounded"></div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="bg-white rounded-xl shadow p-6">
+      <h3 className="font-bold text-gray-900 mb-4">🔥 Popüler Hashtag'ler</h3>
+      <div className="space-y-3">
+        {hashtags.map((hashtag, index) => (
+          <button
+            key={hashtag.name}
+            onClick={() => router.push(`/discovery/tags/${hashtag.name.replace('#', '')}`)}
+            className="w-full flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg"
+          >
+            <div className="flex items-center">
+              <span className="text-lg mr-3">{index < 3 ? '🔥' : '#'}</span>
+              <div>
+                <div className="font-medium text-left">{hashtag.name}</div>
+                <div className="text-xs text-gray-500 text-left">
+                  {hashtag.post_count} paylaşım
+                </div>
+              </div>
+            </div>
+            <div className="text-blue-600 text-sm">→</div>
+          </button>
+        ))}
+      </div>
+      
+      {hashtags.length === 0 && (
+        <p className="text-gray-500 text-center py-4">
+          Henüz popüler hashtag yok
+        </p>
+      )}
+    </div>
+  )
+}
+
+================================================================================
+📊 ÖZET BİLGİLER
+================================================================================
+📁 Dizin: components/social
+📄 Toplam Dosya: 14
+📊 Toplam Satır: 2.169
+💾 Toplam Boyut: 0.07 MB
+📅 Oluşturulma: 15.02.2026 04:33:49
+================================================================================
+
+
+
+// lib/supabase/client.ts
+import { createClient } from '@supabase/supabase-js'
+
+export function createBrowserClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true
+      }
+    }
+  )
+}
+
+// Default instance
+export const supabase = createBrowserClient()
+
+
+// lib/supabase/server.ts - DÜZELTİLMİŞ (isim değişikliği)
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
+
+export function createServerClient() {
+  return createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      auth: {
+        persistSession: false,
+      }
+    }
+  )
+}
+
+
+// lib/types.ts
+export interface Spot {
+  id: string
+  user_id: string
+  title: string
+  description: string
+  category: string | null
+  location: string | null
+  image_url: string | null
+  status: 'active' | 'found'
+  views: number
+  helps: number
+  created_at: string
+  updated_at: string
+}
+
+export interface Sighting {
+  id: string
+  spot_id: string
+  spotter_id: string
+  image_url: string | null
+  location_description: string
+  price: number | null
+  notes: string | null
+  created_at: string
+}
+
+export interface UserProfile {
+  id: string
+  email: string
+  name: string | null
+  avatar_url: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface Shop {
+  id: string
+  owner_id: string
+  shop_name: string
+  description: string | null
+  address: string | null
+  city: string | null
+  phone: string | null
+  website: string | null
+  free_images_used: number
+  total_images: number
+  subscription_type: 'free' | 'pro' | 'business' | 'enterprise'
+  created_at: string
+}
+
+
+// app/discovery/page.tsx - DÜZELTMİŞ (Header/Footer kaldırıldı)
+'use client'
+
+import { useState } from 'react'
+import Feed from '@/components/social/Feed'
+import CreatePostModal from '@/components/social/CreatePostModal'
+
+// Basit placeholder component'ler
+function TrendingHashtags() {
+  return (
+    <div className="bg-white rounded-xl shadow p-6">
+      <h3 className="font-bold text-gray-900 mb-4">🔥 Popüler Hashtag'ler</h3>
+      <div className="space-y-2">
+        {['#vintage', '#kamera', '#antika', '#koleksiyon'].map((tag) => (
+          <div key={tag} className="flex justify-between items-center p-2 hover:bg-gray-50 rounded">
+            <span className="text-blue-600">{tag}</span>
+            <span className="text-sm text-gray-500">42 paylaşım</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function SuggestedUsers() {
+  return (
+    <div className="bg-white rounded-xl shadow p-6">
+      <h3 className="font-bold text-gray-900 mb-4">👥 Önerilen Kullanıcılar</h3>
+      <div className="space-y-3">
+        {['Ahmet Y.', 'Zeynep K.', 'Mehmet T.'].map((user) => (
+          <div key={user} className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 rounded-full bg-blue-100"></div>
+              <span>{user}</span>
+            </div>
+            <button className="text-blue-600 text-sm">Takip Et</button>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+export default function DiscoveryPage() {
+  const [showCreateModal, setShowCreateModal] = useState(false)
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* HEADER KALDIRILDI - Layout'ta zaten var */}
+      
+      <CreatePostModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onPostCreated={() => console.log('post created')}
+      />
+
+      <div className="container-custom py-8">
+        <div className="grid lg:grid-cols-3 gap-8">
+          {/* Ana Feed */}
+          <div className="lg:col-span-2">
+            <div className="mb-6">
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                🎯 Keşfet
+              </h1>
+              <p className="text-gray-600">
+                Topluluğumuzun keşiflerini, koleksiyonlarını ve nadir buluşlarını takip edin
+              </p>
+            </div>
+
+            {/* CTA Butonu */}
+            <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl p-6 text-white mb-8">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-xl font-bold mb-2">Nadir bir şey mi gördün?</h3>
+                  <p>Paylaş, topluluğa ilham ver, puan kazan!</p>
+                </div>
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  className="bg-white text-blue-600 hover:bg-gray-100 font-bold py-3 px-6 rounded-lg"
+                >
+                  📸 Paylaşım Yap
+                </button>
+              </div>
+            </div>
+
+            {/* Feed */}
+            <Feed type="for-you" />
+          </div>
+
+          {/* Sağ Sidebar */}
+          <div className="space-y-6">
+            {/* Profil kartı */}
+            <div className="bg-white rounded-xl shadow p-6">
+              <div className="flex items-center space-x-3">
+                <div className="w-16 h-16 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full"></div>
+                <div>
+                  <h3 className="font-bold text-gray-900">Profilin</h3>
+                  <p className="text-sm text-gray-600">Keşfet, paylaş, puan kazan</p>
+                </div>
+              </div>
+              
+              <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+                <div>
+                  <div className="font-bold text-lg">0</div>
+                  <div className="text-xs text-gray-600">Paylaşım</div>
+                </div>
+                <div>
+                  <div className="font-bold text-lg">0</div>
+                  <div className="text-xs text-gray-600">Takipçi</div>
+                </div>
+                <div>
+                  <div className="font-bold text-lg">0</div>
+                  <div className="text-xs text-gray-600">Takip</div>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded-lg"
+              >
+                Paylaşım Yap
+              </button>
+            </div>
+
+            {/* Trending Hashtags */}
+            <TrendingHashtags />
+
+            {/* Önerilen Kullanıcılar */}
+            <SuggestedUsers />
+
+            {/* Hızlı İpuçları */}
+            <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-6 border border-green-100">
+              <h4 className="font-bold text-gray-900 mb-3">💡 Keşif İpuçları</h4>
+              <ul className="space-y-2 text-sm">
+                <li className="flex items-start">
+                  <span className="mr-2">✅</span>
+                  <span>Hashtag kullan daha çok kişiye ulaş</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="mr-2">✅</span>
+                  <span>Fotoğraflı paylaşımlar 2x daha fazla etkileşim alır</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="mr-2">✅</span>
+                  <span>Günlük paylaşım yaparak puan kazan</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* FOOTER KALDIRILDI - Layout'ta zaten var */}
+    </div>
+  )
+}
+
+
+// app/spots/[id]/page.tsx - DÜZELTMİŞ HALİ
+'use client'
+
+import { useEffect, useState } from 'react'
+import { useParams, useRouter } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
+import SimpleMap from '@/components/SimpleMap'
+import SimpleShareButtons from '@/components/SimpleShareButtons'
+
+
+interface Spot {
+  id: string
+  title: string
+  description: string
+  category: string | null
+  location: string | null
+  image_url: string | null
+  status: string
+  created_at: string
+  user_id: string
+  views: number
+  helps: number
+  user?: {
+    name: string | null
+    email: string
+  }
+}
+
+export default function SpotDetailPage() {
+  const params = useParams()
+  const router = useRouter()
+  const spotId = params.id as string
+  
+  const [spot, setSpot] = useState<Spot | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (spotId) {
+      fetchSpotDetails()
+    }
+  }, [spotId])
+
+  const fetchSpotDetails = async () => {
+    try {
+      // Spot bilgilerini getir
+      const { data: spotData, error: spotError } = await supabase
+        .from('spots')
+        .select('*')
+        .eq('id', spotId)
+        .single()
+
+      if (spotError) {
+        console.error('Spot bulunamadı:', spotError)
+        return
+      }
+
+      // Kullanıcı bilgilerini getir
+      const { data: userData } = await supabase
+        .from('user_profiles')
+        .select('name, email')
+        .eq('id', spotData.user_id)
+        .single()
+
+      // Görüntüleme sayısını artır
+      await supabase
+        .from('spots')
+        .update({ views: (spotData.views || 0) + 1 })
+        .eq('id', spotId)
+
+      setSpot({
+        ...spotData,
+        user: userData || { name: null, email: spotData.user_id }
+      })
+    } catch (error) {
+      console.error('Spot detayları yüklenemedi:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleHelpClick = () => {
+    router.push(`/help/${spotId}`)
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <main className="container-custom py-12 text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Yükleniyor...</p>
+        </main>
+      </div>
+    )
+  }
+
+  if (!spot) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <main className="container-custom py-12 text-center">
+          <h1 className="text-3xl font-bold text-gray-900 mb-4">Spot bulunamadı</h1>
+          <p className="text-gray-600 mb-8">Bu spot silinmiş veya mevcut değil.</p>
+          <button
+            onClick={() => router.push('/spots')}
+            className="btn-primary"
+          >
+            Tüm Spot'lara Dön
+          </button>
+        </main>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <main className="container-custom py-8">
+        {/* Üst Navigasyon */}
+        <div className="mb-6">
+          <button
+            onClick={() => router.push('/spots')}
+            className="text-blue-600 hover:text-blue-800 flex items-center"
+          >
+            ← Tüm Spot'lara Dön
+          </button>
+        </div>
+
+        <div className="grid lg:grid-cols-3 gap-8">
+          {/* Sol Kolon - Spot Detayları */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Spot Başlığı */}
+            <div className="bg-white rounded-2xl shadow-lg p-6">
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <div className="flex items-center space-x-3 mb-2">
+                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                      spot.status === 'active' 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-blue-100 text-blue-800'
+                    }`}>
+                      {spot.status === 'active' ? 'Aktif' : 'Bulundu'}
+                    </span>
+                    <span className="text-gray-500 text-sm">
+                      {new Date(spot.created_at).toLocaleDateString('tr-TR')}
+                    </span>
+                  </div>
+                  <h1 className="text-3xl font-bold text-gray-900 mb-4">
+                    {spot.title}
+                  </h1>
+                </div>
+              </div>
+
+              {/* Spot Resmi */}
+              {spot.image_url && (
+                <div className="mb-6">
+                  <div className="relative h-96 w-full rounded-xl overflow-hidden bg-gray-100">
+                    <img
+                      src={spot.image_url}
+                      alt={spot.title}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement
+                        target.style.display = 'none'
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Açıklama */}
+              <div className="mb-8">
+                <h2 className="text-xl font-bold text-gray-900 mb-3">Açıklama</h2>
+                <p className="text-gray-700 whitespace-pre-line">
+                  {spot.description}
+                </p>
+              </div>
+
+              {/* Detaylar */}
+              <div className="grid md:grid-cols-2 gap-6">
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500 mb-2">Kategori</h3>
+                  <p className="font-medium">{spot.category || 'Belirtilmemiş'}</p>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500 mb-2">Konum</h3>
+                  <p className="font-medium">{spot.location || 'Belirtilmemiş'}</p>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500 mb-2">Görüntülenme</h3>
+                  <p className="font-medium">{spot.views} kez</p>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500 mb-2">Yardım</h3>
+                  <p className="font-medium">{spot.helps} kişi yardım etti</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Harita Bölümü */}
+            {spot.location && (
+              <div className="bg-white rounded-2xl shadow-lg p-6">
+                <h2 className="text-xl font-bold text-gray-900 mb-4">
+                  📍 Konum Bilgisi
+                </h2>
+                <SimpleMap location={spot.location} />
+              </div>
+            )}
+
+            {/* Yardım Butonu */}
+            <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-2xl p-8 text-center text-white">
+              <h3 className="text-2xl font-bold mb-4">Bu ürünü gördünüz mü?</h3>
+              <p className="mb-6 opacity-90">Topluluğa yardım edin, başkalarını mutlu edin</p>
+              <button
+                onClick={handleHelpClick}
+                className="bg-white text-green-600 hover:bg-gray-100 font-bold py-4 px-8 rounded-xl text-lg"
+              >
+                Evet, Ben Gördüm!
+              </button>
+            </div>
+          </div>
+
+          {/* Sağ Kolon - Yan Bilgiler */}
+          <div className="space-y-6">
+            {/* Paylaşım */}
+            <SimpleShareButtons 
+              url={`/spots/${spot.id}`} 
+              title={spot.title} 
+            />
+
+            {/* Spot Sahibi */}
+            <div className="bg-white rounded-2xl shadow-lg p-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">
+                Spot Sahibi
+              </h3>
+              <div className="flex items-center space-x-3">
+                <div className="w-12 h-12 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-lg">
+                  {spot.user?.name?.[0]?.toUpperCase() || 'K'}
+                </div>
+                <div>
+                  <p className="font-medium">{spot.user?.name || 'Kullanıcı'}</p>
+                  <p className="text-sm text-gray-500">
+                    Topluluk üyesi
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* İstatistikler */}
+            <div className="bg-white rounded-2xl shadow-lg p-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">
+                İstatistikler
+              </h3>
+              <div className="space-y-4">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Görüntülenme:</span>
+                  <span className="font-bold">{spot.views}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Yardım Edenler:</span>
+                  <span className="font-bold">{spot.helps}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Oluşturulma:</span>
+                  <span className="font-bold">
+                    {new Date(spot.created_at).toLocaleDateString('tr-TR')}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Kategori Bilgisi */}
+            {spot.category && (
+              <div className="bg-white rounded-2xl shadow-lg p-6">
+                <h3 className="text-lg font-bold text-gray-900 mb-4">
+                  Kategori
+                </h3>
+                <div className="flex items-center">
+                  <span className="text-2xl mr-3">
+                    {spot.category === 'Elektronik' && '🔌'}
+                    {spot.category === 'Fotoğraf Makineleri' && '📷'}
+                    {spot.category === 'Giyim & Aksesuar' && '👕'}
+                    {spot.category === 'Ev & Bahçe' && '🏠'}
+                    {spot.category === 'Koleksiyon' && '🎨'}
+                    {spot.category === 'Kitap & Müzik' && '📚'}
+                    {spot.category === 'Diğer' && '📦'}
+                  </span>
+                  <span className="font-medium">{spot.category}</span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </main>
+    </div>
+  )
+}

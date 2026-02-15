@@ -1,0 +1,34 @@
+📁 lib
+==================================================
+├── 📁 analytics
+    ├── 📄 events.ts
+    └── 📄 social-events.ts
+├── 📁 gamification
+    └── 📄 game-engine.ts
+├── 📁 messaging
+    ├── 📄 disclaimer.ts
+    └── 📄 legal.ts
+├── 📁 shop
+    ├── 📄 analytics.ts
+    └── 📄 optimizations.ts
+├── 📁 social
+    └── 📄 optimizations.ts
+├── 📁 supabase
+    ├── 📄 client.ts
+    ├── 📄 index.ts
+    └── 📄 server.ts
+├── 📁 types
+    └── 📄 admin.ts
+├── 📄 email-client.ts
+├── 📄 email-hooks.ts
+├── 📄 email-queue.ts
+├── 📄 email-server.ts
+├── 📄 email-service.ts
+├── 📄 email-templates.ts
+├── 📄 email.ts
+├── 📄 imageLimiter.ts
+├── 📄 supabase.ts
+└── 📄 types.ts
+
+==================================================
+📊 Toplam: C:\Users\saniy\OneDrive\Masaüstü\spotitforme\lib

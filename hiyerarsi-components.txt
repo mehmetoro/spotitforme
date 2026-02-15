@@ -1,0 +1,107 @@
+📁 components
+==================================================
+├── 📁 admin
+    ├── 📄 AdminHeader.tsx
+    ├── 📄 AdminSidebar.tsx
+    ├── 📄 AdPerformance.tsx
+    ├── 📄 AdSenseStatus.tsx
+    ├── 📄 AdUnitManager.tsx
+    ├── 📄 DashboardStats.tsx
+    ├── 📄 RecentSpots.tsx
+    └── 📄 RevenueChart.tsx
+├── 📁 ads
+    ├── 📄 AdPlacement.tsx
+    └── 📄 AdSenseAd.tsx
+├── 📁 messaging
+    ├── 📁 mobile
+    │   ├── 📄 MessagingMobile.tsx
+    │   ├── 📄 MobileMessageThread.tsx
+    │   ├── 📄 MobileNewMessage.tsx
+    │   └── 📄 MobileThreadList.tsx
+    ├── 📄 MessageThread.tsx
+    ├── 📄 MessagingLayout.tsx
+    ├── 📄 NewMessageModal.tsx
+    ├── 📄 QuickReplies.tsx
+    ├── 📄 SecurityDisclaimer.tsx
+    ├── 📄 ThreadList.tsx
+    └── 📄 TradeAgreementForm.tsx
+├── 📁 shop
+    ├── 📁 mobile
+    │   ├── 📄 InventoryOverview.tsx
+    │   ├── 📄 QuickActions.tsx
+    │   ├── 📄 ShopMobileActions.tsx
+    │   ├── 📄 ShopMobileHeader.tsx
+    │   ├── 📄 ShopMobileProducts.tsx
+    │   ├── 📄 ShopMobileSearches.tsx
+    │   └── 📄 ShopMobileView.tsx
+    ├── 📄 ActiveSearches.tsx
+    ├── 📄 CreateSearchForm.tsx
+    ├── 📄 InventoryGrid.tsx
+    ├── 📄 InventoryOverview.tsx
+    ├── 📄 ProductCard.tsx
+    ├── 📄 QuickActions.tsx
+    ├── 📄 RecentMatches.tsx
+    ├── 📄 SearchOverview.tsx
+    ├── 📄 ShopDashboard.tsx
+    ├── 📄 ShopHeader.tsx
+    ├── 📄 ShopSocialFeed.tsx
+    ├── 📄 ShopStats.tsx
+    ├── 📄 ShopStatsPublic.tsx
+    └── 📄 ShopTabs.tsx
+├── 📁 social
+    ├── 📄 CommentsSection.tsx
+    ├── 📄 CreatePostButton.tsx
+    ├── 📄 CreatePostModal.tsx
+    ├── 📄 Feed.tsx
+    ├── 📄 FeedFilters.tsx
+    ├── 📄 FeedPost.tsx
+    ├── 📄 HashtagInput.tsx
+    ├── 📄 LocationPicker.tsx
+    ├── 📄 MobileNavigation.tsx
+    ├── 📄 PostActions.tsx
+    ├── 📄 PostHeader.tsx
+    ├── 📄 StoriesBar.tsx
+    ├── 📄 SuggestedUsers.tsx
+    └── 📄 TrendingHashtags.tsx
+├── 📄 AdUnit.tsx
+├── 📄 AdvancedMap.tsx
+├── 📄 AuthModal.tsx
+├── 📄 Categories.tsx
+├── 📄 CTA.tsx
+├── 📄 DailyChallenges.tsx
+├── 📄 EmailNotificationDemo.tsx
+├── 📄 EmailNotificationSettings.tsx
+├── 📄 EmailSuccessModal.tsx
+├── 📄 Footer.tsx
+├── 📄 Header.tsx
+├── 📄 Hero.tsx
+├── 📄 HowItWorks.tsx
+├── 📄 ImageLimitChecker.tsx
+├── 📄 ImageUpload.tsx
+├── 📄 Leaderboard.tsx
+├── 📄 LocationPickerWithPermission.tsx
+├── 📄 LocationSelector.tsx
+├── 📄 MapView.tsx
+├── 📄 NativeAd.tsx
+├── 📄 QuickSightingButton.tsx
+├── 📄 QuickSightingModal.tsx
+├── 📄 RecentSightings.tsx
+├── 📄 RecentSpots.tsx
+├── 📄 ResponsiveAd.tsx
+├── 📄 SearchFilters.tsx
+├── 📄 ShareButtons.tsx
+├── 📄 ShopProductCard.tsx
+├── 📄 SimpleLocationPicker.tsx
+├── 📄 SimpleMap.tsx
+├── 📄 SimpleShareButtons.tsx
+├── 📄 SimpleTabs.tsx
+├── 📄 SpotCard.tsx
+├── 📄 SpotList.tsx
+├── 📄 Stats.tsx
+├── 📄 StorageTest.tsx
+├── 📄 TrueLocationPicker.tsx
+├── 📄 UserMenu.tsx
+└── 📄 UserProfileCard.tsx
+
+==================================================
+📊 Toplam: C:\Users\saniy\OneDrive\Masaüstü\spotitforme\components

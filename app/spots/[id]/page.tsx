@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase'
 import SimpleMap from '@/components/SimpleMap'
 import SimpleShareButtons from '@/components/SimpleShareButtons'
 
+
 interface Spot {
   id: string
   title: string
