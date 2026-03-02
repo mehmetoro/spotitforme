@@ -3,14 +3,24 @@ import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import nodemailer from 'nodemailer'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+// we defer reading env vars until a request arrives so that build
+// time doesn't crash when those secrets aren't available.
+// Also force the runtime to nodejs since we use nodemailer and service
+// role keys which are not supported on the Edge runtime.
+export const runtime = 'nodejs'
 
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error('Supabase environment variables not set')
+let supabase: ReturnType<typeof createClient> | null = null
+function getSupabaseClient() {
+  if (!supabase) {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Supabase environment variables not set')
+    }
+    supabase = createClient(supabaseUrl, supabaseKey)
+  }
+  return supabase
 }
-
-const supabase = createClient(supabaseUrl, supabaseKey)
 
 // Email transporter setup
 const transporter = nodemailer.createTransport({
@@ -30,21 +40,24 @@ async function sendEmailNotification(
   postType?: string
 ) {
   try {
+    const supabase = getSupabaseClient()
     // Alıcı kullanıcı bilgisi
-    const { data: userProfile } = await supabase
+    const userProfileResult = await supabase
       .from('user_profiles')
       .select('email, name')
       .eq('id', userId)
-      .single()
+      .single() as any
+    const userProfile = userProfileResult.data
 
     if (!userProfile?.email) return
 
     // Gönderen kullanıcı bilgisi
-    const { data: actorProfile } = await supabase
+    const actorProfileResult = await supabase
       .from('user_profiles')
       .select('name')
       .eq('id', actorId)
-      .single()
+      .single() as any
+    const actorProfile = actorProfileResult.data
 
     const actorName = actorProfile?.name || 'Bir kullanıcı'
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://spotitforme.com'
@@ -131,6 +144,7 @@ async function sendEmailNotification(
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = getSupabaseClient()
     const body = await request.json()
     const { userId, type, actorId, postId, message, postType } = body
 
@@ -153,8 +167,8 @@ export async function POST(request: NextRequest) {
     // Notification kayıt et (türe göre uygun tabloya)
     const tableName = postType === 'shop' ? 'shop_social_notifications' : 'social_notifications'
 
-    const { data, error } = await supabase
-      .from(tableName)
+    const { data, error } = await (supabase
+      .from(tableName) as any)
       .insert({
         user_id: userId,
         type,
