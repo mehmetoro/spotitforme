@@ -38,13 +38,20 @@ export default function UserMenu() {
   }, [])
 
   const checkUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
-      setUser({
-        id: user.id,
-        email: user.email!,
-        name: user.user_metadata?.name,
-      })
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        setUser({
+          id: user.id,
+          email: user.email!,
+          name: user.user_metadata?.name,
+        })
+      }
+    } catch (err: any) {
+      if (err?.name === 'AbortError') {
+        return
+      }
+      console.warn('Kullanıcı bilgisi alınamadı:', err)
     }
   }
 

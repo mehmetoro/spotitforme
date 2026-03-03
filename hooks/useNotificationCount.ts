@@ -59,7 +59,10 @@ export function useNotificationCount() {
         return () => {
           subscription.unsubscribe()
         }
-      } catch (err) {
+      } catch (err: any) {
+        if (err?.name === 'AbortError') {
+          return
+        }
         console.warn('Notification setup error:', err)
       }
     }

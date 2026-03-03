@@ -4,8 +4,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import Header from '@/components/Header'
-import Footer from '@/components/Footer'
 import UserProfileCard from '@/components/UserProfileCard'
 import SimpleTabs from '@/components/SimpleTabs'
 import Feed from '@/components/social/Feed'
@@ -14,8 +12,8 @@ type TabType = 'sightings' | 'spots' | 'reputation' | 'social'
 
 interface UserProfile {
   id: string
-  name: string
-  email: string
+  full_name: string | null
+  email?: string
   avatar_url: string | null
   bio: string | null
   location: string | null
@@ -97,12 +95,10 @@ export default function UserProfilePage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Header />
         <main className="container-custom py-12 text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Yükleniyor...</p>
         </main>
-        <Footer />
       </div>
     )
   }
@@ -110,7 +106,6 @@ export default function UserProfilePage() {
   if (!user) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Header />
         <main className="container-custom py-12 text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">Kullanıcı bulunamadı</h1>
           <button
@@ -120,14 +115,12 @@ export default function UserProfilePage() {
             Ana sayfaya dön
           </button>
         </main>
-        <Footer />
       </div>
     )
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header />
       
       <main className="container-custom py-8">
         {/* Üst Bilgi */}
@@ -139,12 +132,12 @@ export default function UserProfilePage() {
                   {user.avatar_url ? (
                     <img
                       src={user.avatar_url}
-                      alt={user.name}
+                      alt={user.full_name || 'User'}
                       className="w-full h-full rounded-full object-cover"
                     />
                   ) : (
                     <div className="text-3xl font-bold text-blue-600">
-                      {user.name[0].toUpperCase()}
+                      {user.full_name ? user.full_name[0].toUpperCase() : 'K'}
                     </div>
                   )}
                 </div>
@@ -154,7 +147,7 @@ export default function UserProfilePage() {
               </div>
               
               <div>
-                <h1 className="text-3xl font-bold mb-2">{user.name}</h1>
+                <h1 className="text-3xl font-bold mb-2">{user.full_name || 'Kullanıcı'}</h1>
                 {user.bio && <p className="text-blue-100">{user.bio}</p>}
                 {user.location && (
                   <p className="text-blue-100 text-sm mt-2">📍 {user.location}</p>
@@ -328,8 +321,6 @@ export default function UserProfilePage() {
           )}
         </div>
       </main>
-
-      <Footer />
     </div>
   )
 }

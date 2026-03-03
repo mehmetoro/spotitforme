@@ -180,7 +180,15 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
         errorMessage = 'Kimlik doğrulama hatası. Lütfen sayfayı yenileyin.'
       }
       
-      setError(`${errorMessage} (Lütfen browser konsolunu kontrol edin)`)
+      // "User already registered" ise login moduna geç
+      if (errorMessage.includes('Bu email adresi zaten kayıtlı')) {
+        setIsLogin(true)
+        setPassword('')
+        setName('')
+        setError(errorMessage)
+      } else {
+        setError(`${errorMessage}`)
+      }
       
     } finally {
       setLoading(false)
@@ -281,6 +289,21 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
               <p className="text-xs text-gray-500 mt-1">
                 Şifreniz en az 6 karakter olmalıdır
               </p>
+            )}
+            {isLogin && (
+              <div className="mt-2 text-right">
+                <a
+                  href="/forgot-password"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    handleClose()
+                    window.location.href = '/forgot-password'
+                  }}
+                  className="text-sm text-blue-600 hover:text-blue-800 underline"
+                >
+                  Şifremi Unuttum?
+                </a>
+              </div>
             )}
           </div>
 

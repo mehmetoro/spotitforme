@@ -1,8 +1,9 @@
 // components/social/PostHeader.tsx
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { MoreVertical, MapPin, Calendar } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
 
 interface PostHeaderProps {
   user: any
@@ -11,13 +12,53 @@ interface PostHeaderProps {
   onReport?: () => void
 }
 
-export default function PostHeader({ user, post, onFollow, onReport }: PostHeaderProps) {
+export default function PostHeader({ user: author, post, onFollow, onReport }: PostHeaderProps) {
   const [showMenu, setShowMenu] = useState(false)
   const [isFollowing, setIsFollowing] = useState(false)
 
-  const handleFollow = () => {
-    setIsFollowing(!isFollowing)
-    if (onFollow) onFollow()
+  useEffect(() => {
+    // başlangıçta takip durumunu kontrol et
+    const checkFollow = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user || !author?.id) return
+
+        const { data: follow } = await supabase
+          .from('social_follows')
+          .select('id')
+          .eq('follower_id', user.id)
+          .eq('following_id', author.id)
+          .maybeSingle()
+
+        setIsFollowing(!!follow)
+      } catch (e) {
+        console.warn('Takip bilgisi alınamadı', e)
+      }
+    }
+    checkFollow()
+  }, [author?.id])
+
+  const handleFollow = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      if (isFollowing) {
+        await supabase
+          .from('social_follows')
+          .delete()
+          .eq('follower_id', user.id)
+          .eq('following_id', author.id)
+      } else {
+        await supabase
+          .from('social_follows')
+          .insert({ follower_id: user.id, following_id: author.id })
+      }
+      setIsFollowing(!isFollowing)
+      if (onFollow) onFollow()
+    } catch (e) {
+      console.error('Takip işleminde hata', e)
+    }
   }
 
   const handleReport = () => {
@@ -48,15 +89,15 @@ export default function PostHeader({ user, post, onFollow, onReport }: PostHeade
           {/* Avatar */}
           <div className="relative">
             <div className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-blue-400 to-purple-500">
-              {user?.avatar_url ? (
+              {author?.avatar_url ? (
                 <img
-                  src={user.avatar_url}
-                  alt={user?.name || 'Kullanıcı'}
+                  src={author.avatar_url}
+                  alt={author?.name || 'Kullanıcı'}
                   className="w-full h-full object-cover"
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-white font-bold text-lg">
-                  {user?.name?.[0]?.toUpperCase() || 'K'}
+                  {author?.name?.[0]?.toUpperCase() || 'K'}
                 </div>
               )}
             </div>
@@ -69,7 +110,7 @@ export default function PostHeader({ user, post, onFollow, onReport }: PostHeade
           <div className="flex-1">
             <div className="flex items-center space-x-2">
               <h4 className="font-bold text-gray-900">
-                {user?.name || 'Kullanıcı'}
+                {author?.name || 'Kullanıcı'}
               </h4>
               
               {/* Verified badge (mağaza veya premium kullanıcı) */}
@@ -80,9 +121,9 @@ export default function PostHeader({ user, post, onFollow, onReport }: PostHeade
               )}
               
               {/* Seviye badge */}
-              {user?.reputation?.level && user.reputation.level > 2 && (
+              {author?.reputation?.level && author.reputation.level > 2 && (
                 <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-0.5 rounded-full">
-                  ⭐ Lv.{user.reputation.level}
+                  ⭐ Lv.{author.reputation.level}
                 </span>
               )}
             </div>

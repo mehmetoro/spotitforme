@@ -15,14 +15,15 @@ import { useInView } from 'react-intersection-observer'
 interface FeedProps {
   initialUserId?: string
   type?: FilterType
+  category?: string // Kategori filtresi için
 }
 
-export default function Feed({ initialUserId, type = 'for-you' }: FeedProps) {
+export default function Feed({ initialUserId, type, category }: FeedProps) {
   const [posts, setPosts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [hasMore, setHasMore] = useState(true)
   const [page, setPage] = useState(0)
-  const [activeFilter, setActiveFilter] = useState<FilterType>(type)
+  const [activeFilter, setActiveFilter] = useState<FilterType>(type || 'for-you')
   const [error, setError] = useState<string | null>(null)
   const [foundSpot, setFoundSpot] = useState<any | null>(null)
   const [showFoundModal, setShowFoundModal] = useState(false)
@@ -37,6 +38,12 @@ export default function Feed({ initialUserId, type = 'for-you' }: FeedProps) {
     try {
       setLoading(true)
       setError(null)
+
+      // Aynı request içinde auth kilit yarışlarını önlemek için user'ı bir kez al
+      const {
+        data: { user: currentUser }
+      } = await supabase.auth.getUser()
+      const currentUserId = currentUser?.id || null
       
       // ÖNCE: Ana postları getir (ilişkisiz)
       let query = supabase
@@ -54,13 +61,10 @@ export default function Feed({ initialUserId, type = 'for-you' }: FeedProps) {
       // - gizli ben gördüm paylaşımları yalnızca sahibi görsün
       if (hasIsPublicColumn) {
         try {
-          const {
-            data: { user }
-          } = await supabase.auth.getUser()
-          if (user) {
+          if (currentUserId) {
             // izin verilenleri OR ile belirt
             query = query.or(
-              `is_public.eq.true,user_id.eq.${user.id}`
+              `is_public.eq.true,user_id.eq.${currentUserId}`
             )
           } else {
             query = query.eq('is_public', true)
@@ -76,20 +80,49 @@ export default function Feed({ initialUserId, type = 'for-you' }: FeedProps) {
       // Filtreler
       switch (activeFilter) {
         case 'following':
-          if (initialUserId) {
-            // Takip edilenler için ayrı bir sorgu yapılabilir
-            console.log('Following filter active')
+          // profil sayfasında initialUserId, discovery'de giriş yapan kullanıcı kullanılır
+          {
+            const followerId = initialUserId || currentUserId
+
+            if (!followerId) {
+              setPosts([])
+              setHasMore(false)
+              return
+            }
+
+            const { data: following, error: followErr } = await supabase
+              .from('social_follows')
+              .select('following_id')
+              .eq('follower_id', followerId)
+
+            if (followErr) {
+              console.error('Takip edilenler alınamadı:', followErr)
+              setPosts([])
+              setHasMore(false)
+              return
+            }
+
+            if (following && following.length > 0) {
+              const ids = following.map((f: any) => f.following_id)
+              query = query.in('user_id', ids)
+            } else {
+              // takip ettiği kimse yoksa boş feed
+              setPosts([])
+              setHasMore(false)
+              return
+            }
           }
           break
 
         case 'popular':
-          query = query.order('like_count', { ascending: false })
+          // TODO: like_count sütunu eklendikten sonra bunu düzelt
+          // Şimdilik en son paylaşımlara sorted (en yeni en popüler kabul)
+          query = query.order('created_at', { ascending: false })
           break
 
         // post type filtreleri
         case 'rare':
-          // yeni schema or eski "sighting" tipi
-          query = query.or('post_type.eq.rare_sight,type.eq.sighting')
+          query = query.eq('post_type', 'rare_sight')
           break
         case 'spots':
           query = query.eq('post_type', 'spot')
@@ -98,12 +131,17 @@ export default function Feed({ initialUserId, type = 'for-you' }: FeedProps) {
           query = query.eq('post_type', 'found')
           break
         case 'products':
-          query = query.or('post_type.eq.product,type.eq.collection')
+          query = query.eq('post_type', 'product')
           break
 
         default:
           // 'for-you' veya 'category' - varsayılan sıralama
           break
+      }
+
+      // Kategori filtresi varsa uygula
+      if (category && category !== 'all') {
+        query = query.eq('category', category)
       }
 
       // Sayfalama
@@ -180,13 +218,12 @@ export default function Feed({ initialUserId, type = 'for-you' }: FeedProps) {
             let isLiked = false
             let isSaved = false
 
-            const { data: { user } } = await supabase.auth.getUser()
-            if (user) {
+            if (currentUserId) {
               const { data: likeData } = await supabase
                 .from('social_likes')
                 .select('id')
                 .eq('post_id', post.id)
-                .eq('user_id', user.id)
+                .eq('user_id', currentUserId)
                 .maybeSingle()
               
               isLiked = !!likeData
@@ -196,7 +233,7 @@ export default function Feed({ initialUserId, type = 'for-you' }: FeedProps) {
                   .from('social_saves')
                   .select('id')
                   .eq('post_id', post.id)
-                  .eq('user_id', user.id)
+                  .eq('user_id', currentUserId)
                   .maybeSingle()
                 isSaved = !!saveData
               } catch (e) {
@@ -235,11 +272,15 @@ export default function Feed({ initialUserId, type = 'for-you' }: FeedProps) {
       }
     } catch (error: any) {
       console.error('Feed yüklenemedi:', error)
+      if (error?.name === 'AbortError') {
+        // Hızlı filtre değişimlerinde iptal edilen request'ler için kullanıcıya hata gösterme
+        return
+      }
       setError(error.message || 'Bir hata oluştu')
     } finally {
       setLoading(false)
     }
-  }, [activeFilter, initialUserId])
+  }, [activeFilter, initialUserId, category])
 
   // Infinite scroll
   useEffect(() => {
@@ -256,7 +297,14 @@ export default function Feed({ initialUserId, type = 'for-you' }: FeedProps) {
     setPosts([])
     setHasMore(true)
     fetchPosts(0, true)
-  }, [activeFilter, fetchPosts])
+  }, [activeFilter, category, fetchPosts])
+
+  // Parent filtre gönderiyorsa senkron tut
+  useEffect(() => {
+    if (type && type !== activeFilter) {
+      setActiveFilter(type)
+    }
+  }, [type, activeFilter])
 
   // İlk yükleme - also check column existence once before fetching
   useEffect(() => {
@@ -388,10 +436,12 @@ export default function Feed({ initialUserId, type = 'for-you' }: FeedProps) {
       )}
 
       {/* Filters */}
-      <FeedFilters 
-        activeFilter={activeFilter}
-        onFilterChange={setActiveFilter}
-      />
+      {!type && (
+        <FeedFilters 
+          activeFilter={activeFilter}
+          onFilterChange={setActiveFilter}
+        />
+      )}
 
       {/* Feed Posts */}
       <div className="space-y-6 mt-6">
