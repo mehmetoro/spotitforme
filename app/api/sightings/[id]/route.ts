@@ -6,14 +6,15 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Service role ile client oluştur (RLS'yi bypass etmek için)
+    // Service role varsa onu, yoksa anon key'i kullan
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    const supabaseKey =
+      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
     console.log('📝 API: Fetching sighting:', params.id)
-    console.log('🔐 Using service role:', !!serviceRoleKey)
+    console.log('🔐 Using service role:', !!process.env.SUPABASE_SERVICE_ROLE_KEY)
 
-    if (!supabaseUrl || !serviceRoleKey) {
+    if (!supabaseUrl || !supabaseKey) {
       console.error('❌ Missing environment variables')
       return NextResponse.json(
         { error: 'Configuration error' },
@@ -21,7 +22,7 @@ export async function GET(
       )
     }
 
-    const supabase = createClient(supabaseUrl, serviceRoleKey, {
+    const supabase = createClient(supabaseUrl, supabaseKey, {
       auth: {
         persistSession: false,
         autoRefreshToken: false
