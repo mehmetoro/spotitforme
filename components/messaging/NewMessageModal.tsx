@@ -85,7 +85,7 @@ export default function NewMessageModal({
     }
 
     const filtered = users.filter(user =>
-      user.name.toLowerCase().includes(searchQuery.toLowerCase())
+      user.full_name.toLowerCase().includes(searchQuery.toLowerCase())
     )
     setFilteredUsers(filtered)
   }, [searchQuery, users])
@@ -169,9 +169,9 @@ export default function NewMessageModal({
       console.error('Başlangıç verileri yüklenemedi:', error)
       // Fallback veri
       const fallbackUsers: UserProfile[] = [
-        { id: '1', name: 'Ahmet Yılmaz', avatar: '', last_active: '2 saat önce', reputation_score: 150 },
-        { id: '2', name: 'Zeynep Demir', avatar: '', last_active: '1 gün önce', reputation_score: 89 },
-        { id: '3', name: 'Mehmet Öz', avatar: '', last_active: 'Çevrimiçi', reputation_score: 42 }
+        { id: '1', full_name: 'Ahmet Yılmaz', avatar: '', last_active: '2 saat önce', reputation_score: 150 },
+        { id: '2', full_name: 'Zeynep Demir', avatar: '', last_active: '1 gün önce', reputation_score: 89 },
+        { id: '3', full_name: 'Mehmet Öz', avatar: '', last_active: 'Çevrimiçi', reputation_score: 42 }
       ]
       
       const fallbackSpots: Spot[] = [
@@ -207,9 +207,9 @@ export default function NewMessageModal({
     
     // Mesajı hazırla
     if (selectedSpot) {
-      setMessage(`Merhaba ${user.name},\n\n"${selectedSpot.title}" spot'u hakkında bilgi almak istiyorum. Bu konuda yardımcı olabilir misiniz?\n\nTeşekkürler.`)
+      setMessage(`Merhaba ${user.full_name},\n\n"${selectedSpot.title}" spot'u hakkında bilgi almak istiyorum. Bu konuda yardımcı olabilir misiniz?\n\nTeşekkürler.`)
     } else {
-      setMessage(`Merhaba ${user.name},\n\n`)
+      setMessage(`Merhaba ${user.full_name},\n\n`)
     }
   }
 
@@ -313,7 +313,7 @@ export default function NewMessageModal({
           <div className="p-4 border-b flex items-center justify-between bg-white sticky top-0 z-10">
             <div>
               <h2 className="text-lg font-semibold">
-                {step === 'select' ? 'Yeni Mesaj' : `${selectedUser?.name}'a Mesaj`}
+                {step === 'select' ? 'Yeni Mesaj' : `${selectedUser?.full_name}'a Mesaj`}
               </h2>
               <p className="text-sm text-gray-500">
                 {step === 'select' 
@@ -447,7 +447,7 @@ export default function NewMessageModal({
                                 {user.avatar ? (
                                   <img
                                     src={user.avatar}
-                                    alt={user.name}
+                                    alt={user.full_name}
                                     className="w-10 h-10 rounded-full"
                                   />
                                 ) : (
@@ -460,7 +460,7 @@ export default function NewMessageModal({
                             </div>
                             <div>
                               <div className="flex items-center space-x-2">
-                                <p className="font-medium">{user.name}</p>
+                                <p className="font-medium">{user.full_name}</p>
                                 {user.reputation_score && user.reputation_score > 0 ? (
                                   <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded">
                                     {user.reputation_score} puan
@@ -494,7 +494,7 @@ export default function NewMessageModal({
                         {selectedUser?.avatar ? (
                           <img
                             src={selectedUser.avatar}
-                            alt={selectedUser.name}
+                            alt={selectedUser.full_name}
                             className="w-12 h-12 rounded-full"
                           />
                         ) : (

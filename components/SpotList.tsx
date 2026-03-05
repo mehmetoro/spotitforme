@@ -55,7 +55,7 @@ export default function SpotList({
 
     // Kullanıcı bilgilerini ayrıca getir
     if (data && data.length > 0) {
-      const userIds = [...new Set(data.map(spot => spot.user_id))];
+      const userIds = Array.from(new Set(data.map(spot => spot.user_id)));
       const { data: users } = await supabase
         .from('user_profiles')
         .select('id, full_name')
