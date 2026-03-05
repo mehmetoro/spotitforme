@@ -29,18 +29,47 @@ export default function NotificationsPage() {
   const fetchNotifications = async (userId: string) => {
     try {
       setLoading(true)
+      // Bildirim'leri fetch et (actor relationship'i skip et)
       const { data, error } = await supabase
         .from('social_notifications')
-        .select('*, actor:actor_id(id, name, avatar_url)')
+        .select('*')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(50)
 
-      if (error && error.code !== 'PGRST116') throw error
+      if (error) {
+        console.error('Notifications loading error:', error)
+        setNotifications([])
+        return
+      }
 
-      setNotifications(data || [])
+      // Actor bilgilerini fetch et
+      if (data && data.length > 0) {
+        const actorIds = Array.from(new Set(data.map(n => n.actor_id).filter((id: string) => id)))
+        
+        let actors: any[] = []
+        if (actorIds.length > 0) {
+          const result = await supabase
+            .from('user_profiles')
+            .select('id, name, avatar_url')
+            .in('id', actorIds)
+          actors = result.data || []
+        }
+        
+        const actorMap = actors?.reduce((acc: any, a: any) => ({ ...acc, [a.id]: a }), {}) || {}
+        
+        const enrichedData = data.map(notif => ({
+          ...notif,
+          actor: actorMap[notif.actor_id] || null
+        }))
+        
+        setNotifications(enrichedData)
+      } else {
+        setNotifications([])
+      }
     } catch (err: any) {
       console.error('Notifications loading error:', err)
+      setNotifications([])
     } finally {
       setLoading(false)
     }
@@ -78,6 +107,8 @@ export default function NotificationsPage() {
 
   const getNotificationMessage = (notif: any) => {
     switch (notif.type) {
+            case 'spot_sighting':
+              return 'spotunuz için "Ben Gördüm" bildirimi gönderdi'
       case 'spot_found':
         return 'spotuna "Ben Gördüm" yazıldı'
       case 'post_liked':
@@ -92,9 +123,27 @@ export default function NotificationsPage() {
   }
 
   const getNotificationUrl = (notif: any) => {
-    if (notif.post_id?.startsWith('shop-')) {
-      return `/shop/${notif.post_id.replace('shop-', '')}`
+    console.log('📌 Notification:', notif)
+    console.log('📌 post_id:', notif.post_id)
+    
+    if (typeof notif.post_id === 'string') {
+      if (notif.post_id.startsWith('sighting-')) {
+        const url = `/sightings/${notif.post_id.replace('sighting-', '')}`
+        console.log('✅ Sighting URL:', url)
+        return url
+      }
+      if (notif.post_id.startsWith('spot-')) {
+        const url = `/spots/${notif.post_id.replace('spot-', '')}`
+        console.log('✅ Spot URL:', url)
+        return url
+      }
+      if (notif.post_id.startsWith('shop-')) {
+        const url = `/shop/${notif.post_id.replace('shop-', '')}`
+        console.log('✅ Shop URL:', url)
+        return url
+      }
     }
+    console.log('⚠️ Default social URL:', `/social/${notif.post_id}`)
     return `/social/${notif.post_id}`
   }
 
@@ -115,7 +164,7 @@ export default function NotificationsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12">
+      <div className="flex items-center justify-center py-12">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600"></div>
       </div>
     )
@@ -124,7 +173,7 @@ export default function NotificationsPage() {
   const unreadCount = notifications.filter((n) => !n.read).length
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <>
       <main className="container-custom py-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -194,6 +243,6 @@ export default function NotificationsPage() {
           </div>
         )}
       </main>
-    </div>
+    </>
   )
 }

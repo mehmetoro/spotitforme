@@ -1,6 +1,7 @@
 // app/spots/page.tsx - BASİTLEŞTİRİLMİŞ
 import SpotList from '@/components/SpotList'
 import SearchFilters from '@/components/SearchFilters'
+import ResponsiveAd from '@/components/ResponsiveAd'
 
 export default function SpotsPage({
   searchParams,
@@ -65,6 +66,11 @@ export default function SpotsPage({
         </div>
 
         <SearchFilters />
+
+        {/* Promotion Banner */}
+        <div className="my-8">
+          <ResponsiveAd placement="inline" />
+        </div>
 
         {/* Spot listesi (içinde native reklamlar var) */}
         <div className="mt-6">

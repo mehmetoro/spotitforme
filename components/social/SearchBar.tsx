@@ -1,16 +1,24 @@
 // components/social/SearchBar.tsx
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 interface SearchBarProps {
   onSearch: (query: string) => void
   onPostTypeFilter?: (type: string) => void
+  initialValue?: string
 }
 
-export default function SearchBar({ onSearch, onPostTypeFilter }: SearchBarProps) {
-  const [query, setQuery] = useState('')
+export default function SearchBar({ onSearch, onPostTypeFilter, initialValue }: SearchBarProps) {
+  const [query, setQuery] = useState(initialValue || '')
   const [selectedType, setSelectedType] = useState<string>('all')
+
+  // initialValue prop'u değiştiğinde query'yi güncelle
+  useEffect(() => {
+    if (initialValue !== undefined) {
+      setQuery(initialValue)
+    }
+  }, [initialValue])
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value

@@ -2,11 +2,11 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Feed from '@/components/social/Feed'
 import CreatePostModal from '@/components/social/CreatePostModal'
 import FeedFilters, { FilterType } from '@/components/social/FeedFilters'
 import CategoryGrid from '@/components/social/CategoryGrid'
-import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import SuggestedUsers from '@/components/social/SuggestedUsers'
 
@@ -102,34 +102,85 @@ function FollowingList() {
   )
 }
 
-// TrendingHashtags - Gerçek verilerle çalışacak şekilde hazırlandı
+// TrendingHashtags - Gerçek verilerle çalışır
 function TrendingHashtags() {
   const router = useRouter()
-  
-  // Örnek hashtag'ler - gerçek veritabanından gelecek
-  const hashtags = [
-    { name: '#vintage', count: 42 },
-    { name: '#kamera', count: 38 },
-    { name: '#antika', count: 27 },
-    { name: '#koleksiyon', count: 23 },
-    { name: '#plak', count: 19 },
-    { name: '#saat', count: 15 }
-  ]
+  const [hashtags, setHashtags] = useState<{ name: string; count: number }[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchTrendingHashtags = async () => {
+      try {
+        setLoading(true)
+        
+        // Tüm postlardan hashtag'leri al
+        const { data: posts, error } = await supabase
+          .from('social_posts')
+          .select('hashtags')
+          .not('hashtags', 'is', null)
+        
+        if (error) throw error
+        
+        // Hashtag'leri say
+        const hashtagCounts: { [key: string]: number } = {}
+        
+        posts?.forEach((post: any) => {
+          if (post.hashtags && Array.isArray(post.hashtags)) {
+            post.hashtags.forEach((tag: string) => {
+              // # işareti olmadan normalize et
+              const normalizedTag = tag.replace('#', '').toLowerCase()
+              if (normalizedTag) {
+                hashtagCounts[normalizedTag] = (hashtagCounts[normalizedTag] || 0) + 1
+              }
+            })
+          }
+        })
+        
+        // En popüler 6 hashtag'i sırala
+        const sortedHashtags = Object.entries(hashtagCounts)
+          .map(([name, count]) => ({ name: `#${name}`, count }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 6)
+        
+        setHashtags(sortedHashtags)
+      } catch (error) {
+        console.error('Hashtag\'ler yüklenirken hata:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchTrendingHashtags()
+  }, [])
 
   return (
     <div className="bg-white rounded-xl shadow p-6">
       <h3 className="font-bold text-gray-900 mb-4">🔥 Popüler Hashtag'ler</h3>
       <div className="space-y-2">
-        {hashtags.map((tag) => (
-          <button
-            key={tag.name}
-            onClick={() => router.push(`/discovery/tags/${tag.name.replace('#', '')}`)}
-            className="w-full flex justify-between items-center p-2 hover:bg-gray-50 rounded transition"
-          >
-            <span className="text-blue-600 font-medium">{tag.name}</span>
-            <span className="text-sm text-gray-500">{tag.count} paylaşım</span>
-          </button>
-        ))}
+        {loading ? (
+          // Yükleniyor skeleton
+          [...Array(6)].map((_, i) => (
+            <div key={i} className="animate-pulse flex justify-between p-2">
+              <div className="h-4 bg-gray-200 rounded w-20"></div>
+              <div className="h-4 bg-gray-200 rounded w-16"></div>
+            </div>
+          ))
+        ) : hashtags.length === 0 ? (
+          <p className="text-gray-500 text-sm text-center py-4">
+            Henüz hashtag yok. İlk paylaşımı yapan sen ol! 🚀
+          </p>
+        ) : (
+          hashtags.map((tag) => (
+            <button
+              key={tag.name}
+              onClick={() => router.push(`/discovery?search=${encodeURIComponent(tag.name)}`)}
+              className="w-full flex justify-between items-center p-2 hover:bg-gray-50 rounded transition"
+            >
+              <span className="text-blue-600 font-medium">{tag.name}</span>
+              <span className="text-sm text-gray-500">{tag.count} paylaşım</span>
+            </button>
+          ))
+        )}
       </div>
     </div>
   )
@@ -137,6 +188,10 @@ function TrendingHashtags() {
 
 
 export default function DiscoveryPage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const searchFromUrl = searchParams.get('search') || ''
+  
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [activeFilter, setActiveFilter] = useState<FilterType>('for-you')
   const [userStats, setUserStats] = useState({
@@ -146,7 +201,6 @@ export default function DiscoveryPage() {
   })
   const [userProfile, setUserProfile] = useState<{ name: string | null; avatar_url: string | null } | null>(null)
   const [loadingStats, setLoadingStats] = useState(true)
-  const router = useRouter()
 
   // Kullanıcı istatistiklerini yükle
   useEffect(() => {
@@ -301,7 +355,7 @@ export default function DiscoveryPage() {
             {activeFilter === 'category' ? (
               <CategoryGrid />
             ) : (
-              <Feed type={activeFilter} />
+              <Feed type={activeFilter} initialSearch={searchFromUrl} />
             )}
           </div>
 

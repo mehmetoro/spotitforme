@@ -24,10 +24,10 @@ function getSupabaseClient() {
 
 // Email transporter setup
 const transporter = nodemailer.createTransport({
-  service: process.env.EMAIL_SERVICE || 'gmail',
+  service: 'gmail',
   auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASSWORD
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_APP_PASS
   }
 })
 
@@ -37,29 +37,41 @@ async function sendEmailNotification(
   type: string,
   actorId: string,
   message: string,
-  postType?: string
+  postType?: string,
+  spotTitle?: string,
+  spotLocation?: string,
+  spotPrice?: string,
+  spotNotes?: string
 ) {
   try {
     const supabase = getSupabaseClient()
-    // Alıcı kullanıcı bilgisi
+    // Alıcı kullanıcı adı (profil tablosundan)
     const userProfileResult = await supabase
       .from('user_profiles')
-      .select('email, name')
+      .select('full_name')
       .eq('id', userId)
       .single() as any
     const userProfile = userProfileResult.data
 
-    if (!userProfile?.email) return
+    // Alıcı email (auth.users üzerinden - service role gerekli)
+    const { data: authUserData, error: authUserError } = await supabase.auth.admin.getUserById(userId)
+    if (authUserError) {
+      console.error('Auth user email alınamadı:', authUserError)
+      return
+    }
+
+    const recipientEmail = authUserData?.user?.email
+    if (!recipientEmail) return
 
     // Gönderen kullanıcı bilgisi
     const actorProfileResult = await supabase
       .from('user_profiles')
-      .select('name')
+      .select('full_name')
       .eq('id', actorId)
       .single() as any
     const actorProfile = actorProfileResult.data
 
-    const actorName = actorProfile?.name || 'Bir kullanıcı'
+    const actorName = actorProfile?.full_name || 'Bir kullanıcı'
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://spotitforme.com'
 
     // Notification türüne göre email yapısı
@@ -83,6 +95,17 @@ async function sendEmailNotification(
         <p>${message}</p>
         <a href="${appUrl}/notifications" style="background-color: #10b981; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
           Detaylı Gör
+        </a>
+      `,
+      spot_sighting: `
+        <h2>${actorName} spotun için "Ben Gördüm" bildirimi gönderdi! 👀</h2>
+        <p><strong>${spotTitle || 'Spot'}</strong></p>
+        ${spotLocation ? `<p><strong>Nerede gördü:</strong> ${spotLocation}</p>` : ''}
+        ${spotPrice ? `<p><strong>Fiyat:</strong> ₺${spotPrice}</p>` : ''}
+        ${spotNotes ? `<p><strong>Ek Bilgi:</strong> ${spotNotes}</p>` : ''}
+        <p style="margin-top: 15px; color: #666;">${message}</p>
+        <a href="${appUrl}/notifications" style="background-color: #10b981; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
+          Detayları Gör
         </a>
       `,
       post_shared: `
@@ -126,15 +149,15 @@ async function sendEmailNotification(
     `
 
     // Email gönder
-    if (transporter && process.env.EMAIL_USER) {
+    if (transporter && process.env.GMAIL_USER) {
       await transporter.sendMail({
-        from: process.env.EMAIL_USER,
-        to: userProfile.email,
+        from: process.env.GMAIL_USER,
+        to: recipientEmail,
         subject: `SpotItForMe: ${message}`,
         html: htmlBody,
         text: `${message}\n\nDetayları görmek için: ${appUrl}/notifications`
       })
-      console.log(`✅ Email gönderildi: ${userProfile.email}`)
+      console.log(`✅ Email gönderildi: ${recipientEmail}`)
     }
   } catch (error) {
     console.error('Email gönderim hatası:', error)
@@ -146,7 +169,7 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = getSupabaseClient()
     const body = await request.json()
-    const { userId, type, actorId, postId, message, postType } = body
+    const { userId, type, actorId, postId, message, postType, spotTitle, spotLocation, spotPrice, spotNotes } = body
 
     // Validasyon
     if (!userId || !type || !actorId) {
@@ -167,7 +190,7 @@ export async function POST(request: NextRequest) {
     // Notification kayıt et (türe göre uygun tabloya)
     const tableName = postType === 'shop' ? 'shop_social_notifications' : 'social_notifications'
 
-    const { data, error } = await (supabase
+    let { data, error } = await (supabase
       .from(tableName) as any)
       .insert({
         user_id: userId,
@@ -180,18 +203,39 @@ export async function POST(request: NextRequest) {
       .select()
       .single()
 
+    // Eski şemalar spot_sighting tipini kabul etmeyebilir; geriye uyumlu fallback
+    if (error && type === 'spot_sighting') {
+      const retry = await (supabase
+        .from(tableName) as any)
+        .insert({
+          user_id: userId,
+          type: 'spot_found',
+          actor_id: actorId,
+          post_id: postId,
+          message: message || 'Yeni bildirim',
+          read: false
+        })
+        .select()
+        .single()
+
+      data = retry.data
+      error = retry.error
+    }
+
     if (error) {
       console.error('Notification kayıt hatası:', error)
       return NextResponse.json(
-        { error: 'Failed to create notification' },
+        { error: 'Failed to create notification', details: error },
         { status: 500 }
       )
     }
 
     // Email gönder (arka planda - bekleme)
-    sendEmailNotification(userId, type, actorId, message, postType).catch(err => 
-      console.error('Email gönderim hatası:', err)
-    )
+    if (process.env.GMAIL_USER && process.env.GMAIL_APP_PASS) {
+      sendEmailNotification(userId, type, actorId, message, postType, spotTitle, spotLocation, spotPrice, spotNotes).catch(err => 
+        console.error('Email gönderim hatası:', err)
+      )
+    }
 
     return NextResponse.json(
       { success: true, notification: data },

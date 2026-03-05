@@ -20,10 +20,13 @@ export default function Header() {
             </div>
           </Link>
 
-          {/* Navigation - Nadir Gördüm eklendi */}
+          {/* Navigation */}
           <nav className="hidden md:flex space-x-8">
             <Link href="/" className="text-gray-700 hover:text-blue-600 font-medium">
               Ana Sayfa
+            </Link>
+            <Link href="/sightings" className="text-gray-700 hover:text-blue-600 font-medium">
+              📍 Yardımlar
             </Link>
             <Link href="/discovery" className="text-gray-700 hover:text-blue-600 font-medium">
               👁️ Nadir Gördüm
@@ -54,8 +57,11 @@ export default function Header() {
           </div>
         </div>
 
-        {/* Mobile Navigation - Nadir Gördüm eklendi */}
+        {/* Mobile Navigation */}
         <div className="md:hidden mt-4 flex justify-center space-x-6">
+          <Link href="/sightings" className="text-gray-700 hover:text-blue-600 text-sm">
+            📍 Yardımlar
+          </Link>
           <Link href="/discovery" className="text-gray-700 hover:text-blue-600 text-sm">
             👁️ Nadir
           </Link>

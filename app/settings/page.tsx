@@ -88,13 +88,33 @@ export default function SettingsPage() {
   }
 
   const handleChangePassword = async () => {
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(user?.email)
-      if (error) throw error
+    const newPassword = prompt('Lütfen yeni şifreni gir (en az 8 karakter):')
+    if (!newPassword || newPassword.length < 8) {
+      alert('Şifre en az 8 karakter olmalıdır')
+      return
+    }
 
-      alert('Şifre sıfırlama bağlantısı e-postanıza gönderildi')
-    } catch (error) {
-      console.error('Şifre sıfırlama hatası:', error)
+    try {
+      // Supabase Admin API aracılığıyla doğrudan şifre güncelle
+      const response = await fetch('/api/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          userId: user?.id,
+          newPassword 
+        })
+      })
+
+      const data = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Şifre değişikliği başarısız')
+      }
+
+      alert('✅ Şifreni başarıyla değiştirdim')
+    } catch (error: any) {
+      console.error('Şifre değişikliği hatası:', error)
+      alert(`❌ Hata: ${error.message}`)
     }
   }
 

@@ -11,9 +11,9 @@ interface SpotCardProps {
     status: string
     created_at: string
     views: number
-    helps: number
+    total_helps: number
     user?: {
-      name: string | null
+      full_name: string | null
     }
   }
 }
@@ -177,11 +177,11 @@ export default function SpotCard({ spot }: SpotCardProps) {
         {/* KULLANICI */}
         <div className="flex items-center mb-4">
           <div className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold">
-            {spot.user?.name?.[0]?.toUpperCase() || 'K'}
+            {spot.user?.full_name?.[0]?.toUpperCase() || 'K'}
           </div>
           <div className="ml-3">
             <p className="font-medium text-sm">
-              {spot.user?.name || 'Kullanıcı'}
+              {spot.user?.full_name || 'Kullanıcı'}
             </p>
             <p className="text-xs text-gray-500">
               {getTimeAgo(spot.created_at)}
@@ -224,7 +224,7 @@ export default function SpotCard({ spot }: SpotCardProps) {
               👁️ {spot.views || 0}
             </span>
             <span className="flex items-center">
-              🤝 {spot.helps || 0}
+              🤝 {spot.total_helps || 0}
             </span>
           </div>
           

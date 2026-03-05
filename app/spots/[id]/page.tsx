@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import SimpleMap from '@/components/SimpleMap'
 import SimpleShareButtons from '@/components/SimpleShareButtons'
+import SightingModal from '@/components/SightingModal'
 
 interface Spot {
   id: string
@@ -18,10 +19,9 @@ interface Spot {
   created_at: string
   user_id: string
   views: number
-  helps: number
+  total_helps: number
   user?: {
-    name: string | null
-    email: string
+    full_name: string | null
   }
 }
 
@@ -32,6 +32,7 @@ export default function SpotDetailPage() {
   
   const [spot, setSpot] = useState<Spot | null>(null)
   const [loading, setLoading] = useState(true)
+  const [showSightingModal, setShowSightingModal] = useState(false)
 
   useEffect(() => {
     if (spotId) {
@@ -56,7 +57,7 @@ export default function SpotDetailPage() {
       // Kullanıcı bilgilerini getir
       const { data: userData } = await supabase
         .from('user_profiles')
-        .select('name, email')
+        .select('full_name')
         .eq('id', spotData.user_id)
         .single()
 
@@ -68,7 +69,7 @@ export default function SpotDetailPage() {
 
       setSpot({
         ...spotData,
-        user: userData || { name: null, email: spotData.user_id }
+        user: userData || { full_name: null }
       })
     } catch (error) {
       console.error('Spot detayları yüklenemedi:', error)
@@ -78,7 +79,15 @@ export default function SpotDetailPage() {
   }
 
   const handleHelpClick = () => {
-    router.push(`/help/${spotId}`)
+    setShowSightingModal(true)
+  }
+
+  const handleSightingSuccess = () => {
+    setShowSightingModal(false)
+    // Spot verilerini yeniden yükle
+    fetchSpotDetails()
+    // Başarı mesajı göster (opsiyonel)
+    alert('Teşekkürler! Bildiriminiz kaydedildi. 🎉')
   }
 
   if (loading) {
@@ -188,7 +197,7 @@ export default function SpotDetailPage() {
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-gray-500 mb-2">Yardım</h3>
-                  <p className="font-medium">{spot.helps} kişi yardım etti</p>
+                  <p className="font-medium">{spot.total_helps} kişi yardım etti</p>
                 </div>
               </div>
             </div>
@@ -231,10 +240,10 @@ export default function SpotDetailPage() {
               </h3>
               <div className="flex items-center space-x-3">
                 <div className="w-12 h-12 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-lg">
-                  {spot.user?.name?.[0]?.toUpperCase() || 'K'}
+                  {spot.user?.full_name?.[0]?.toUpperCase() || 'K'}
                 </div>
                 <div>
-                  <p className="font-medium">{spot.user?.name || 'Kullanıcı'}</p>
+                  <p className="font-medium">{spot.user?.full_name || 'Kullanıcı'}</p>
                   <p className="text-sm text-gray-500">
                     Topluluk üyesi
                   </p>
@@ -254,7 +263,7 @@ export default function SpotDetailPage() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Yardım Edenler:</span>
-                  <span className="font-bold">{spot.helps}</span>
+                  <span className="font-bold">{spot.total_helps}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Oluşturulma:</span>
@@ -288,6 +297,16 @@ export default function SpotDetailPage() {
           </div>
         </div>
       </main>
+
+      {/* SIGHTING MODAL */}
+      {showSightingModal && (
+        <SightingModal
+          spotId={spotId as string}
+          spotTitle={spot.title}
+          onClose={() => setShowSightingModal(false)}
+          onSuccess={handleSightingSuccess}
+        />
+      )}
     </div>
   )
 }

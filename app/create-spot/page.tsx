@@ -139,7 +139,7 @@ export default function CreateSpotPage() {
         image_url: imageUrl || null,
         status: 'active',
         views: 0,
-        helps: 0,
+        total_helps: 0,
         created_at: new Date().toISOString()
       }
 
@@ -399,7 +399,7 @@ export default function CreateSpotPage() {
             <div className="mt-6 p-4 bg-gray-100 rounded-lg text-sm">
               <p className="font-medium mb-2">🛠️ Development Bilgileri:</p>
               <p>• Tablo: <code>spots</code></p>
-              <p>• Kolonlar: id, user_id, title, description, category, location, image_url, status, views, helps</p>
+              <p>• Kolonlar: id, user_id, title, description, category, location, image_url, status, views, total_helps</p>
               <p>• RLS: Aktif</p>
             </div>
           )}

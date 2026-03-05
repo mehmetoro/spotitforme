@@ -50,10 +50,10 @@ export default function UserProfileCard({ userId, compact = false }: UserProfile
           <div className={`w-${compact ? '12' : '16'} h-${compact ? '12' : '16'} rounded-full border-4`} 
                style={{ borderColor: userLevel.color }}>
             {profile?.avatar_url ? (
-              <img src={profile.avatar_url} alt={profile.name} className="w-full h-full rounded-full" />
+              <img src={profile.avatar_url} alt={profile.full_name} className="w-full h-full rounded-full" />
             ) : (
               <div className={`w-full h-full rounded-full bg-gradient-to-br from-${userLevel.color}-400 to-${userLevel.color}-600 flex items-center justify-center text-white font-bold text-${compact ? 'lg' : 'xl'}`}>
-                {profile?.name?.[0] || 'K'}
+                {profile?.full_name?.[0] || 'K'}
               </div>
             )}
           </div>
@@ -72,7 +72,7 @@ export default function UserProfileCard({ userId, compact = false }: UserProfile
           <div className="flex items-center justify-between">
             <div>
               <h3 className={`font-bold ${compact ? 'text-lg' : 'text-xl'}`}>
-                {profile?.name || 'Kullanıcı'}
+                {profile?.full_name || 'Kullanıcı'}
               </h3>
               <p className={`text-${userLevel.color}-600 font-medium ${compact ? 'text-sm' : ''}`}>
                 {userLevel.name}

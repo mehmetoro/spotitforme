@@ -4,50 +4,34 @@
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import Header from '@/components/Header'
-import Footer from '@/components/Footer'
 import Link from 'next/link'
 
 export default function ResetPasswordPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const token = searchParams.get('token') || ''
-  const type = searchParams.get('type') || ''
 
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
-  const [isValidToken, setIsValidToken] = useState<boolean | null>(null)
+  const [checkingSession, setCheckingSession] = useState(true)
+  const [hasSession, setHasSession] = useState(false)
 
   useEffect(() => {
-    // Token geçerliliğini kontrol et
-    checkToken()
-  }, [token])
+    // Supabase session'ını kontrol et
+    checkSession()
+  }, [])
 
-  const checkToken = async () => {
-    if (!token) {
-      setIsValidToken(false)
-      return
-    }
-
+  const checkSession = async () => {
     try {
-      // Token'ı kontrol et
-      const { error } = await supabase.auth.verifyOtp({
-        token_hash: token,
-        type: 'recovery'
-      })
-
-      if (error) {
-        console.error('Token geçersiz:', error)
-        setIsValidToken(false)
-      } else {
-        setIsValidToken(true)
-      }
+      const { data: { session } } = await supabase.auth.getSession()
+      setHasSession(!!session)
     } catch (err) {
-      console.error('Token kontrol hatası:', err)
-      setIsValidToken(false)
+      console.error('Session check error:', err)
+      setHasSession(false)
+    } finally {
+      setCheckingSession(false)
     }
   }
 
@@ -101,11 +85,24 @@ export default function ResetPasswordPage() {
     }
   }
 
-  // Token geçersizse
-  if (isValidToken === false) {
+  // Session yüklenirken
+  if (checkingSession) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Header />
+        <main className="container-custom py-12">
+          <div className="max-w-md mx-auto text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Kontrol ediliyor...</p>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
+  // Session geçersizse (link süresi dolmuş veya geçersiz)
+  if (!hasSession) {
+    return (
+      <div className="min-h-screen bg-gray-50">
         
         <main className="container-custom py-12">
           <div className="max-w-md mx-auto">
@@ -137,15 +134,12 @@ export default function ResetPasswordPage() {
             </div>
           </div>
         </main>
-
-        <Footer />
       </div>
     )
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header />
       
       <main className="container-custom py-12">
         <div className="max-w-md mx-auto">
@@ -233,7 +227,7 @@ export default function ResetPasswordPage() {
 
                 <button
                   type="submit"
-                  disabled={loading || !isValidToken}
+                  disabled={loading || !hasSession}
                   className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                 >
                   {loading ? (
@@ -304,8 +298,6 @@ export default function ResetPasswordPage() {
           </div>
         </div>
       </main>
-
-      <Footer />
     </div>
   )
 }

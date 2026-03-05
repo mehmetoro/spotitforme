@@ -92,12 +92,12 @@ export default function PostHeader({ user: author, post, onFollow, onReport }: P
               {author?.avatar_url ? (
                 <img
                   src={author.avatar_url}
-                  alt={author?.name || 'Kullanıcı'}
+                  alt={author?.full_name || 'Kullanıcı'}
                   className="w-full h-full object-cover"
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-white font-bold text-lg">
-                  {author?.name?.[0]?.toUpperCase() || 'K'}
+                  {author?.full_name?.[0]?.toUpperCase() || 'K'}
                 </div>
               )}
             </div>
@@ -110,7 +110,7 @@ export default function PostHeader({ user: author, post, onFollow, onReport }: P
           <div className="flex-1">
             <div className="flex items-center space-x-2">
               <h4 className="font-bold text-gray-900">
-                {author?.name || 'Kullanıcı'}
+                {author?.full_name || 'Kullanıcı'}
               </h4>
               
               {/* Verified badge (mağaza veya premium kullanıcı) */}

@@ -17,22 +17,46 @@ export default function Leaderboard() {
   const fetchLeaderboard = async () => {
     setLoading(true)
     try {
-      let query = supabase
-        .from('leaderboard_view')
-        .select('*')
-        .limit(20)
-
-      if (timeRange === 'daily') {
-        query = query.order('total_points', { ascending: false })
-      } else if (timeRange === 'weekly') {
-        // Bu haftanın puanları için farklı bir view gerekebilir
-        query = query.order('total_points', { ascending: false })
-      }
-
-      const { data, error } = await query
-
+      // Sighting sayılarına göre leaderboard oluştur
+      const { data: sightingsData, error } = await supabase
+        .from('sightings')
+        .select('spotter_id')
+      
       if (error) throw error
-      setLeaderboard(data || [])
+      
+      // Kullanıcı başına sighting sayısını hesapla
+      const userCounts: Record<string, number> = {}
+      sightingsData?.forEach(s => {
+        userCounts[s.spotter_id] = (userCounts[s.spotter_id] || 0) + 1
+      })
+      
+      // User ID'leri al
+      const userIds = Object.keys(userCounts)
+      if (userIds.length === 0) {
+        setLeaderboard([])
+        return
+      }
+      
+      // User bilgilerini çek
+      const { data: usersData } = await supabase
+        .from('user_profiles')
+        .select('id, name, avatar_url')
+        .in('id', userIds)
+      
+      // Leaderboard oluştur
+      const leaderboardData = (usersData || []).map(user => ({
+        user_id: user.id,
+        name: user.name || 'Kullanıcı',
+        avatar_url: user.avatar_url,
+        total_sightings: userCounts[user.id],
+        total_points: userCounts[user.id] * 10, // Her sighting 10 puan
+        current_level: Math.min(10, Math.floor(userCounts[user.id] / 5) + 1) // Her 5 sighting'de 1 level
+      }))
+      
+      // Puana göre sırala
+      leaderboardData.sort((a, b) => b.total_points - a.total_points)
+      
+      setLeaderboard(leaderboardData.slice(0, 20))
     } catch (error) {
       console.error('Leaderboard yüklenemedi:', error)
     } finally {

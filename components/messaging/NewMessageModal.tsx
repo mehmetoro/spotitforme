@@ -7,7 +7,7 @@ import { X, Search, User, AlertCircle, Send, Image as ImageIcon, MapPin } from '
 
 interface UserProfile {
   id: string
-  name: string
+  full_name: string
   avatar: string
   last_active: string
   reputation_score?: number
@@ -30,7 +30,7 @@ interface NewMessageModalProps {
 // Database'den gelen user tipi
 interface DatabaseUser {
   id: string
-  name: string | null
+  full_name: string | null
   avatar_url: string | null
   last_seen: string | null
   reputation_score: number | null
@@ -112,7 +112,7 @@ export default function NewMessageModal({
       // 1. Kullanıcıları getir
       const { data: usersData, error: usersError } = await supabase
         .from('user_profiles')
-        .select('id, name, avatar_url, last_seen, reputation_score')
+        .select('id, full_name, avatar_url, last_seen, reputation_score')
         .neq('id', currentUserId)
         .limit(20)
         .order('last_seen', { ascending: false })
@@ -122,7 +122,7 @@ export default function NewMessageModal({
       // DÜZELTME 1: user parametresi için tip belirle
       const formattedUsers: UserProfile[] = (usersData || []).map((user: DatabaseUser) => ({
         id: user.id,
-        name: user.name || 'Kullanıcı',
+        full_name: user.full_name || 'Kullanıcı',
         avatar: user.avatar_url || '',
         last_active: formatLastActive(user.last_seen || ''),
         reputation_score: user.reputation_score || 0
@@ -289,13 +289,13 @@ export default function NewMessageModal({
   const handleMessageTemplate = (template: string) => {
     switch (template) {
       case 'spot_question':
-        setMessage(`Merhaba ${selectedUser?.name || ''},\n\nBu ürün hakkında daha fazla bilgi alabilir miyim?\n- Durumu nedir?\n- Fiyat aralığı?\n- Nerede görülebilir?\n\nTeşekkürler.`)
+        setMessage(`Merhaba ${selectedUser?.full_name || ''},\n\nBu ürün hakkında daha fazla bilgi alabilir miyim?\n- Durumu nedir?\n- Fiyat aralığı?\n- Nerede görülebilir?\n\nTeşekkürler.`)
         break
       case 'meeting_request':
-        setMessage(`Merhaba ${selectedUser?.name || ''},\n\nÜrünü görmek için buluşabilir miyiz? Hangi gün ve saat uygun olursunuz?\n\nİyi günler.`)
+        setMessage(`Merhaba ${selectedUser?.full_name || ''},\n\nÜrünü görmek için buluşabilir miyiz? Hangi gün ve saat uygun olursunuz?\n\nİyi günler.`)
         break
       case 'price_offer':
-        setMessage(`Merhaba ${selectedUser?.name || ''},\n\nÜrün için fiyat teklifim var. Bu konuda konuşabilir miyiz?\n\nSaygılarımla.`)
+        setMessage(`Merhaba ${selectedUser?.full_name || ''},\n\nÜrün için fiyat teklifim var. Bu konuda konuşabilir miyiz?\n\nSaygılarımla.`)
         break
     }
   }
@@ -503,7 +503,7 @@ export default function NewMessageModal({
                       </div>
                       <div>
                         <div className="flex items-center space-x-2">
-                          <p className="font-semibold">{selectedUser?.name}</p>
+                          <p className="font-semibold">{selectedUser?.full_name}</p>
                           {selectedUser?.reputation_score && selectedUser.reputation_score > 0 ? (
                             <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded">
                               {selectedUser.reputation_score} puan

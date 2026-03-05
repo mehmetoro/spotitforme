@@ -16,9 +16,10 @@ interface FeedProps {
   initialUserId?: string
   type?: FilterType
   category?: string // Kategori filtresi için
+  initialSearch?: string // Arama sorgusu için
 }
 
-export default function Feed({ initialUserId, type, category }: FeedProps) {
+export default function Feed({ initialUserId, type, category, initialSearch }: FeedProps) {
   const [posts, setPosts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [hasMore, setHasMore] = useState(true)
@@ -28,7 +29,7 @@ export default function Feed({ initialUserId, type, category }: FeedProps) {
   const [foundSpot, setFoundSpot] = useState<any | null>(null)
   const [showFoundModal, setShowFoundModal] = useState(false)
   const [hasIsPublicColumn, setHasIsPublicColumn] = useState<boolean | null>(null)
-  const [searchQuery, setSearchQuery] = useState('')
+  const [searchQuery, setSearchQuery] = useState(initialSearch || '')
   const [searchPostType, setSearchPostType] = useState('all')
 
   const { ref, inView } = useInView()
@@ -306,6 +307,13 @@ export default function Feed({ initialUserId, type, category }: FeedProps) {
     }
   }, [type, activeFilter])
 
+  // URL'den gelen arama sorgusunu uygula
+  useEffect(() => {
+    if (initialSearch && initialSearch !== searchQuery) {
+      setSearchQuery(initialSearch)
+    }
+  }, [initialSearch])
+
   // İlk yükleme - also check column existence once before fetching
   useEffect(() => {
     const init = async () => {
@@ -432,6 +440,7 @@ export default function Feed({ initialUserId, type, category }: FeedProps) {
         <SearchBar 
           onSearch={setSearchQuery}
           onPostTypeFilter={setSearchPostType}
+          initialValue={searchQuery}
         />
       )}
 
@@ -450,6 +459,17 @@ export default function Feed({ initialUserId, type, category }: FeedProps) {
             // Arama filtresi
             if (searchQuery) {
               const query = searchQuery.toLowerCase()
+              
+              // Hashtag araması (#ile başlıyorsa)
+              if (query.startsWith('#')) {
+                const hashtag = query.substring(1)
+                const postHashtags = (post.hashtags || []).map((h: string) => 
+                  h.replace('#', '').toLowerCase()
+                )
+                return postHashtags.some((h: string) => h.includes(hashtag))
+              }
+              
+              // Normal arama (başlık ve içerik)
               const title = (post.title || '').toLowerCase()
               const content = (post.content || '').toLowerCase()
               if (!title.includes(query) && !content.includes(query)) {

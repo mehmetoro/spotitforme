@@ -27,6 +27,7 @@ export default function SpotList({
   const loadSpots = async (pageNum = 1) => {
     setLoading(true);
     
+    // İlk önce spots'u getir
     let query = supabase
       .from('spots')
       .select('*')
@@ -52,10 +53,31 @@ export default function SpotList({
       return;
     }
 
-    if (pageNum === 1) {
-      setSpots(data || []);
+    // Kullanıcı bilgilerini ayrıca getir
+    if (data && data.length > 0) {
+      const userIds = [...new Set(data.map(spot => spot.user_id))];
+      const { data: users } = await supabase
+        .from('user_profiles')
+        .select('id, full_name')
+        .in('id', userIds);
+      
+      const userMap = new Map(users?.map(u => [u.id, u]) || []);
+      const spotsWithUsers = data.map(spot => ({
+        ...spot,
+        user: userMap.get(spot.user_id) ? { full_name: userMap.get(spot.user_id)?.full_name } : null
+      }));
+      
+      if (pageNum === 1) {
+        setSpots(spotsWithUsers);
+      } else {
+        setSpots(prev => [...prev, ...spotsWithUsers]);
+      }
     } else {
-      setSpots(prev => [...prev, ...(data || [])]);
+      if (pageNum === 1) {
+        setSpots(data || []);
+      } else {
+        setSpots(prev => [...prev, ...(data || [])]);
+      }
     }
 
     setHasMore((data?.length || 0) === 12);

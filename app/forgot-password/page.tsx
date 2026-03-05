@@ -2,10 +2,6 @@
 'use client'
 
 import { useState } from 'react'
-import { supabase } from '@/lib/supabase'
-import { sendPasswordResetEmail } from '@/lib/email-server'
-import Header from '@/components/Header'
-import Footer from '@/components/Footer'
 import Link from 'next/link'
 
 export default function ForgotPasswordPage() {
@@ -21,19 +17,19 @@ export default function ForgotPasswordPage() {
     setSuccess(false)
 
     try {
-      // 1. Supabase'den reset linki al
-      const { data, error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+      // API'ye şifre sıfırlama isteği gönder (Supabase emailini bypass ediyoruz)
+      const response = await fetch('/api/forgot-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
       })
 
-      if (resetError) throw resetError
+      const result = await response.json()
 
-      // 2. Email gönder
-      const resetLink = `${window.location.origin}/reset-password`
-      const emailResult = await sendPasswordResetEmail(email, resetLink)
-
-      if (!emailResult.success) {
-        console.warn('Email gönderilemedi ama reset linki oluşturuldu')
+      if (!response.ok) {
+        throw new Error(result.error || 'Bir hata oluştu')
       }
 
       setSuccess(true)
@@ -59,8 +55,6 @@ export default function ForgotPasswordPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header />
-      
       <main className="container-custom py-12">
         <div className="max-w-md mx-auto">
           <div className="bg-white rounded-2xl shadow-lg p-8">
@@ -208,8 +202,6 @@ export default function ForgotPasswordPage() {
           </div>
         </div>
       </main>
-
-      <Footer />
     </div>
   )
 }

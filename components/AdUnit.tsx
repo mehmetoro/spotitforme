@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import PromoCard, { PromoBanner } from '@/components/PromoCard';
 
 interface AdUnitProps {
   placement: string; // 'header', 'sidebar', 'inline', 'popup'
@@ -133,17 +134,19 @@ export default function AdUnit({ placement, className = '' }: AdUnitProps) {
     );
   }
 
-  // Placeholder - Reklam yoksa
-  return (
-    <div className={`border-2 border-dashed border-gray-300 bg-gray-50 p-4 rounded-lg ${className}`}>
-      <div className="text-center">
-        <div className="font-semibold text-gray-700">Reklam Alanı</div>
-        <div className="text-sm text-gray-600">{getPlaceholderSize(placement)}</div>
-        <div className="text-xs text-gray-500 mt-2">Buraya reklamınızı yerleştirin</div>
-        <div className="text-xs text-gray-400 mt-1">
-          Gösterim: 0 | Tıklama: 0 | CTR: 0%
-        </div>
+  // Placeholder - Reklam yoksa PromoCard göster
+  // Header ve inline placement için banner formatı, diğerleri için kart formatı
+  if (placement === 'header' || placement === 'inline') {
+    return (
+      <div className={className}>
+        <PromoBanner variant="random" />
       </div>
+    );
+  }
+
+  return (
+    <div className={className}>
+      <PromoCard variant="random" />
     </div>
   );
 }

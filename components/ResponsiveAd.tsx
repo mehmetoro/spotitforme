@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import PromoCard, { PromoBanner } from '@/components/PromoCard';
 
 interface ResponsiveAdProps {
   placement: 'inline' | 'banner' | 'native';
@@ -62,56 +63,11 @@ export default function ResponsiveAd({
 
   const config = getAdConfig();
 
-  return (
-    <div className={`${className} ${config.width}`}>
-      <div className={`
-        text-center
-        ${config.bgColor}
-        border-2 border-dashed ${isMobile ? 'border-blue-200' : 'border-blue-300'}
-        rounded-lg
-        overflow-hidden
-        relative
-      `}>
-        {/* Reklam etiketi - köşede */}
-        <div className={`absolute top-2 left-2 ${isMobile ? 'text-[10px]' : 'text-xs'} bg-blue-600 text-white px-2 py-1 rounded`}>
-          REKLAM
-        </div>
-        
-        {/* Platform etiketi - diğer köşede */}
-        <div className={`absolute top-2 right-2 ${isMobile ? 'text-[10px]' : 'text-xs'} bg-gray-700 text-white px-2 py-1 rounded`}>
-          {isMobile ? '📱' : '💻'}
-        </div>
-        
-        {/* Ana reklam alanı */}
-        <div className={`
-          ${config.height}
-          flex flex-col items-center justify-center
-          px-4
-        `}>
-          <div className={`font-bold ${isMobile ? 'text-lg' : 'text-xl'} text-blue-700 mb-1`}>
-            {config.label}
-          </div>
-          <div className={`${isMobile ? 'text-xs' : 'text-sm'} text-blue-600 mb-2`}>
-            {config.dimensions}
-          </div>
-          <div className={`${isMobile ? 'text-xs' : 'text-sm'} text-gray-600`}>
-            {isMobile 
-              ? 'Mobil uyumlu reklam alanı' 
-              : 'Desktop uyumlu reklam alanı'}
-          </div>
-        </div>
-        
-        {/* Alt bilgi */}
-        <div className={`
-          ${isMobile ? 'py-1' : 'py-2'}
-          bg-white/50
-          border-t ${isMobile ? 'border-blue-100' : 'border-blue-200'}
-        `}>
-          <div className={`${isMobile ? 'text-[10px]' : 'text-xs'} text-gray-500`}>
-            SpotItForMe - Reklam Alanı
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  // Banner placement için PromoBanner kullan
+  if (placement === 'banner') {
+    return <PromoBanner variant="random" className={className} />;
+  }
+
+  // Inline ve native placement için PromoCard kullan
+  return <PromoCard variant="random" className={className} />;
 }

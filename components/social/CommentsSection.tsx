@@ -180,12 +180,12 @@ export default function CommentsSection({
               {comment.user?.avatar_url ? (
                 <img
                   src={comment.user.avatar_url}
-                  alt={comment.user?.name}
+                  alt={comment.user?.full_name}
                   className="w-full h-full object-cover"
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-white text-sm font-bold">
-                  {comment.user?.name?.[0] || 'K'}
+                  {comment.user?.full_name?.[0] || 'K'}
                 </div>
               )}
             </div>
@@ -196,7 +196,7 @@ export default function CommentsSection({
             <div className="bg-gray-100 rounded-2xl rounded-tl-none p-3">
               <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center space-x-2">
-                  <span className="font-bold text-sm">{comment.user?.name || 'Kullanıcı'}</span>
+                  <span className="font-bold text-sm">{comment.user?.full_name || 'Kullanıcı'}</span>
                   <span className="text-xs text-gray-500">
                     {new Date(comment.created_at).toLocaleTimeString('tr-TR', {
                       hour: '2-digit',
@@ -233,7 +233,7 @@ export default function CommentsSection({
               </button>
               
               <button
-                onClick={() => handleReply(comment.id, comment.user?.name)}
+                onClick={() => handleReply(comment.id, comment.user?.full_name)}
                 className="text-xs text-gray-500 hover:text-gray-700"
               >
                 Yanıtla
@@ -283,7 +283,7 @@ export default function CommentsSection({
       {replyingTo && (
         <div className="px-6 py-2 bg-blue-50 flex items-center justify-between">
           <div className="text-sm text-blue-700">
-            Yanıtlanıyor: @{comments.find(c => c.id === replyingTo)?.user?.name}
+            Yanıtlanıyor: @{comments.find(c => c.id === replyingTo)?.user?.full_name}
           </div>
           <button
             onClick={() => setReplyingTo(null)}

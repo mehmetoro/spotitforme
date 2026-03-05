@@ -28,7 +28,7 @@ export default function RecentSightings({ initialSightings = [] }: RecentSightin
         .from('quick_sightings')
         .select(`
           *,
-          user:user_profiles(name, avatar_url)
+          user:user_profiles(full_name, avatar_url)
         `)
         .eq('status', 'active')
         .order('created_at', { ascending: false })
@@ -135,10 +135,10 @@ export default function RecentSightings({ initialSightings = [] }: RecentSightin
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
                     <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold mr-2">
-                      {sighting.user?.name?.[0] || 'K'}
+                      {sighting.user?.full_name?.[0] || 'K'}
                     </div>
                     <span className="text-sm text-gray-700">
-                      {sighting.user?.name || 'Kullanıcı'}
+                      {sighting.user?.full_name || 'Kullanıcı'}
                     </span>
                   </div>
                   

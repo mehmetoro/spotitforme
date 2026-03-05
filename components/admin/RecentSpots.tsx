@@ -13,13 +13,13 @@ interface Spot {
   created_at: string
   user?: {
     id: string
-    name: string
+    full_name: string
   }
 }
 
 interface UserProfile {
   id: string
-  name: string
+  full_name: string
 }
 
 export default function RecentSpots() {
@@ -43,7 +43,7 @@ export default function RecentSpots() {
         const userIds = data.map((spot: Spot) => spot.user_id)
         const { data: users } = await supabase
           .from('user_profiles')
-          .select('id, name')
+          .select('id, full_name')
           .in('id', userIds)
 
         const spotsWithUsers = data.map((spot: Spot) => ({
@@ -110,7 +110,7 @@ export default function RecentSpots() {
                 </Link>
                 <div className="flex items-center space-x-3 mt-1">
                   <span className="text-sm text-gray-600">
-                    {spot.user?.name || 'Anonim'}
+                    {spot.user?.full_name || 'Anonim'}
                   </span>
                   <span className="text-xs text-gray-500">
                     {new Date(spot.created_at).toLocaleDateString('tr-TR')}

@@ -9,6 +9,7 @@ import RecentSightings from '@/components/RecentSightings'
 import Leaderboard from '@/components/Leaderboard'
 import DailyChallenges from '@/components/DailyChallenges'
 import QuickSightingButton from '@/components/QuickSightingButton'
+import ResponsiveAd from '@/components/ResponsiveAd'
 
 export default function HomePage() {
   return (
@@ -22,6 +23,12 @@ export default function HomePage() {
           <div className="lg:col-span-2">
             <Hero />
             <Stats />
+            
+            {/* Tanıtım Banner */}
+            <div className="my-8">
+              <ResponsiveAd placement="inline" />
+            </div>
+            
             <RecentSightings />
             <HowItWorks />
             
@@ -41,14 +48,8 @@ export default function HomePage() {
             {/* Sidebar reklamı - SADECE desktop */}
             <div className="hidden lg:block">
               <div className="sticky top-4">
-                {/* Native reklam veya banner */}
-                <div className="bg-gradient-to-br from-blue-50 to-white border border-blue-200 rounded-xl p-6 mb-6">
-                  <div className="text-center">
-                    <div className="text-lg font-bold text-blue-700 mb-2">REKLAM</div>
-                    <div className="text-sm text-gray-600">Sidebar 300×250</div>
-                    <div className="text-xs text-gray-400 mt-4">Desktop reklam alanı</div>
-                  </div>
-                </div>
+                {/* Native reklam veya tanıtım banner */}
+                <ResponsiveAd placement="native" className="mb-6" />
               </div>
             </div>
           </div>

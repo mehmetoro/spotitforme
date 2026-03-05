@@ -1,0 +1,93 @@
+import { createClient } from '@supabase/supabase-js'
+import { NextRequest, NextResponse } from 'next/server'
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    // Service role ile client oluştur (RLS'yi bypass etmek için)
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+    console.log('📝 API: Fetching sighting:', params.id)
+    console.log('🔐 Using service role:', !!serviceRoleKey)
+
+    if (!supabaseUrl || !serviceRoleKey) {
+      console.error('❌ Missing environment variables')
+      return NextResponse.json(
+        { error: 'Configuration error' },
+        { status: 500 }
+      )
+    }
+
+    const supabase = createClient(supabaseUrl, serviceRoleKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false
+      }
+    })
+
+    const sightingId = params.id
+
+    // Sightings verilerini al
+    const { data: sightingData, error: sightingError } = await supabase
+      .from('sightings')
+      .select('*')
+      .eq('id', sightingId)
+      .maybeSingle()
+
+    if (sightingError) {
+      console.error('❌ Sighting query error:', sightingError)
+      return NextResponse.json(
+        { error: sightingError.message },
+        { status: 400 }
+      )
+    }
+
+    if (!sightingData) {
+      console.warn('⚠️ Sighting not found:', sightingId)
+      return NextResponse.json(
+        { error: 'Sighting not found' },
+        { status: 404 }
+      )
+    }
+
+    // Spotter bilgilerini al
+    let spotter = null
+    if (sightingData.spotter_id) {
+      const { data: spotterData } = await supabase
+        .from('user_profiles')
+        .select('id, full_name, avatar_url')
+        .eq('id', sightingData.spotter_id)
+        .maybeSingle()
+      spotter = spotterData
+    }
+
+    // Spot bilgilerini al
+    let spot = null
+    if (sightingData.spot_id) {
+      const { data: spotData } = await supabase
+        .from('spots')
+        .select('id, title, description')
+        .eq('id', sightingData.spot_id)
+        .maybeSingle()
+      spot = spotData
+    }
+
+    const fullSighting = {
+      ...sightingData,
+      spotter,
+      spot
+    }
+
+    console.log('✅ Sighting found and returned:', sightingId)
+    return NextResponse.json(fullSighting)
+  } catch (error: any) {
+    console.error('❌ API Error:', error)
+    return NextResponse.json(
+      { error: error?.message || 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}
