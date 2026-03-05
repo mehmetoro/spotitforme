@@ -8,32 +8,32 @@ export const metadata: Metadata = {
 
 export default function HelpPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-12">
-      <div className="container mx-auto px-4 max-w-3xl">
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-6 sm:py-12">
+      <div className="container mx-auto px-3 sm:px-4 max-w-3xl">
         
         {/* Hero Section */}
-        <div className="text-center mb-12">
-          <div className="text-6xl mb-4">❓</div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
+        <div className="text-center mb-8 sm:mb-12">
+          <div className="text-5xl sm:text-6xl mb-3 sm:mb-4">❓</div>
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-2 sm:mb-4">
             Yardım & SSS
           </h1>
-          <p className="text-xl text-gray-600">
+          <p className="text-base sm:text-lg md:text-xl text-gray-600">
             SpotItForMe hakkında bilmeniz gereken her şey
           </p>
         </div>
 
         {/* Main Content */}
-        <div className="space-y-8">
+        <div className="space-y-4 sm:space-y-8">
           
           {/* Nasıl Çalışır */}
-          <div className="bg-white rounded-xl shadow-lg p-8 border-l-4 border-blue-500">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">📖 Nasıl Çalışır?</h2>
-            <div className="space-y-4 text-gray-700">
+          <div className="bg-white rounded-lg sm:rounded-xl shadow-lg p-4 sm:p-6 md:p-8 border-l-4 border-blue-500">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3 sm:mb-4">📖 Nasıl Çalışır?</h2>
+            <div className="space-y-3 sm:space-y-4 text-gray-700 text-sm sm:text-base">
               <p>
                 SpotItForMe, aradığınız ürün, kişi veya şeyi bulmanız için 50.000+'den oluşan geniş bir topluluğu 
                 kullanır. Aşağıdaki adımları izleyin:
               </p>
-              <ol className="list-decimal list-inside space-y-2 ml-2">
+              <ol className="list-decimal list-inside space-y-1 sm:space-y-2 ml-2">
                 <li><strong>Spot Oluştur:</strong> Aradığınız şeyi detaylı bir şekilde açıklayın</li>
                 <li><strong>Topluluğu Billendir:</strong> Binlerce kişi aradığınız şeyi görecektir</li>
                 <li><strong>Yardım Edin:</strong> Başkaları aradığında sizin de yardımcı olun</li>
@@ -43,13 +43,13 @@ export default function HelpPage() {
           </div>
 
           {/* Spot Oluşturma */}
-          <div className="bg-white rounded-xl shadow-lg p-8 border-l-4 border-green-500">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">🎯 Nasıl Spot Oluştururum?</h2>
-            <div className="space-y-3 text-gray-700">
+          <div className="bg-white rounded-lg sm:rounded-xl shadow-lg p-4 sm:p-6 md:p-8 border-l-4 border-green-500">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3 sm:mb-4">🎯 Nasıl Spot Oluştururum?</h2>
+            <div className="space-y-3 text-gray-700 text-sm sm:text-base">
               <p>
                 <strong>Spot oluşturmak çok kolay!</strong> Sadece şu adımları takip edin:
               </p>
-              <ul className="list-disc list-inside space-y-2 ml-2">
+              <ul className="list-disc list-inside space-y-1 sm:space-y-2 ml-2">
                 <li>Aradığınız şeyin adını yazın</li>
                 <li>Kategori seçin (Elektronik, Mobilya, Kişi, vb.)</li>
                 <li>Detaylı açıklama yapın (marka, model, renk, durum, vb.)</li>
@@ -57,20 +57,20 @@ export default function HelpPage() {
                 <li>Bulunabileceği lokasyonları belirtin</li>
                 <li>Spot oluştur!</li>
               </ul>
-              <p className="mt-4 text-blue-600 font-semibold">
+              <p className="mt-3 sm:mt-4 text-blue-600 font-semibold">
                 Ne kadar detay verirseniz, o kadar hızlı bulursunuz!
               </p>
             </div>
           </div>
 
           {/* Başkalarına Yardım */}
-          <div className="bg-white rounded-xl shadow-lg p-8 border-l-4 border-purple-500">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">🤝 Başkalarına Nasıl Yardım Ederim?</h2>
-            <div className="space-y-3 text-gray-700">
+          <div className="bg-white rounded-lg sm:rounded-xl shadow-lg p-4 sm:p-6 md:p-8 border-l-4 border-purple-500">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3 sm:mb-4">🤝 Başkalarına Nasıl Yardım Ederim?</h2>
+            <div className="space-y-3 text-gray-700 text-sm sm:text-base">
               <p>
                 Başkalarının aradığı şeyleri bulun ve yardım edin:
               </p>
-              <ul className="list-disc list-inside space-y-2 ml-2">
+              <ul className="list-disc list-inside space-y-1 sm:space-y-2 ml-2">
                 <li>Hobi alanınızda bilgi sahibi misiniz? Yardımcı olabilirsiniz</li>
                 <li>Aydınlattığınız spotları göz atın</li>
                 <li>Bulduğunuz şeyler hakkında yorum yapın</li>
@@ -81,13 +81,13 @@ export default function HelpPage() {
           </div>
 
           {/* Güvenlik */}
-          <div className="bg-white rounded-xl shadow-lg p-8 border-l-4 border-red-500">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">🔒 Güvenlik & Gizlilik</h2>
-            <div className="space-y-3 text-gray-700">
+          <div className="bg-white rounded-lg sm:rounded-xl shadow-lg p-4 sm:p-6 md:p-8 border-l-4 border-red-500">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3 sm:mb-4">🔒 Güvenlik & Gizlilik</h2>
+            <div className="space-y-3 text-gray-700 text-sm sm:text-base">
               <p>
                 <strong>Sizin güvenliğiniz bizim önceliğimiz:</strong>
               </p>
-              <ul className="list-disc list-inside space-y-2 ml-2">
+              <ul className="list-disc list-inside space-y-1 sm:space-y-2 ml-2">
                 <li><strong>Doğrulama:</strong> Tüm hesaplar doğrulanır</li>
                 <li><strong>Kişisel Bilgiler:</strong> Asla üçüncü tarafa paylaşılmaz</li>
                 <li><strong>Moderasyon:</strong> Uygunsuz içeriği hemen kaldırırız</li>
@@ -98,53 +98,53 @@ export default function HelpPage() {
           </div>
 
           {/* Sık Sorulan */}
-          <div className="bg-white rounded-xl shadow-lg p-8 border-l-4 border-yellow-500">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">⭐ Sık Sorulan Sorular</h2>
-            <div className="space-y-6">
+          <div className="bg-white rounded-lg sm:rounded-xl shadow-lg p-4 sm:p-6 md:p-8 border-l-4 border-yellow-500">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">⭐ Sık Sorulan Sorular</h2>
+            <div className="space-y-4 sm:space-y-6">
               
               <div>
-                <h3 className="font-bold text-gray-900 mb-2">Her yaş için uygun mu?</h3>
-                <p className="text-gray-700">
+                <h3 className="font-bold text-gray-900 mb-1 sm:mb-2 text-sm sm:text-base">Her yaş için uygun mu?</h3>
+                <p className="text-gray-700 text-sm sm:text-base">
                   SpotItForMe 13+ için tasarlanmıştır. Daha küçük çocuklar ebeveyn gözetimi altında 
                   kullanabilirler.
                 </p>
               </div>
 
               <div>
-                <h3 className="font-bold text-gray-900 mb-2">Ücret alıyor musunuz?</h3>
-                <p className="text-gray-700">
+                <h3 className="font-bold text-gray-900 mb-1 sm:mb-2 text-sm sm:text-base">Ücret alıyor musunuz?</h3>
+                <p className="text-gray-700 text-sm sm:text-base">
                   Hayır! SpotItForMe tamamen ücretsiz. Spot oluşturmak, arama 
                   yapmak ve yardım etmek hepsi bedava.
                 </p>
               </div>
 
               <div>
-                <h3 className="font-bold text-gray-900 mb-2">Kaç fakerson var?</h3>
-                <p className="text-gray-700">
+                <h3 className="font-bold text-gray-900 mb-1 sm:mb-2 text-sm sm:text-base">Kaç fakerson var?</h3>
+                <p className="text-gray-700 text-sm sm:text-base">
                   Şu anda 50.000+ aktif kullanıcımız var ve her gün yenileniyoruz. 
                   Komunita ne kadar büyürse, bulma şansınız o kadar artar!
                 </p>
               </div>
 
               <div>
-                <h3 className="font-bold text-gray-900 mb-2">Satış yapabilir miyim?</h3>
-                <p className="text-gray-700">
+                <h3 className="font-bold text-gray-900 mb-1 sm:mb-2 text-sm sm:text-base">Satış yapabilir miyim?</h3>
+                <p className="text-gray-700 text-sm sm:text-base">
                   SpotItForMe satış platformu değil, bulma platformudur. Bulduğunuz 
                   kişiyle doğrudan iletişim kurup anlaşabilirsiniz.
                 </p>
               </div>
 
               <div>
-                <h3 className="font-bold text-gray-900 mb-2">Hiç sonuç alamazsam?</h3>
-                <p className="text-gray-700">
+                <h3 className="font-bold text-gray-900 mb-1 sm:mb-2 text-sm sm:text-base">Hiç sonuç alamazsam?</h3>
+                <p className="text-gray-700 text-sm sm:text-base">
                   Çoğu spot 3-4 günde bulunur ama bazıları daha uzun sürebilir. 
                   Eğer bulunamazsa, spotunuzu yeniden oluşturabilir veya komunitye soru sorabilirsiniz.
                 </p>
               </div>
 
               <div>
-                <h3 className="font-bold text-gray-900 mb-2">Hesabımı silmek istiyorum</h3>
-                <p className="text-gray-700">
+                <h3 className="font-bold text-gray-900 mb-1 sm:mb-2 text-sm sm:text-base">Hesabımı silmek istiyorum</h3>
+                <p className="text-gray-700 text-sm sm:text-base">
                   Ayarlar → Hesap → Hesabı Sil'e tıklayabilirsiniz. Tüm verileriniz silinecektir.
                 </p>
               </div>
@@ -153,12 +153,12 @@ export default function HelpPage() {
           </div>
 
           {/* İletişim */}
-          <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl p-8 border-2 border-blue-300">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">📞 Bize Ulaşın</h2>
-            <p className="text-gray-700 mb-4">
+          <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-lg sm:rounded-xl p-4 sm:p-6 md:p-8 border-2 border-blue-300">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3 sm:mb-4">📞 Bize Ulaşın</h2>
+            <p className="text-gray-700 mb-3 sm:mb-4 text-sm sm:text-base">
               Sorunuz mu var? Bize yazabilirsiniz:
             </p>
-            <ul className="space-y-2">
+            <ul className="space-y-2 text-sm sm:text-base">
               <li>
                 <strong>Email:</strong> 
                 <a href="mailto:help@spotitforme.com" className="text-blue-600 hover:underline"> help@spotitforme.com</a>
@@ -173,20 +173,20 @@ export default function HelpPage() {
         </div>
 
         {/* CTA */}
-        <div className="mt-12 text-center">
-          <p className="text-gray-600 mb-6 text-lg">
+        <div className="mt-8 sm:mt-12 text-center">
+          <p className="text-gray-600 mb-4 sm:mb-6 text-base sm:text-lg">
             Hazır başlamaya? Hemen bir spot oluştur!
           </p>
-          <div className="flex gap-4 justify-center flex-wrap">
+          <div className="flex gap-2 sm:gap-4 justify-center flex-wrap">
             <Link
               href="/create-spot"
-              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-8 py-3 rounded-lg transition-colors"
+              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 sm:px-8 py-2 sm:py-3 rounded-lg transition-colors text-sm sm:text-base"
             >
               Spot Oluştur
             </Link>
             <Link
               href="/spots"
-              className="bg-gray-200 hover:bg-gray-300 text-gray-900 font-semibold px-8 py-3 rounded-lg transition-colors"
+              className="bg-gray-200 hover:bg-gray-300 text-gray-900 font-semibold px-6 sm:px-8 py-2 sm:py-3 rounded-lg transition-colors text-sm sm:text-base"
             >
               Başkalarına Yardım Et
             </Link>
