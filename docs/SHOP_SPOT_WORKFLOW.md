@@ -40,10 +40,14 @@ Spot, **nakde çevrilemeyen platform içi indirim hakkı/puanıdır**.
 ## 3) Net İş Kuralları (Sabit Kurallar)
 
 ## 3.1 Mağaza paketleri
-- **Starter Paket:** 20 ürün hakkı (ücretsiz)
-- **Pro Paket:** 100 ürün hakkı
+- **Starter Paket:** 20 ürün hakkı (mağaza envanteri / shop_inventory için)
+- **Pro Paket:** 100 ürün hakkı (mağaza envanteri / shop_inventory için)
 - **Pro fiyatı:** yıllık 10 USD eşdeğeri
-- Ödeme sistemi yokken Pro geçiş: **10 Spot kullanımı**
+- **Ödeme yokken Pro geçiş:** 10 Spot kullanımı
+- **ÖNEMLİ:** Limit **yalnızca mağaza ürün satışı** için geçerli. Her kullanıcı:
+  - **Sınırsız Spot oluşturabilir** (aradığı/istediği ürünler)
+  - **Sınırsız sighting/yardım paylaşabilir** (nadir gördü)
+  - Mağaza olmasa da yukarıdaki işlemleri yapabilir
 
 ## 3.2 Spot kazanımı
 - Her doğrulanmış yardım/sighting için: **+1 Spot**
@@ -65,34 +69,36 @@ Spot, **nakde çevrilemeyen platform içi indirim hakkı/puanıdır**.
 
 ```mermaid
 flowchart TD
-    A[Kullanıcı/mağaza hesabı] --> B{Mağaza açıldı mı?}
-    B -- Hayır --> C[Starter paket oluştur]
-    C --> D[20 ürün limiti tanımla]
-    B -- Evet --> E[Mağaza paneline giriş]
+    A[Kullanıcı hesabı] --> B{Mağaza yapmak istiyor mu?}
+    B -- Hayır --> C["Spot oluştur<br/>(Sınırsız)"]
+    B -- Evet --> D[Mağaza hesabı aç]
+    D --> E[Starter paket / 20 ürün limiti]
+    E --> F[Mağaza paneline giriş]
 
-    E --> F{Yeni ürün eklemek istiyor mu?}
-    F -- Evet --> G{Paket limiti uygun mu?}
-    G -- Evet --> H[Ürün kaydı oluştur]
-    G -- Hayır --> I[Pro yükseltme ekranı]
+    F --> G{Yeni ürün eklemek istiyor mu?}
+    G -- Evet --> H{Paket limiti uygun mu?}
+    H -- Evet --> I[Ürün kaydı oluştur]
+    H -- Hayır --> J[Pro yükseltme ekranı]
 
-    I --> J{10 Spot var mı?}
-    J -- Evet --> K[10 Spot düş ve Pro'ya geçir]
-    J -- Hayır --> L[Yardım yaparak Spot kazan yönlendirmesi]
+    J --> K{10 Spot var mı?}
+    K -- Evet --> L[10 Spot düş ve Pro'ya geçir]
+    K -- Hayır --> M[Yardım yaparak Spot kazan yönlendirmesi]
 
-    A --> M[Yardım/sighting oluştur]
-    M --> N[Doğrulama bekliyor]
-    N --> O{Onaylandı mı?}
-    O -- Evet --> P[+1 Spot bakiyeye ekle]
-    O -- Hayır --> Q[Spot verilmez]
+    C --> N[Sighting/Yardım paylaş<br/>(Sınırsız)]
+    N --> O[Doğrulama bekliyor]
+    O --> P{Onaylandı mı?}
+    P -- Evet --> Q[+1 Spot kazanç]
+    P -- Hayır --> R[Spot verilmez]
 
-    H --> R{Spot indirimi tanımlandı mı?}
-    R -- Evet --> S[1/2/3 Spot indirimli ürün etiketi]
-    R -- Hayır --> T[Normal ürün]
+    L --> S[Pro paket / 100 ürün limiti]
+    S --> T{Spot indirimi tanımlanmış mı?}
+    T -- Evet --> U["1/2/3 Spot indirimli<br/>ürün etiketi"]
+    T -- Hayır --> V[Normal ürün]
 
-    S --> U[Alıcı satın alma talebi]
-    U --> V{İşlem tamamlandı mı?}
-    V -- Evet --> W[Spot transferi: alıcı -> satıcı]
-    V -- Hayır --> X[İptal/itiraz akışı]
+    U --> W[Alıcı satın alma talebi]
+    W --> X{İşlem tamamlandı mı?}
+    X -- Evet --> Y[Spot transferi: alıcı → satıcı]
+    X -- Hayır --> Z[İptal/itiraz akışı]
 ```
 
 ---
