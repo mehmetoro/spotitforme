@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { 
   ArrowLeft, Heart, Share2, MessageCircle,
   MapPin, Truck, Star, Shield, Clock, Package,
-  CheckCircle, XCircle, Phone, Mail, Instagram, Globe
+  CheckCircle, XCircle, Phone, Mail, Instagram, Globe, X
 } from 'lucide-react';
 import Link from 'next/link';
 import SimpleShareButtons from '@/components/SimpleShareButtons';
@@ -29,6 +29,7 @@ export default function ProductPage() {
   const [selectedSpots, setSelectedSpots] = useState<number>(1);
   const [customSpots, setCustomSpots] = useState<string>('');
   const [exchangeRate, setExchangeRate] = useState<number>(1);
+  const [exchangeRateSource, setExchangeRateSource] = useState<'live' | 'fallback'>('fallback');
   const [loadingRate, setLoadingRate] = useState(false);
 
   useEffect(() => {
@@ -49,6 +50,7 @@ export default function ProductPage() {
         const data = await res.json();
         if (data.rate) {
           setExchangeRate(data.rate);
+          setExchangeRateSource(data.source === 'live' ? 'live' : 'fallback');
         }
       } catch (error) {
         console.error('Exchange rate fetch error:', error);
@@ -247,6 +249,13 @@ export default function ProductPage() {
   const discountPercent = product.discount_percent 
     ? Math.round((1 - product.price / product.original_price) * 100)
     : null;
+  const spotAmountPreviewRaw = customSpots ? parseInt(customSpots, 10) : selectedSpots;
+  const spotAmountPreview = Number.isFinite(spotAmountPreviewRaw) && spotAmountPreviewRaw > 0
+    ? spotAmountPreviewRaw
+    : 1;
+  const discountAmountUsdPreview = spotAmountPreview;
+  const discountAmountLocalPreview = discountAmountUsdPreview * exchangeRate;
+  const finalPricePreview = Math.max(0, (product?.price || 0) - discountAmountLocalPreview);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -745,18 +754,33 @@ export default function ProductPage() {
 
       {/* Spot Seçim Modal */}
       {showSpotModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full">
-            <div className="p-6 border-b border-gray-200">
-              <h2 className="text-2xl font-bold text-gray-900">
-                💎 Kaç Spot İndirim Talep Etmek İstiyorsunuz?
-              </h2>
-              <p className="text-sm text-gray-600 mt-2">
-                <strong>1 Spot = 1 USD indirim</strong> anlamına gelir. Mağaza sahibi kabul edebilir veya farklı bir miktar önerebilir.
-              </p>
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto"
+          onClick={() => setShowSpotModal(false)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] flex flex-col"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="p-6 border-b border-gray-200 flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">
+                  💎 Kaç Spot İndirim Talep Etmek İstiyorsunuz?
+                </h2>
+                <p className="text-sm text-gray-600 mt-2">
+                  <strong>1 Spot = 1 USD indirim</strong> anlamına gelir. Mağaza sahibi kabul edebilir veya farklı bir miktar önerebilir.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowSpotModal(false)}
+                className="text-gray-500 hover:text-gray-700 p-1"
+                aria-label="Kapat"
+              >
+                <X size={20} />
+              </button>
             </div>
 
-            <div className="p-6 space-y-4">
+            <div className="p-6 space-y-4 overflow-y-auto">
               {/* Hazır Seçenekler */}
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-2 uppercase">Hızlı Seçim</label>
@@ -798,49 +822,44 @@ export default function ProductPage() {
               </div>
 
               {/* İndirim Hesaplaması */}
-              {(() => {
-                const spotAmount = customSpots ? parseInt(customSpots, 10) : selectedSpots;
-                const discountAmountUsd = spotAmount * 1;
-                const discountAmountLocal = discountAmountUsd * exchangeRate;
-                const finalPrice = Math.max(0, (product?.price || 0) - discountAmountLocal);
-
-                return (
-                  <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-lg p-4 space-y-3">
-                    <div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium text-gray-700">Talep Edilen İndirim:</span>
-                        <span className="text-lg font-bold text-purple-600">{spotAmount} Spot</span>
-                      </div>
-                      <p className="text-xs text-gray-600 mt-1">= {discountAmountUsd} USD indirim</p>
-                    </div>
-
-                    <div className="border-t border-purple-200 pt-3">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-sm font-medium text-gray-700">Orijinal Fiyat:</span>
-                        <span className="font-bold text-gray-900">
-                          {product?.price?.toLocaleString('tr-TR') || '0'} {product?.price_currency}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center mb-3">
-                        <span className="text-sm font-medium text-red-600">- İndirim:</span>
-                        <span className="font-bold text-red-600">
-                          -{discountAmountLocal.toFixed(2)} {product?.price_currency}
-                        </span>
-                      </div>
-                      <div className="border-t-2 border-purple-300 pt-3 flex justify-between items-center bg-white rounded px-2 py-2">
-                        <span className="text-sm font-bold text-gray-900">Tahmini Fiyat:</span>
-                        <span className="text-xl font-bold text-green-600">
-                          {finalPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {product?.price_currency}
-                        </span>
-                      </div>
-                    </div>
-
-                    <p className="text-xs text-gray-600 bg-white rounded p-2">
-                      💡 <strong>Not:</strong> Bu hesaplama güncel döviz kuruna dayalıdır. Nihai indirim mağaza sahibi tarafından onaylandığında uygulanır.
-                    </p>
+              <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-lg p-4 space-y-3">
+                <div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium text-gray-700">Talep Edilen İndirim:</span>
+                    <span className="text-lg font-bold text-purple-600">{spotAmountPreview} Spot</span>
                   </div>
-                );
-              })()}
+                  <p className="text-xs text-gray-600 mt-1">= {discountAmountUsdPreview} USD indirim</p>
+                  <p className="text-xs text-gray-600 mt-1">
+                    Kur: 1 USD = {exchangeRate.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} {product?.price_currency}
+                    {loadingRate ? ' (güncelleniyor...)' : exchangeRateSource === 'live' ? ' (canlı kur)' : ' (yedek kur)'}
+                  </p>
+                </div>
+
+                <div className="border-t border-purple-200 pt-3">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm font-medium text-gray-700">Orijinal Fiyat:</span>
+                    <span className="font-bold text-gray-900">
+                      {product?.price?.toLocaleString('tr-TR') || '0'} {product?.price_currency}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center mb-3">
+                    <span className="text-sm font-medium text-red-600">- İndirim:</span>
+                    <span className="font-bold text-red-600">
+                      -{discountAmountLocalPreview.toFixed(2)} {product?.price_currency}
+                    </span>
+                  </div>
+                  <div className="border-t-2 border-purple-300 pt-3 flex justify-between items-center bg-white rounded px-2 py-2">
+                    <span className="text-sm font-bold text-gray-900">Tahmini Fiyat:</span>
+                    <span className="text-xl font-bold text-green-600">
+                      {finalPricePreview.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {product?.price_currency}
+                    </span>
+                  </div>
+                </div>
+
+                <p className="text-xs text-gray-600 bg-white rounded p-2">
+                  💡 <strong>Not:</strong> Bu hesaplama güncel döviz kuruna dayalıdır. Nihai indirim mağaza sahibi tarafından onaylandığında uygulanır.
+                </p>
+              </div>
 
               {/* Bilgilendirme */}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -856,7 +875,7 @@ export default function ProductPage() {
               </div>
             </div>
 
-            <div className="p-6 border-t border-gray-200 flex gap-3">
+            <div className="p-4 border-t border-gray-200 flex gap-3 bg-white">
               <button
                 onClick={() => {
                   setShowSpotModal(false);
@@ -865,7 +884,7 @@ export default function ProductPage() {
                 }}
                 className="flex-1 py-3 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold rounded-lg transition-colors"
               >
-                İptal
+                Kapat
               </button>
 
               <button
