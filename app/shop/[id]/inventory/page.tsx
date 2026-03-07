@@ -441,6 +441,7 @@ export default function InventoryPage() {
                     <th className="py-3 px-4 text-left text-sm font-medium text-gray-700">Durum</th>
                     <th className="py-3 px-4 text-left text-sm font-medium text-gray-700">Fiyat</th>
                     <th className="py-3 px-4 text-left text-sm font-medium text-gray-700">Stok</th>
+                    <th className="py-3 px-4 text-left text-sm font-medium text-gray-700">Spot İndirimi</th>
                     <th className="py-3 px-4 text-left text-sm font-medium text-gray-700">Görüntülenme</th>
                     <th className="py-3 px-4 text-left text-sm font-medium text-gray-700">Tarih</th>
                     <th className="py-3 px-4 text-left text-sm font-medium text-gray-700">İşlemler</th>
@@ -500,6 +501,15 @@ export default function InventoryPage() {
                         }`}>
                           {product.quantity} adet
                         </span>
+                      </td>
+                      <td className="py-4 px-4">
+                        {product.spot_discount ? (
+                          <span className="px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                            💎 {product.spot_discount} Spot
+                          </span>
+                        ) : (
+                          <span className="text-gray-400 text-xs">-</span>
+                        )}
                       </td>
                       <td className="py-4 px-4">
                         <div className="text-gray-700">{product.view_count || 0}</div>

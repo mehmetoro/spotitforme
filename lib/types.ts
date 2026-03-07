@@ -84,3 +84,23 @@ export interface SpotLedgerEntry {
   created_at: string
   created_by: string | null
 }
+
+export interface ShopInventoryProduct {
+  id: string
+  shop_id: string
+  title: string
+  description: string | null
+  category: string | null
+  price: number
+  price_currency: string
+  spot_discount: number | null
+  quantity: number
+  location: string | null
+  images: string[]
+  status: 'active' | 'draft' | 'inactive' | 'sold'
+  is_negotiable: boolean
+  view_count: number
+  inquiry_count: number
+  created_at: string
+  updated_at: string
+}

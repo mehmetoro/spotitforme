@@ -600,6 +600,15 @@ export default function ProductDetailPage() {
                   </div>
                 )}
                 
+                {product.spot_discount && (
+                  <div className="flex justify-between items-center bg-purple-50 px-3 py-2 rounded-lg">
+                    <span className="text-gray-600">Spot İndirimi:</span>
+                    <span className="text-lg font-bold text-purple-600">
+                      💎 {product.spot_discount} Spot
+                    </span>
+                  </div>
+                )}
+                
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">Stok Durumu:</span>
                   <span className={`px-3 py-1 rounded-full text-sm font-medium ${

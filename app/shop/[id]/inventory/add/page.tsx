@@ -27,7 +27,8 @@ export default function AddProductPage() {
     price_currency: 'TRY',
     quantity: 1,
     location: '',
-    status: 'draft'
+    status: 'draft',
+    spot_discount: null as number | null
   });
 
   useEffect(() => {
@@ -215,6 +216,7 @@ export default function AddProductPage() {
         location: formData.location.trim() || null,
         images: [imageUrl],
         status: formData.status,
+        spot_discount: formData.spot_discount,
         is_negotiable: false,
         view_count: 0,
         inquiry_count: 0,
@@ -514,6 +516,26 @@ export default function AddProductPage() {
                       <span className="text-gray-700">Aktif</span>
                     </label>
                   </div>
+                </div>
+
+                {/* Spot İndirimi (Opsiyonel) */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Spot İndirimi (Opsiyonel)
+                  </label>
+                  <select
+                    value={formData.spot_discount ?? ''}
+                    onChange={(e) => setFormData({...formData, spot_discount: e.target.value ? parseInt(e.target.value) : null})}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">İndirim Yok</option>
+                    <option value="1">1 Spot İndirim</option>
+                    <option value="2">2 Spot İndirim</option>
+                    <option value="3">3 Spot İndirim</option>
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Alıcılar bu ürünü Spot kullanarak satın alabilecekler
+                  </p>
                 </div>
               </div>
             </div>
