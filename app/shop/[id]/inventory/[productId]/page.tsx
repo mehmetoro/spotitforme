@@ -168,7 +168,7 @@ export default function ProductDetailPage() {
       // Get auth token
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        alert('Satın almak için giriş yapmanız gerekir');
+        alert('İndirim sürecini başlatmak için giriş yapmanız gerekir');
         router.push('/auth/login');
         return;
       }
@@ -207,16 +207,16 @@ export default function ProductDetailPage() {
       const result = await response.json();
 
       if (!response.ok) {
-        alert(`Satın alma başarısız: ${result.error}`);
+        alert(`İndirim işlemi başarısız: ${result.error}`);
         return;
       }
 
-      alert(`✅ Satın alma başarılı! Yeni bakiye: ${result.buyer_spot_balance} Spot`);
+      alert(`✅ Spot indirim işlemi kaydedildi. Güncel bakiye: ${result.buyer_spot_balance} Spot`);
       setShowPurchaseModal(false);
       router.refresh();
     } catch (error: any) {
       console.error('Purchase error:', error);
-      alert('Satın alma işleminde hata oluştu');
+      alert('İndirim işlemi sırasında hata oluştu');
     } finally {
       setPurchasing(false);
     }
@@ -683,14 +683,14 @@ export default function ProductDetailPage() {
                 </div>
               </div>
 
-              {/* Spot ile Satın Al Butonu */}
+              {/* Spot İndirimi Süreci Butonu */}
               {product.spot_discount && product.quantity > 0 && (
                 <button
                   onClick={handlePurchaseClick}
                   className="w-full mb-6 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg flex items-center justify-center transition-colors"
                 >
                   <ShoppingCart className="mr-2" size={20} />
-                  💎 {product.spot_discount} Spot ile Satın Al
+                  💬 {product.spot_discount} Spot İndirim Sürecini Başlat
                 </button>
               )}
 
@@ -812,7 +812,7 @@ export default function ProductDetailPage() {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6">
               <h2 className="text-2xl font-bold text-gray-900 mb-4">
-                💎 Spot ile Satın Al
+                💬 Spot İndirim Süreci
               </h2>
 
               <div className="bg-purple-50 p-4 rounded-lg mb-6">
@@ -833,7 +833,7 @@ export default function ProductDetailPage() {
               </div>
 
               <div className="mb-6">
-                <p className="text-sm text-gray-600 mb-2">Spot Miktarı Seç:</p>
+                <p className="text-sm text-gray-600 mb-2">Uygulanacak Spot İndirimi:</p>
                 <div className="flex space-x-2">
                   {[1, 2, 3].map((amount) => (
                     <button
@@ -857,7 +857,7 @@ export default function ProductDetailPage() {
               </div>
 
               <p className="text-sm text-gray-600 mb-6 bg-blue-50 p-3 rounded-lg">
-                💰 Satın alma işlemi tamamlandığında Spot'unuz düşülecek ve satıcıya aktarılacaktır.
+                ℹ️ Bu adım anlık e-ticaret ödeme akışı değildir. Spot indirimi, alıcı ile mağaza iletişim kurup alışverişi tamamladıktan sonra uygulanır.
               </p>
 
               <div className="flex space-x-3">
@@ -881,7 +881,7 @@ export default function ProductDetailPage() {
                   ) : (
                     <>
                       <ShoppingCart className="mr-2" size={18} />
-                      Satın Al
+                      İndirimi Onayla
                     </>
                   )}
                 </button>

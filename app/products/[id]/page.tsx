@@ -307,6 +307,17 @@ export default function ProductPage() {
                       </div>
                     </div>
                   </div>
+
+                  {product.spot_discount && (
+                    <div className="mt-4 bg-purple-50 border border-purple-200 rounded-lg p-4">
+                      <div className="font-semibold text-purple-800">
+                        💎 {product.spot_discount} Spot indirim fırsatı
+                      </div>
+                      <p className="text-sm text-purple-700 mt-1">
+                        Bu bir anlık satın alma değildir. İndirim, mağaza ile iletişim sonrası tamamlanan alışverişte uygulanır.
+                      </p>
+                    </div>
+                  )}
                 </div>
                 
                 {/* Açıklama */}
@@ -489,8 +500,16 @@ export default function ProductPage() {
                     className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white py-4 rounded-xl font-bold flex items-center justify-center"
                   >
                     <MessageCircle className="mr-2" size={20} />
-                    Mağaza ile İletişime Geç
+                    {product.spot_discount
+                      ? `💬 ${product.spot_discount} Spot İndirimi İçin İletişime Geç`
+                      : 'Mağaza ile İletişime Geç'}
                   </button>
+
+                  {product.spot_discount && (
+                    <p className="text-xs text-purple-700 bg-purple-50 rounded-lg p-3">
+                      Spot indirimi yalnızca mağaza ile anlaşma sonrası uygulanır; bu adım doğrudan ödeme yapmaz.
+                    </p>
+                  )}
                   
                   <button
                     onClick={handleAddToFavorites}

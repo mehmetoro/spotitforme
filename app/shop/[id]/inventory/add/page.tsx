@@ -534,7 +534,7 @@ export default function AddProductPage() {
                     <option value="3">3 Spot İndirim</option>
                   </select>
                   <p className="text-xs text-gray-500 mt-1">
-                    Alıcılar bu ürünü Spot kullanarak satın alabilecekler
+                    Bu alan anlık ödeme değildir; Spot indirimi mağaza ile iletişim sonrası tamamlanan alışverişte uygulanır.
                   </p>
                 </div>
               </div>
