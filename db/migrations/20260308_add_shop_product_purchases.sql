@@ -60,7 +60,7 @@ CREATE POLICY "Users can view their own purchases"
     OR EXISTS (
       SELECT 1 FROM shops 
       WHERE shops.id = shop_product_purchases.shop_id 
-      AND shops.user_id = auth.uid()
+      AND shops.owner_id = auth.uid()
     )
   );
 
