@@ -50,15 +50,23 @@ BEGIN
     RAISE EXCEPTION 'Decision must be approved or rejected';
   END IF;
 
-  SELECT s.*, sp.user_id
-    INTO v_sighting, v_spot_owner_id
+  SELECT s.*
+    INTO v_sighting
   FROM sightings s
-  JOIN spots sp ON sp.id = s.spot_id
   WHERE s.id = p_sighting_id
   FOR UPDATE;
 
   IF v_sighting.id IS NULL THEN
     RAISE EXCEPTION 'Sighting not found';
+  END IF;
+
+  SELECT sp.user_id
+    INTO v_spot_owner_id
+  FROM spots sp
+  WHERE sp.id = v_sighting.spot_id;
+
+  IF v_spot_owner_id IS NULL THEN
+    RAISE EXCEPTION 'Spot owner not found for this sighting';
   END IF;
 
   -- Only spot owner or service_role can verify
