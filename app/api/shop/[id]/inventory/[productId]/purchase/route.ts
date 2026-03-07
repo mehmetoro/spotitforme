@@ -69,7 +69,7 @@ export async function POST(
     // 5) Get shop owner (seller)
     const { data: shop, error: shopError } = await supabase
       .from('shops')
-      .select('user_id')
+      .select('owner_id')
       .eq('id', shopId)
       .single();
 
@@ -80,7 +80,7 @@ export async function POST(
       );
     }
 
-    const sellerId = shop.user_id;
+    const sellerId = shop.owner_id;
 
     // 6) Prevent self-purchase
     if (buyerId === sellerId) {

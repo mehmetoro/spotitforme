@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { 
-  ArrowLeft, Heart, Share2, ShoppingCart, MessageCircle,
+  ArrowLeft, Heart, Share2, MessageCircle,
   MapPin, Truck, Star, Shield, Clock, Package,
   CheckCircle, XCircle, Phone, Mail, Instagram, Globe
 } from 'lucide-react';
@@ -24,7 +24,7 @@ export default function ProductPage() {
   const [similarProducts, setSimilarProducts] = useState<any[]>([]);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [isFavorite, setIsFavorite] = useState(false);
-  const [quantity, setQuantity] = useState(1);
+  const [requestingDiscount, setRequestingDiscount] = useState(false);
 
   useEffect(() => {
     loadProduct();
@@ -94,6 +94,47 @@ export default function ProductPage() {
       window.open(`mailto:${shop.email}`, '_blank');
     } else {
       alert('Mağaza iletişim bilgileri bulunamadı');
+    }
+  };
+
+  const handleRequestSpotDiscount = async () => {
+    if (!product?.spot_discount) {
+      alert('Bu ürün için Spot indirimi tanımlanmamış');
+      return;
+    }
+
+    try {
+      setRequestingDiscount(true);
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        alert('İndirim talebi için giriş yapmanız gerekir');
+        router.push('/auth/login');
+        return;
+      }
+
+      const response = await fetch(`/api/shop/${product.shop_id}/inventory/${product.id}/discount-request`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ spotAmount: product.spot_discount }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        alert(result.error || 'İndirim talebi oluşturulamadı');
+        return;
+      }
+
+      alert('✅ İndirim talebiniz mağazaya iletildi. Alışveriş tamamlandığında ve mağaza onayladığında Spot transferi gerçekleşir.');
+    } catch (error) {
+      console.error('Discount request error:', error);
+      alert('İndirim talebi sırasında hata oluştu');
+    } finally {
+      setRequestingDiscount(false);
     }
   };
 
@@ -451,63 +492,51 @@ export default function ProductPage() {
           
           {/* Sağ Kolon - İşlemler ve Mağaza */}
           <div className="space-y-6">
-            {/* Satın Alma İşlemleri */}
+            {/* İletişim ve İndirim Talebi */}
             <div className="bg-white rounded-2xl shadow-lg p-6 sticky top-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">Satın Alma</h3>
+              <h3 className="text-lg font-bold text-gray-900 mb-4">İletişim ve İndirim Talebi</h3>
               
               <div className="space-y-4">
-                {/* Miktar Seçimi */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Miktar
-                  </label>
-                  <div className="flex items-center">
-                    <button
-                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                      className="w-10 h-10 flex items-center justify-center border border-gray-300 rounded-l-lg hover:bg-gray-100"
-                    >
-                      -
-                    </button>
-                    <div className="w-16 h-10 flex items-center justify-center border-t border-b border-gray-300">
-                      {quantity}
-                    </div>
-                    <button
-                      onClick={() => setQuantity(quantity + 1)}
-                      className="w-10 h-10 flex items-center justify-center border border-gray-300 rounded-r-lg hover:bg-gray-100"
-                    >
-                      +
-                    </button>
-                  </div>
-                </div>
-                
-                {/* Toplam Fiyat */}
-                <div className="border-t border-gray-200 pt-4">
-                  <div className="flex justify-between mb-2">
-                    <span className="text-gray-600">Toplam:</span>
-                    <span className="text-2xl font-bold text-gray-900">
-                      {(product.price * quantity).toLocaleString('tr-TR')} {product.price_currency}
+                <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-gray-600">Liste Fiyatı:</span>
+                    <span className="text-xl font-bold text-gray-900">
+                      {product.price.toLocaleString('tr-TR')} {product.price_currency}
                     </span>
                   </div>
-                  <div className="text-sm text-gray-500">
-                    {quantity} adet × {product.price.toLocaleString('tr-TR')} {product.price_currency}
-                  </div>
+                  <p className="text-xs text-gray-600">
+                    Nihai ödeme ve teslimat detayları mağaza ile iletişim sonrası netleşir.
+                  </p>
                 </div>
                 
                 {/* Butonlar */}
                 <div className="space-y-3">
+                  {product.spot_discount && (
+                    <button
+                      onClick={handleRequestSpotDiscount}
+                      disabled={requestingDiscount}
+                      className="w-full bg-purple-600 hover:bg-purple-700 text-white py-4 rounded-xl font-bold flex items-center justify-center disabled:opacity-50"
+                    >
+                      <MessageCircle className="mr-2" size={20} />
+                      {requestingDiscount
+                        ? 'Talep Gönderiliyor...'
+                        : `💎 ${product.spot_discount} Spot İndirimi Talep Et`}
+                    </button>
+                  )}
+
                   <button
                     onClick={handleContact}
                     className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white py-4 rounded-xl font-bold flex items-center justify-center"
                   >
                     <MessageCircle className="mr-2" size={20} />
                     {product.spot_discount
-                      ? `💬 ${product.spot_discount} Spot İndirimi İçin İletişime Geç`
+                      ? 'Mağaza ile İletişime Geç'
                       : 'Mağaza ile İletişime Geç'}
                   </button>
 
                   {product.spot_discount && (
                     <p className="text-xs text-purple-700 bg-purple-50 rounded-lg p-3">
-                      Spot indirimi yalnızca mağaza ile anlaşma sonrası uygulanır; bu adım doğrudan ödeme yapmaz.
+                      Spot indirimi anlık satın alma değildir. Talep sonrası alışveriş gerçekleşirse, mağaza onayıyla Spot transferi yapılır.
                     </p>
                   )}
                   
