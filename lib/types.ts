@@ -104,3 +104,19 @@ export interface ShopInventoryProduct {
   created_at: string
   updated_at: string
 }
+
+export interface ShopProductPurchase {
+  id: string
+  buyer_id: string
+  seller_id: string
+  product_id: string
+  shop_id: string
+  spot_amount: number
+  purchase_price: number
+  currency: string
+  payment_method: 'spot' | 'money' | 'mixed'
+  status: 'pending' | 'completed' | 'cancelled' | 'refunded'
+  notes: string | null
+  created_at: string
+  updated_at: string
+}

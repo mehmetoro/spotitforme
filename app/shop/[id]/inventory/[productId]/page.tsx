@@ -39,6 +39,9 @@ export default function ProductDetailPage() {
   const [deleting, setDeleting] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [similarProducts, setSimilarProducts] = useState<any[]>([]);
+  const [showPurchaseModal, setShowPurchaseModal] = useState(false);
+  const [selectedSpotAmount, setSelectedSpotAmount] = useState<number>(1);
+  const [purchasing, setPurchasing] = useState(false);
 
   useEffect(() => {
     loadProduct();
@@ -158,6 +161,65 @@ export default function ProductDetailPage() {
     const url = `${window.location.origin}/product/${productId}`;
     navigator.clipboard.writeText(url);
     alert('Ürün linki kopyalandı!');
+  };
+
+  const handlePurchaseClick = async () => {
+    try {
+      // Get auth token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        alert('Satın almak için giriş yapmanız gerekir');
+        router.push('/auth/login');
+        return;
+      }
+
+      setShowPurchaseModal(true);
+    } catch (error) {
+      console.error('Purchase init error:', error);
+      alert('Bir hata oluştu');
+    }
+  };
+
+  const handleConfirmPurchase = async () => {
+    try {
+      setPurchasing(true);
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        alert('Oturumu yenileyin ve tekrar deneyin');
+        return;
+      }
+
+      const response = await fetch(
+        `/api/shop/${shopId}/inventory/${productId}/purchase`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            spotAmount: selectedSpotAmount,
+          }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        alert(`Satın alma başarısız: ${result.error}`);
+        return;
+      }
+
+      alert(`✅ Satın alma başarılı! Yeni bakiye: ${result.buyer_spot_balance} Spot`);
+      setShowPurchaseModal(false);
+      router.refresh();
+    } catch (error: any) {
+      console.error('Purchase error:', error);
+      alert('Satın alma işleminde hata oluştu');
+    } finally {
+      setPurchasing(false);
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -621,6 +683,17 @@ export default function ProductDetailPage() {
                 </div>
               </div>
 
+              {/* Spot ile Satın Al Butonu */}
+              {product.spot_discount && product.quantity > 0 && (
+                <button
+                  onClick={handlePurchaseClick}
+                  className="w-full mb-6 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg flex items-center justify-center transition-colors"
+                >
+                  <ShoppingCart className="mr-2" size={20} />
+                  💎 {product.spot_discount} Spot ile Satın Al
+                </button>
+              )}
+
               {/* Durum Değiştirme */}
               <div className="mb-6">
                 <h4 className="font-medium text-gray-900 mb-2">Durum Değiştir</h4>
@@ -733,6 +806,89 @@ export default function ProductDetailPage() {
             )}
           </div>
         </div>
+
+        {/* Purchase Modal */}
+        {showPurchaseModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6">
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">
+                💎 Spot ile Satın Al
+              </h2>
+
+              <div className="bg-purple-50 p-4 rounded-lg mb-6">
+                <div className="text-lg">
+                  <p className="text-gray-600 mb-2">Ürün:</p>
+                  <p className="font-bold text-gray-900 mb-4">{product?.title}</p>
+
+                  <p className="text-gray-600 mb-2">Fiyat:</p>
+                  <p className="text-2xl font-bold text-gray-900 mb-4">
+                    {product?.price.toLocaleString('tr-TR')} {product?.price_currency}
+                  </p>
+
+                  <p className="text-gray-600 mb-2">Spot İndirimi:</p>
+                  <p className="text-2xl font-bold text-purple-600">
+                    💎 {product?.spot_discount} Spot
+                  </p>
+                </div>
+              </div>
+
+              <div className="mb-6">
+                <p className="text-sm text-gray-600 mb-2">Spot Miktarı Seç:</p>
+                <div className="flex space-x-2">
+                  {[1, 2, 3].map((amount) => (
+                    <button
+                      key={amount}
+                      onClick={() => setSelectedSpotAmount(amount)}
+                      className={`flex-1 py-2 px-3 rounded-lg font-medium transition-colors ${
+                        selectedSpotAmount === amount
+                          ? 'bg-purple-600 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      {amount} Spot
+                    </button>
+                  ))}
+                </div>
+                {selectedSpotAmount !== product?.spot_discount && (
+                  <p className="text-xs text-gray-500 mt-2">
+                    ⚠️ {product?.spot_discount} Spot'tan farklı miktar seçtiniz
+                  </p>
+                )}
+              </div>
+
+              <p className="text-sm text-gray-600 mb-6 bg-blue-50 p-3 rounded-lg">
+                💰 Satın alma işlemi tamamlandığında Spot'unuz düşülecek ve satıcıya aktarılacaktır.
+              </p>
+
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => setShowPurchaseModal(false)}
+                  disabled={purchasing}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium disabled:opacity-50"
+                >
+                  İptal
+                </button>
+                <button
+                  onClick={handleConfirmPurchase}
+                  disabled={purchasing}
+                  className="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium disabled:opacity-50 flex items-center justify-center"
+                >
+                  {purchasing ? (
+                    <>
+                      <Loader2 className="animate-spin mr-2" size={18} />
+                      İşleniyor...
+                    </>
+                  ) : (
+                    <>
+                      <ShoppingCart className="mr-2" size={18} />
+                      Satın Al
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
