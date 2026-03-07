@@ -14,6 +14,9 @@ export default function InventoryPage() {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [shop, setShop] = useState<any>(null);
+  const [totalProductCount, setTotalProductCount] = useState(0);
+  const [productLimit, setProductLimit] = useState(20);
+  const [upgrading, setUpgrading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
@@ -23,6 +26,14 @@ export default function InventoryPage() {
   useEffect(() => {
     loadData();
   }, [shopId]);
+
+  const getDerivedProductLimit = (shopData: any) => {
+    if (typeof shopData?.product_limit === 'number' && shopData.product_limit > 0) {
+      return shopData.product_limit;
+    }
+
+    return shopData?.subscription_type === 'free' ? 20 : 100;
+  };
 
   const loadData = async () => {
     try {
@@ -35,7 +46,15 @@ export default function InventoryPage() {
       
       if (shopData) {
         setShop(shopData);
+        setProductLimit(getDerivedProductLimit(shopData));
       }
+
+      const { count: inventoryCount } = await supabase
+        .from('shop_inventory')
+        .select('id', { count: 'exact', head: true })
+        .eq('shop_id', shopId);
+
+      setTotalProductCount(inventoryCount || 0);
 
       // Ürünleri getir
       await loadProducts();
@@ -124,7 +143,7 @@ export default function InventoryPage() {
       }
 
       // Listeyi yenile
-      await loadProducts();
+      await loadData();
       alert('Ürün başarıyla silindi');
     } catch (error) {
       console.error('Ürün silme hatası:', error);
@@ -143,11 +162,45 @@ export default function InventoryPage() {
   };
 
   const handleAddProduct = () => {
+    if (totalProductCount >= productLimit) {
+      alert(`Ürün limitiniz doldu (${totalProductCount}/${productLimit}). Üst pakete geçmeden yeni ürün ekleyemezsiniz.`);
+      return;
+    }
+
     router.push(`/shop/${shopId}/inventory/add`);
   };
 
-  const handleUpgradePackage = () => {
-    router.push('/for-business?upgrade=true');
+  const handleUpgradePackage = async () => {
+    if (!confirm('Pro pakete geçiş için 10 Spot harcanacaktır. Devam etmek istiyor musunuz?')) {
+      return;
+    }
+
+    setUpgrading(true);
+    try {
+      const { data, error } = await supabase.rpc('upgrade_shop_to_pro_with_spot', {
+        p_shop_id: shopId,
+      });
+
+      if (error) {
+        const message = error.message?.includes('Insufficient spot balance')
+          ? 'Yetersiz Spot bakiyesi. Pro yükseltme için 10 Spot gerekiyor.'
+          : `Paket yükseltilemedi: ${error.message}`;
+        alert(message);
+        return;
+      }
+
+      if (data?.already_pro) {
+        alert('Bu mağaza zaten Pro pakette.');
+      } else {
+        alert('Mağaza başarıyla Pro pakete yükseltildi! Ürün limitiniz artık 100.');
+      }
+
+      await loadData();
+    } catch (error: any) {
+      alert(`Paket yükseltme hatası: ${error?.message || 'Bilinmeyen hata'}`);
+    } finally {
+      setUpgrading(false);
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -194,15 +247,34 @@ export default function InventoryPage() {
               <p className="text-gray-600">
                 {shop?.shop_name} mağazanızın tüm ürünleri
               </p>
+              <p className="text-sm text-gray-500 mt-1">
+                Paket kullanım: {totalProductCount}/{productLimit} ürün
+              </p>
             </div>
             <button
               onClick={handleAddProduct}
-              className="mt-4 md:mt-0 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg flex items-center"
+              disabled={totalProductCount >= productLimit}
+              className="mt-4 md:mt-0 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg flex items-center"
             >
               <Plus className="mr-2" size={20} />
               Yeni Ürün Ekle
             </button>
           </div>
+
+          {totalProductCount >= productLimit && (
+            <div className="mb-6 rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-900 text-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <span>
+                Ürün limitiniz doldu: <strong>{totalProductCount}/{productLimit}</strong>. Daha fazla ürün için Pro pakete geçin.
+              </span>
+              <button
+                onClick={handleUpgradePackage}
+                disabled={upgrading}
+                className="px-4 py-2 rounded-lg bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-60"
+              >
+                {upgrading ? 'Yükseltiliyor...' : '10 Spot ile Pro\'ya Geç'}
+              </button>
+            </div>
+          )}
 
           {/* İstatistik Kartları */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
@@ -214,7 +286,7 @@ export default function InventoryPage() {
                 <div>
                   <p className="text-sm text-gray-600">Toplam Ürün</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {products.length}
+                    {totalProductCount}
                   </p>
                 </div>
               </div>

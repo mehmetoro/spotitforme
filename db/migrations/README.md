@@ -51,6 +51,12 @@ Bu klasördeki SQL dosyalarını Supabase Dashboard'da çalıştırmanız gereki
    - Onaylanınca +1 Spot ödülünü ledger ile yazar (çift ödül korumalı)
    - Spotter'ın pending kaydı iptal etmesi için `cancel_own_pending_sighting()` ekler
 
+8. **20260308_add_shop_product_limits_and_spot_upgrade.sql**
+   - Faz 3 için mağaza ürün limiti kolonunu ekler: `shops.product_limit`
+   - Plan bazlı limit senkronizasyonu ekler (Starter=`20`, Pro=`100`)
+   - Veritabanı seviyesinde ürün ekleme limitini trigger ile zorunlu kılar
+   - Spot ile Pro yükseltme RPC fonksiyonunu ekler: `upgrade_shop_to_pro_with_spot()` (10 Spot)
+
 ## Supabase'de Nasıl Çalıştırılır?
 
 1. Supabase Dashboard'a git: https://supabase.com/dashboard
@@ -125,6 +131,24 @@ WHERE table_schema = 'public'
       'spot_reward_ledger_id'
    )
 ORDER BY column_name;
+
+-- 8. Faz 3 shop limit kolonunu kontrol et
+SELECT column_name, data_type
+FROM information_schema.columns
+WHERE table_schema = 'public'
+  AND table_name = 'shops'
+  AND column_name = 'product_limit';
+
+-- 9. Faz 3 fonksiyonlarını kontrol et
+SELECT routine_name
+FROM information_schema.routines
+WHERE routine_schema = 'public'
+AND routine_name IN (
+   'sync_shop_product_limit',
+   'enforce_shop_inventory_limit',
+   'upgrade_shop_to_pro_with_spot'
+)
+ORDER BY routine_name;
 ```
 
 ## Sorun Giderme
@@ -145,24 +169,14 @@ DROP POLICY IF EXISTS "policy_name" ON table_name;
 
 Migration'ları çalıştırdıktan sonra:
 
-1. `/create-spot` sayfasına git ve yeni bir spot oluştur
-2. Ana sayfada "Son Spot'lar" bölümünde göründüğünü kontrol et
-3. Spot detay sayfasına git (`/spots/[id]`)
-4. "Ben Gördüm" butonuna tıkla
-5. Sighting formunu doldur ve gönder
-6. spot.helps sayacının arttığını kontrol et
-
-## Yapılan Değişiklikler (Kod)
-
-- ✅ `components/SightingModal.tsx` - Yeni component oluşturuldu
-- ✅ `app/spots/[id]/page.tsx` - SightingModal entegre edildi
-- ✅ `components/RecentSpots.tsx` - Hazır (migration'dan sonra çalışacak)
-- ✅ `app/create-spot/page.tsx` - Hazır (migration'dan sonra çalışacak)
+1. `/spots/[id]` detayında sighting gönder ve kaydın `pending` geldiğini doğrula.
+2. Spot sahibi hesabıyla `verify_sighting_and_process_reward()` çağırarak onay ver; spotter cüzdanına +1 Spot işlendiğini kontrol et.
+3. Free (Starter) mağazada 20 ürüne kadar ekleme yap; 21. eklemede DB trigger hatası alındığını doğrula.
+4. `upgrade_shop_to_pro_with_spot()` çağır; cüzdandan 10 Spot düştüğünü ve `shops.subscription_type='pro'`, `shops.product_limit=100` olduğunu doğrula.
+5. Upgrade sonrası 21+ ürün eklemeyi tekrar dene ve başarılı olduğunu kontrol et.
 
 ## Sonraki Adımlar (Migration sonrası)
 
-1. Test spot oluştur
-2. Sighting ekle ve test et
-3. Ana sayfada spot görünümünü kontrol et
-4. Leaderboard sistemine geç
-5. Notification sistemini aktive et
+1. Faz 3 UI akışını canlı veride uçtan uca test et (envanter/add ekranı).
+2. Faz 4 için `spot_discount_products` veri modelini eklemeye başla.
+3. Spot transferli satın alma akışını (buyer -> seller) ledger üstünden tasarla.

@@ -165,9 +165,10 @@ Planlanan endpoint seti:
 - [x] Çift ödül ve tekrar ödül engeli
 
 ## Faz 3 — Mağaza Paket Sistemi
-- [ ] Starter 20 ürün limiti
-- [ ] Pro 100 ürün limiti
-- [ ] Spot ile yükseltme (10 Spot düşüm)
+- [x] Starter 20 ürün limiti (kod + migration hazır)
+- [x] Pro 100 ürün limiti (kod + migration hazır)
+- [x] Spot ile yükseltme (10 Spot düşüm) (RPC + UI entegrasyonu hazır)
+- [ ] Supabase migration çalıştırma + canlı doğrulama
 
 ## Faz 4 — Spot İndirimli Ürün
 - [ ] Ürüne 1/2/3 Spot indirim tanımı
@@ -262,11 +263,15 @@ Her yeni oturumda aşağıdaki sırayla ilerlenir:
 - Faz 2 backend tamamlandı: sightings state machine kolonları + verify/cancel RPC fonksiyonları eklendi
 - Onay akışında +1 Spot ledger ödülü ve çift ödül engeli aktive edildi
 - Sighting oluşturma sonrası anlık helps artışı kaldırıldı; onay sonrası artış modeline geçildi
+- Faz 3 migration dosyası eklendi: `20260308_add_shop_product_limits_and_spot_upgrade.sql`
+- Envanter ekranında ürün limiti görünürlüğü, limiti aşınca engelleme ve Spot ile Pro yükseltme butonu eklendi
+- Ürün ekleme ekranında limit kontrolü ve limit dolu durumda submit kilidi eklendi
+- Uygulama derlemesi başarılı geçti (`npm run build`)
 
 ---
 
 ## 13) Sonraki Net Adım (Bir Sonraki Oturum)
 
-**Başlangıç görevi:** Faz 3 — mağaza paket limitlerini (20/100) veri modeline bağlamak.
+**Başlangıç görevi:** Faz 3 migration'ını Supabase SQL Editor'de çalıştırıp canlı doğrulamayı tamamlamak.
 
-Bu tamamlanmadan Faz 3’e geçilmez.
+Bu tamamlandığında Faz 4 (Spot indirimli ürün) uygulamasına geçilir.

@@ -13,6 +13,8 @@ export default function AddProductPage() {
   
   const [loading, setLoading] = useState(false);
   const [shop, setShop] = useState<any>(null);
+  const [productCount, setProductCount] = useState(0);
+  const [productLimit, setProductLimit] = useState(20);
   const [categories, setCategories] = useState<any[]>([]);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -32,6 +34,14 @@ export default function AddProductPage() {
     loadShopAndCategories();
   }, [shopId]);
 
+  const getDerivedProductLimit = (shopData: any) => {
+    if (typeof shopData?.product_limit === 'number' && shopData.product_limit > 0) {
+      return shopData.product_limit;
+    }
+
+    return shopData?.subscription_type === 'free' ? 20 : 100;
+  };
+
   const loadShopAndCategories = async () => {
     try {
       // Mağaza bilgilerini getir
@@ -43,7 +53,15 @@ export default function AddProductPage() {
 
       if (shopData) {
         setShop(shopData);
+        setProductLimit(getDerivedProductLimit(shopData));
         setFormData(prev => ({ ...prev, location: shopData.city || '' }));
+
+        const { count: inventoryCount } = await supabase
+          .from('shop_inventory')
+          .select('id', { count: 'exact', head: true })
+          .eq('shop_id', shopId);
+
+        setProductCount(inventoryCount || 0);
       }
 
       // Kategorileri getir
@@ -153,6 +171,11 @@ export default function AddProductPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (productCount >= productLimit) {
+      alert(`Ürün limitiniz doldu (${productCount}/${productLimit}). Üst pakete geçerek daha fazla ürün ekleyebilirsiniz.`);
+      return;
+    }
     
     // Validasyon
     if (!formData.title.trim()) {
@@ -221,6 +244,8 @@ export default function AddProductPage() {
           .eq('id', shopId);
       }
 
+      setProductCount((prev) => prev + 1);
+
       alert('✅ Ürün başarıyla eklendi!');
       router.push(`/shop/${shopId}/dashboard`);
       router.refresh();
@@ -285,6 +310,11 @@ export default function AddProductPage() {
 
         {/* Form */}
         <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+          {productCount >= productLimit && (
+            <div className="mx-6 mt-6 p-4 rounded-lg border border-amber-300 bg-amber-50 text-amber-900 text-sm">
+              Ürün limitiniz doldu: <strong>{productCount}/{productLimit}</strong>. Yeni ürün eklemek için mağaza paketinizi yükseltin.
+            </div>
+          )}
           <form onSubmit={handleSubmit}>
             <div className="p-6">
               
@@ -495,6 +525,9 @@ export default function AddProductPage() {
                   <div className="flex items-center">
                     <span>Kalan Resim: {shop.total_images - (shop.free_images_used || 0)}</span>
                   </div>
+                  <div className="flex items-center mt-1">
+                    <span>Ürün Hakkı: {productCount}/{productLimit}</span>
+                  </div>
                 </div>
                 
                 <div className="flex space-x-4">
@@ -508,7 +541,7 @@ export default function AddProductPage() {
                   </button>
                   <button
                     type="submit"
-                    disabled={loading || !imageFile}
+                    disabled={loading || !imageFile || productCount >= productLimit}
                     className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {loading ? (

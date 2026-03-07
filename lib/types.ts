@@ -45,6 +45,7 @@ export interface Shop {
   website: string | null
   free_images_used: number
   total_images: number
+  product_limit: number
   subscription_type: 'free' | 'pro' | 'business' | 'enterprise'
   created_at: string
 }
