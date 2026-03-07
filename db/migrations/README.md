@@ -31,6 +31,20 @@ Bu klasördeki SQL dosyalarını Supabase Dashboard'da çalıştırmanız gereki
    - Sighting eklendiğinde spot.helps sayacını güvenli şekilde artırır
    - SECURITY DEFINER ile çalışır
 
+5. **20260307_create_spot_wallet_and_ledger.sql**
+   - Spot ekonomisi için `spot_wallets` ve `spot_ledger` tablolarını oluşturur
+   - Güvenli RPC fonksiyonları ekler:
+     * `get_spot_balance()`
+     * `award_spot()`
+     * `spend_spot()`
+     * `transfer_spot()`
+   - RLS ve yetki kurallarını tanımlar (owner read, controlled write)
+
+6. **20260307_spot_wallet_admin_test.sql**
+   - Faz 1 doğrulaması için admin test scripti
+   - Wallet oluşturma, award, transfer, spend adımlarını test eder
+   - Ledger ve bakiye çıktısını doğrulama sorguları içerir
+
 ## Supabase'de Nasıl Çalıştırılır?
 
 1. Supabase Dashboard'a git: https://supabase.com/dashboard
@@ -62,6 +76,24 @@ SELECT routine_name, routine_type
 FROM information_schema.routines
 WHERE routine_schema = 'public'
 AND routine_name = 'increment_spot_helps';
+
+-- 4. Spot ekonomi tablolarını kontrol et
+SELECT table_name
+FROM information_schema.tables
+WHERE table_schema = 'public'
+AND table_name IN ('spot_wallets', 'spot_ledger');
+
+-- 5. Spot RPC fonksiyonlarını kontrol et
+SELECT routine_name
+FROM information_schema.routines
+WHERE routine_schema = 'public'
+AND routine_name IN (
+   'get_spot_balance',
+   'award_spot',
+   'spend_spot',
+   'transfer_spot'
+)
+ORDER BY routine_name;
 ```
 
 ## Sorun Giderme
