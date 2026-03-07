@@ -87,7 +87,7 @@ export default function SpotDetailPage() {
     // Spot verilerini yeniden yükle
     fetchSpotDetails()
     // Başarı mesajı göster (opsiyonel)
-    alert('Teşekkürler! Bildiriminiz kaydedildi. 🎉')
+    alert('Teşekkürler! Yardım bildiriminiz inceleme için gönderildi. Onaylandığında Spot ödülü işlenecek. 🎉')
   }
 
   if (loading) {

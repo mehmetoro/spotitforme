@@ -45,6 +45,12 @@ Bu klasördeki SQL dosyalarını Supabase Dashboard'da çalıştırmanız gereki
    - Wallet oluşturma, award, transfer, spend adımlarını test eder
    - Ledger ve bakiye çıktısını doğrulama sorguları içerir
 
+7. **20260308_add_sighting_verification_and_spot_reward.sql**
+   - Faz 2 için sightings doğrulama state makinesi ekler (`pending/approved/rejected/cancelled`)
+   - Spot sahibi onay akışını RPC ile yönetir: `verify_sighting_and_process_reward()`
+   - Onaylanınca +1 Spot ödülünü ledger ile yazar (çift ödül korumalı)
+   - Spotter'ın pending kaydı iptal etmesi için `cancel_own_pending_sighting()` ekler
+
 ## Supabase'de Nasıl Çalıştırılır?
 
 1. Supabase Dashboard'a git: https://supabase.com/dashboard
@@ -94,6 +100,31 @@ AND routine_name IN (
    'transfer_spot'
 )
 ORDER BY routine_name;
+
+-- 6. Faz 2 doğrulama fonksiyonlarını kontrol et
+SELECT routine_name
+FROM information_schema.routines
+WHERE routine_schema = 'public'
+AND routine_name IN (
+   'verify_sighting_and_process_reward',
+   'cancel_own_pending_sighting'
+)
+ORDER BY routine_name;
+
+-- 7. sightings state machine kolonlarını kontrol et
+SELECT column_name, data_type
+FROM information_schema.columns
+WHERE table_schema = 'public'
+   AND table_name = 'sightings'
+   AND column_name IN (
+      'verification_status',
+      'approved_by',
+      'approved_at',
+      'rejection_reason',
+      'spot_reward_granted',
+      'spot_reward_ledger_id'
+   )
+ORDER BY column_name;
 ```
 
 ## Sorun Giderme

@@ -237,16 +237,6 @@ export default function SightingModal({ spotId, spotTitle, onClose, onSuccess }:
         // Bildirim hatası olsa bile devam et
       }
 
-      // SPOT.TOTAL_HELPS SAYACINI ARTIR
-      const { error: updateError } = await supabase.rpc('increment_spot_helps', {
-        spot_id: spotId
-      })
-
-      if (updateError) {
-        console.warn('Helps sayacı artırılamadı (devam ediliyor):', updateError)
-        // Bu hata olsa bile başarılı sayıyoruz
-      }
-
       // BAŞARI!
       onSuccess()
     } catch (error) {

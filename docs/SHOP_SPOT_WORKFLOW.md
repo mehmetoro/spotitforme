@@ -157,12 +157,12 @@ Planlanan endpoint seti:
 ## Faz 1 — Cüzdan ve Ledger
 - [x] `spot_wallets` + `spot_ledger` tabloları
 - [x] Bakiye hesaplama/okuma fonksiyonları
-- [ ] İlk admin test transferleri
+- [x] İlk admin test transferleri
 
 ## Faz 2 — Yardım Onayı -> Spot Kazanımı
-- [ ] Yardım doğrulama state makinesi
-- [ ] Onaylanınca +1 Spot işlenmesi
-- [ ] Çift ödül ve tekrar ödül engeli
+- [x] Yardım doğrulama state makinesi
+- [x] Onaylanınca +1 Spot işlenmesi
+- [x] Çift ödül ve tekrar ödül engeli
 
 ## Faz 3 — Mağaza Paket Sistemi
 - [ ] Starter 20 ürün limiti
@@ -256,10 +256,17 @@ Her yeni oturumda aşağıdaki sırayla ilerlenir:
 - Migration dosyası eklendi: `20260307_create_spot_wallet_and_ledger.sql`
 - Faz 1 admin doğrulama scripti eklendi: `20260307_spot_wallet_admin_test.sql`
 
+## 2026-03-08
+- Faz 1 admin test transferleri başarıyla doğrulandı (`earn`, `transfer`, `spend` ledger kayıtları tamamlandı)
+- Faz 1 resmen tamamlandı, Faz 2'ye geçiş onayı verildi
+- Faz 2 backend tamamlandı: sightings state machine kolonları + verify/cancel RPC fonksiyonları eklendi
+- Onay akışında +1 Spot ledger ödülü ve çift ödül engeli aktive edildi
+- Sighting oluşturma sonrası anlık helps artışı kaldırıldı; onay sonrası artış modeline geçildi
+
 ---
 
 ## 13) Sonraki Net Adım (Bir Sonraki Oturum)
 
-**Başlangıç görevi:** Faz 1 — ilk admin test transferlerini çalıştırmak ve doğrulamak.
+**Başlangıç görevi:** Faz 3 — mağaza paket limitlerini (20/100) veri modeline bağlamak.
 
-Bu tamamlanmadan Faz 2’ye geçilmez.
+Bu tamamlanmadan Faz 3’e geçilmez.
