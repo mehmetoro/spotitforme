@@ -2,7 +2,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import PromoCard, { PromoBanner } from '@/components/PromoCard';
 
 interface ResponsiveAdProps {
   placement: 'inline' | 'banner' | 'native';
@@ -63,11 +62,27 @@ export default function ResponsiveAd({
 
   const config = getAdConfig();
 
-  // Banner placement için PromoBanner kullan
   if (placement === 'banner') {
-    return <PromoBanner variant="random" className={className} />;
+    return (
+      <div className={`${className} ${config.width} ${config.height} ${config.bgColor} rounded-xl border border-blue-100`}>
+        <div className="h-full flex items-center justify-between px-4 md:px-6">
+          <div>
+            <p className="text-xs text-gray-500 uppercase tracking-wide">Sponsorlu İçerik</p>
+            <p className={`font-semibold text-gray-800 ${config.textSize}`}>Spotitforme Tanıtımı</p>
+          </div>
+          <span className="text-xs md:text-sm bg-white text-blue-600 font-semibold px-3 py-1 rounded-full">Keşfet</span>
+        </div>
+      </div>
+    );
   }
 
-  // Inline ve native placement için PromoCard kullan
-  return <PromoCard variant="random" className={className} />;
+  return (
+    <div className={`${className} ${config.width} ${config.height} ${config.bgColor} rounded-xl border border-purple-100`}>
+      <div className="h-full flex flex-col justify-center px-4 md:px-6">
+        <p className="text-xs text-gray-500 uppercase tracking-wide mb-2">Sponsorlu İçerik</p>
+        <p className={`font-semibold text-gray-800 ${config.textSize}`}>Topluluk ile daha hızlı bul</p>
+        <p className="text-xs md:text-sm text-gray-600 mt-1">İstediğin ürünü paylaş, sana en yakın fırsatları keşfet.</p>
+      </div>
+    </div>
+  );
 }
