@@ -28,10 +28,40 @@ export default function ProductPage() {
   const [showSpotModal, setShowSpotModal] = useState(false);
   const [selectedSpots, setSelectedSpots] = useState<number>(1);
   const [customSpots, setCustomSpots] = useState<string>('');
+  const [exchangeRate, setExchangeRate] = useState<number>(1);
+  const [loadingRate, setLoadingRate] = useState(false);
 
   useEffect(() => {
     loadProduct();
   }, [productId]);
+
+  // Döviz kurunu fetch et
+  useEffect(() => {
+    const fetchExchangeRate = async () => {
+      if (!product?.price_currency || product.price_currency === 'USD') {
+        setExchangeRate(1);
+        return;
+      }
+
+      try {
+        setLoadingRate(true);
+        const res = await fetch(`/api/exchange-rates?from=USD&to=${product.price_currency}`);
+        const data = await res.json();
+        if (data.rate) {
+          setExchangeRate(data.rate);
+        }
+      } catch (error) {
+        console.error('Exchange rate fetch error:', error);
+        setExchangeRate(1); // Fallback
+      } finally {
+        setLoadingRate(false);
+      }
+    };
+
+    if (product) {
+      fetchExchangeRate();
+    }
+  }, [product?.price_currency]);
 
   const loadProduct = async () => {
     try {
@@ -119,13 +149,26 @@ export default function ProductPage() {
         return;
       }
 
+      // İndirim hesaplaması: 1 Spot = 1 USD
+      const discountAmountUsd = spotAmount * 1;
+      const discountAmountLocal = discountAmountUsd * exchangeRate;
+      const finalPrice = Math.max(0, (product.price || 0) - discountAmountLocal);
+
       const response = await fetch(`/api/shop/${product.shop_id}/inventory/${product.id}/discount-request`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ spotAmount }),
+        body: JSON.stringify({ 
+          spotAmount,
+          discountAmountUsd,
+          discountAmountLocal,
+          originalPrice: product.price,
+          finalPrice,
+          currency: product.price_currency,
+          exchangeRate,
+        }),
       });
 
       const result = await response.json();
@@ -135,7 +178,7 @@ export default function ProductPage() {
         return;
       }
 
-      alert('✅ İndirim talebiniz mağazaya iletildi. Mağaza onayladığında Spot transferi gerçekleşir.');
+      alert(`✅ İndirim talebiniz mağazaya iletildi.\n\n${spotAmount} Spot İndirim Talebiniz:\n${discountAmountLocal.toFixed(2)} ${product.price_currency} indirim\nYeni Fiyat: ${finalPrice.toFixed(2)} ${product.price_currency}`);
       setShowSpotModal(false);
       setSelectedSpots(1);
       setCustomSpots('');
@@ -709,36 +752,37 @@ export default function ProductPage() {
                 💎 Kaç Spot İndirim Talep Etmek İstiyorsunuz?
               </h2>
               <p className="text-sm text-gray-600 mt-2">
-                Mağaza sahibi kabul edebilir veya farklı bir miktar önerebilir.
+                <strong>1 Spot = 1 USD indirim</strong> anlamına gelir. Mağaza sahibi kabul edebilir veya farklı bir miktar önerebilir.
               </p>
             </div>
 
             <div className="p-6 space-y-4">
               {/* Hazır Seçenekler */}
-              <div className="grid grid-cols-4 gap-2">
-                {[1, 2, 3, 4].map((spot) => (
-                  <button
-                    key={spot}
-                    onClick={() => {
-                      setSelectedSpots(spot);
-                      setCustomSpots('');
-                    }}
-                    className={`py-3 rounded-lg font-bold text-lg transition-all ${
-                      selectedSpots === spot && !customSpots
-                        ? 'bg-purple-600 text-white shadow-lg'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    {spot}
-                  </button>
-                ))}
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-2 uppercase">Hızlı Seçim</label>
+                <div className="grid grid-cols-4 gap-2">
+                  {[1, 2, 3, 4].map((spot) => (
+                    <button
+                      key={spot}
+                      onClick={() => {
+                        setSelectedSpots(spot);
+                        setCustomSpots('');
+                      }}
+                      className={`py-3 rounded-lg font-bold text-lg transition-all ${
+                        selectedSpots === spot && !customSpots
+                          ? 'bg-purple-600 text-white shadow-lg'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      {spot}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Özel Miktar */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Veya Özel Miktar Girin:
-                </label>
+                <label className="block text-xs font-medium text-gray-500 mb-2 uppercase">Özel Miktar</label>
                 <input
                   type="number"
                   min="1"
@@ -753,15 +797,61 @@ export default function ProductPage() {
                 />
               </div>
 
+              {/* İndirim Hesaplaması */}
+              {(() => {
+                const spotAmount = customSpots ? parseInt(customSpots, 10) : selectedSpots;
+                const discountAmountUsd = spotAmount * 1;
+                const discountAmountLocal = discountAmountUsd * exchangeRate;
+                const finalPrice = Math.max(0, (product?.price || 0) - discountAmountLocal);
+
+                return (
+                  <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-lg p-4 space-y-3">
+                    <div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium text-gray-700">Talep Edilen İndirim:</span>
+                        <span className="text-lg font-bold text-purple-600">{spotAmount} Spot</span>
+                      </div>
+                      <p className="text-xs text-gray-600 mt-1">= {discountAmountUsd} USD indirim</p>
+                    </div>
+
+                    <div className="border-t border-purple-200 pt-3">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm font-medium text-gray-700">Orijinal Fiyat:</span>
+                        <span className="font-bold text-gray-900">
+                          {product?.price?.toLocaleString('tr-TR') || '0'} {product?.price_currency}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center mb-3">
+                        <span className="text-sm font-medium text-red-600">- İndirim:</span>
+                        <span className="font-bold text-red-600">
+                          -{discountAmountLocal.toFixed(2)} {product?.price_currency}
+                        </span>
+                      </div>
+                      <div className="border-t-2 border-purple-300 pt-3 flex justify-between items-center bg-white rounded px-2 py-2">
+                        <span className="text-sm font-bold text-gray-900">Tahmini Fiyat:</span>
+                        <span className="text-xl font-bold text-green-600">
+                          {finalPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {product?.price_currency}
+                        </span>
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-gray-600 bg-white rounded p-2">
+                      💡 <strong>Not:</strong> Bu hesaplama güncel döviz kuruna dayalıdır. Nihai indirim mağaza sahibi tarafından onaylandığında uygulanır.
+                    </p>
+                  </div>
+                );
+              })()}
+
               {/* Bilgilendirme */}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <p className="text-sm text-blue-800">
-                  <strong>Nasıl Çalışır?</strong>
+                  <strong>📋 Akış:</strong>
                   <br />
-                  1. Spot miktarını seçersiniz<br />
-                  2. Mağaza sahibi talebi görür ve onaylar ya da farklı miktar önerir<br />
-                  3. İletişim başlar (mesaj/telefon/ziyaret)<br />
-                  4. Alışveriş tamamlandığında Spot transferi gerçekleşir
+                  1️⃣ Spot miktarını seçersiniz<br />
+                  2️⃣ Mağaza sahibi talebi görür (tahmini fiyatla)<br />
+                  3️⃣ Mağaza onaylar veya sayıyı değiştirmeyi teklif eder<br />
+                  4️⃣ İletişim başlar (mesaj/telefon/ziyaret)<br />
+                  5️⃣ Alışveriş tamamlandığında Spot transferi gerçekleşir
                 </p>
               </div>
             </div>

@@ -13,7 +13,13 @@ CREATE TABLE IF NOT EXISTS shop_product_discount_requests (
   seller_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE RESTRICT,
   product_id uuid NOT NULL REFERENCES shop_inventory(id) ON DELETE RESTRICT,
   shop_id uuid NOT NULL REFERENCES shops(id) ON DELETE RESTRICT,
-  spot_amount integer NOT NULL CHECK (spot_amount IN (1, 2, 3)),
+  spot_amount integer NOT NULL CHECK (spot_amount >= 1 AND spot_amount <= 50),
+  discount_amount_usd decimal(10, 2) NOT NULL,
+  discount_amount_local decimal(10, 2) NOT NULL,
+  original_price decimal(10, 2) NOT NULL,
+  final_price decimal(10, 2) NOT NULL,
+  currency varchar(3) DEFAULT 'TRY',
+  exchange_rate decimal(10, 4) NOT NULL,
   status varchar(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'completed', 'cancelled')),
   request_note text,
   seller_note text,
@@ -82,4 +88,8 @@ CREATE POLICY "Discount requests update seller"
 
 COMMENT ON TABLE shop_product_discount_requests IS 'Buyer discount requests for spot-based discount flow';
 COMMENT ON COLUMN shop_product_discount_requests.status IS 'pending/approved/rejected/completed/cancelled';
-COMMENT ON COLUMN shop_product_discount_requests.spot_amount IS 'Requested Spot discount amount';
+COMMENT ON COLUMN shop_product_discount_requests.spot_amount IS 'Requested Spot discount amount (1-50)';
+COMMENT ON COLUMN shop_product_discount_requests.discount_amount_usd IS 'Discount calculated in USD (1 Spot = 1 USD)';
+COMMENT ON COLUMN shop_product_discount_requests.discount_amount_local IS 'Discount amount in product local currency';
+COMMENT ON COLUMN shop_product_discount_requests.final_price IS 'Final price after discount (informational)';
+COMMENT ON COLUMN shop_product_discount_requests.exchange_rate IS 'USD to local currency rate at request time';

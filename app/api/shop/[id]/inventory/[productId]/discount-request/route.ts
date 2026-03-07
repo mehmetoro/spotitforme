@@ -11,7 +11,16 @@ export async function POST(
   { params }: { params: { id: string; productId: string } }
 ) {
   try {
-    const { spotAmount } = await request.json();
+    const { 
+      spotAmount, 
+      discountAmountUsd, 
+      discountAmountLocal, 
+      originalPrice,
+      finalPrice,
+      currency,
+      exchangeRate,
+    } = await request.json();
+    
     const shopId = params.id;
     const productId = params.productId;
 
@@ -42,13 +51,6 @@ export async function POST(
 
     if (productError || !product) {
       return NextResponse.json({ error: 'Ürün bulunamadı veya aktif değil' }, { status: 404 });
-    }
-
-    if (!product.spot_discount) {
-      return NextResponse.json(
-        { error: 'Bu ürün için Spot indirimi tanımlanmamış' },
-        { status: 400 }
-      );
     }
 
     // User tarafından talep edilen Spot miktarı (1-50 arası)
@@ -104,12 +106,19 @@ export async function POST(
         product_id: productId,
         shop_id: shopId,
         spot_amount: requestedSpotAmount,
+        discount_amount_usd: Number(discountAmountUsd) || requestedSpotAmount,
+        discount_amount_local: Number(discountAmountLocal) || 0,
+        original_price: Number(originalPrice) || 0,
+        final_price: Number(finalPrice) || 0,
+        currency: currency || 'TRY',
+        exchange_rate: Number(exchangeRate) || 1,
         status: 'pending',
       })
       .select('id')
       .single();
 
     if (insertError) {
+      console.error('Insert error:', insertError.message);
       return NextResponse.json(
         { error: insertError.message || 'İndirim talebi kaydedilemedi' },
         { status: 400 }
@@ -126,6 +135,7 @@ export async function POST(
       { status: 200 }
     );
   } catch (error: any) {
+    console.error('Discount request error:', error);
     return NextResponse.json(
       {
         error: error.message || 'Sunucu hatası',
