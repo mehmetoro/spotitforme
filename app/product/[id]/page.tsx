@@ -25,6 +25,9 @@ export default function ProductPage() {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [isFavorite, setIsFavorite] = useState(false);
   const [requestingDiscount, setRequestingDiscount] = useState(false);
+  const [showSpotModal, setShowSpotModal] = useState(false);
+  const [selectedSpots, setSelectedSpots] = useState<number>(1);
+  const [customSpots, setCustomSpots] = useState<string>('');
 
   useEffect(() => {
     loadProduct();
@@ -98,8 +101,11 @@ export default function ProductPage() {
   };
 
   const handleRequestSpotDiscount = async () => {
-    if (!product?.spot_discount) {
-      alert('Bu ürün için Spot indirimi tanımlanmamış');
+    // Kaç Spot talep ettiğini belirle
+    const spotAmount = customSpots ? parseInt(customSpots, 10) : selectedSpots;
+
+    if (!spotAmount || spotAmount < 1) {
+      alert('Lütfen geçerli bir Spot miktarı seçin');
       return;
     }
 
@@ -119,7 +125,7 @@ export default function ProductPage() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ spotAmount: product.spot_discount }),
+        body: JSON.stringify({ spotAmount }),
       });
 
       const result = await response.json();
@@ -129,7 +135,10 @@ export default function ProductPage() {
         return;
       }
 
-      alert('✅ İndirim talebiniz mağazaya iletildi. Alışveriş tamamlandığında ve mağaza onayladığında Spot transferi gerçekleşir.');
+      alert('✅ İndirim talebiniz mağazaya iletildi. Mağaza onayladığında Spot transferi gerçekleşir.');
+      setShowSpotModal(false);
+      setSelectedSpots(1);
+      setCustomSpots('');
     } catch (error) {
       console.error('Discount request error:', error);
       alert('İndirim talebi sırasında hata oluştu');
@@ -511,34 +520,25 @@ export default function ProductPage() {
                 
                 {/* Butonlar */}
                 <div className="space-y-3">
-                  {product.spot_discount && (
-                    <button
-                      onClick={handleRequestSpotDiscount}
-                      disabled={requestingDiscount}
-                      className="w-full bg-purple-600 hover:bg-purple-700 text-white py-4 rounded-xl font-bold flex items-center justify-center disabled:opacity-50"
-                    >
-                      <MessageCircle className="mr-2" size={20} />
-                      {requestingDiscount
-                        ? 'Talep Gönderiliyor...'
-                        : `💎 ${product.spot_discount} Spot İndirimi Talep Et`}
-                    </button>
-                  )}
+                  <button
+                    onClick={() => setShowSpotModal(true)}
+                    className="w-full bg-purple-600 hover:bg-purple-700 text-white py-4 rounded-xl font-bold flex items-center justify-center"
+                  >
+                    <MessageCircle className="mr-2" size={20} />
+                    💎 İndirim Talep Et
+                  </button>
 
                   <button
                     onClick={handleContact}
                     className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white py-4 rounded-xl font-bold flex items-center justify-center"
                   >
                     <MessageCircle className="mr-2" size={20} />
-                    {product.spot_discount
-                      ? 'Mağaza ile İletişime Geç'
-                      : 'Mağaza ile İletişime Geç'}
+                    Mağaza ile İletişime Geç
                   </button>
 
-                  {product.spot_discount && (
-                    <p className="text-xs text-purple-700 bg-purple-50 rounded-lg p-3">
-                      Spot indirimi anlık satın alma değildir. Talep sonrası alışveriş gerçekleşirse, mağaza onayıyla Spot transferi yapılır.
-                    </p>
-                  )}
+                  <p className="text-xs text-purple-700 bg-purple-50 rounded-lg p-3">
+                    Spot indirimi anlık satın alma değildir. Talep sonrası alışveriş gerçekleşirse, mağaza onayıyla Spot transferi yapılır.
+                  </p>
                   
                   <button
                     onClick={handleAddToFavorites}
@@ -699,6 +699,97 @@ export default function ProductPage() {
           </div>
         </div>
       </div>
+
+      {/* Spot Seçim Modal */}
+      {showSpotModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full">
+            <div className="p-6 border-b border-gray-200">
+              <h2 className="text-2xl font-bold text-gray-900">
+                💎 Kaç Spot İndirim Talep Etmek İstiyorsunuz?
+              </h2>
+              <p className="text-sm text-gray-600 mt-2">
+                Mağaza sahibi kabul edebilir veya farklı bir miktar önerebilir.
+              </p>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {/* Hazır Seçenekler */}
+              <div className="grid grid-cols-4 gap-2">
+                {[1, 2, 3, 4].map((spot) => (
+                  <button
+                    key={spot}
+                    onClick={() => {
+                      setSelectedSpots(spot);
+                      setCustomSpots('');
+                    }}
+                    className={`py-3 rounded-lg font-bold text-lg transition-all ${
+                      selectedSpots === spot && !customSpots
+                        ? 'bg-purple-600 text-white shadow-lg'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    {spot}
+                  </button>
+                ))}
+              </div>
+
+              {/* Özel Miktar */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Veya Özel Miktar Girin:
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="50"
+                  value={customSpots}
+                  onChange={(e) => {
+                    setCustomSpots(e.target.value);
+                    if (e.target.value) setSelectedSpots(0);
+                  }}
+                  placeholder="5, 10, 15..."
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-purple-600 focus:outline-none"
+                />
+              </div>
+
+              {/* Bilgilendirme */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-sm text-blue-800">
+                  <strong>Nasıl Çalışır?</strong>
+                  <br />
+                  1. Spot miktarını seçersiniz<br />
+                  2. Mağaza sahibi talebi görür ve onaylar ya da farklı miktar önerir<br />
+                  3. İletişim başlar (mesaj/telefon/ziyaret)<br />
+                  4. Alışveriş tamamlandığında Spot transferi gerçekleşir
+                </p>
+              </div>
+            </div>
+
+            <div className="p-6 border-t border-gray-200 flex gap-3">
+              <button
+                onClick={() => {
+                  setShowSpotModal(false);
+                  setSelectedSpots(1);
+                  setCustomSpots('');
+                }}
+                className="flex-1 py-3 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold rounded-lg transition-colors"
+              >
+                İptal
+              </button>
+
+              <button
+                onClick={handleRequestSpotDiscount}
+                disabled={requestingDiscount}
+                className="flex-1 py-3 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-bold rounded-lg transition-colors flex items-center justify-center"
+              >
+                <MessageCircle className="mr-2" size={18} />
+                {requestingDiscount ? 'Gönderiliyor...' : 'Talep Gönder'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

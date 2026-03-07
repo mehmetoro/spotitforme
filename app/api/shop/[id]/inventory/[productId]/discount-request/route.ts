@@ -51,11 +51,12 @@ export async function POST(
       );
     }
 
-    const requestedSpotAmount = Number(spotAmount ?? product.spot_discount);
+    // User tarafından talep edilen Spot miktarı (1-50 arası)
+    const requestedSpotAmount = Number(spotAmount);
 
-    if (requestedSpotAmount !== product.spot_discount) {
+    if (!requestedSpotAmount || requestedSpotAmount < 1 || requestedSpotAmount > 50) {
       return NextResponse.json(
-        { error: `Bu ürün için yalnızca ${product.spot_discount} Spot indirimi talep edilebilir` },
+        { error: 'Lütfen 1 ile 50 arasında bir Spot miktarı seçin' },
         { status: 400 }
       );
     }
