@@ -168,7 +168,7 @@ Planlanan endpoint seti:
 - [x] Starter 20 ürün limiti (kod + migration hazır)
 - [x] Pro 100 ürün limiti (kod + migration hazır)
 - [x] Spot ile yükseltme (10 Spot düşüm) (RPC + UI entegrasyonu hazır)
-- [ ] Supabase migration çalıştırma + canlı doğrulama
+- [x] Supabase migration çalıştırma + canlı doğrulama ✅ TAMAMLANDI
 
 ## Faz 4 — Spot İndirimli Ürün
 - [ ] Ürüne 1/2/3 Spot indirim tanımı
@@ -267,11 +267,17 @@ Her yeni oturumda aşağıdaki sırayla ilerlenir:
 - Envanter ekranında ürün limiti görünürlüğü, limiti aşınca engelleme ve Spot ile Pro yükseltme butonu eklendi
 - Ürün ekleme ekranında limit kontrolü ve limit dolu durumda submit kilidi eklendi
 - Uygulama derlemesi başarılı geçti (`npm run build`)
+- Faz 3 migration Supabase'de başarıyla çalıştırıldı; mevcut free mağazalar otomatik 20 limit aldı
+- **Faz 3 TAMAMLANDI** ✅ - Sistem şu anda canlıda: Free = 20 ürün, Pro = 100 ürün, 10 Spot ile yükseltme aktif
 
 ---
 
-## 13) Sonraki Net Adım (Bir Sonraki Oturum)
+## 13) Sonraki Net Adım (B4 — Ürünlere Spot indirimi tanımlama veri modeli ve UI'sını eklemek.
 
-**Başlangıç görevi:** Faz 3 migration'ını Supabase SQL Editor'de çalıştırıp canlı doğrulamayı tamamlamak.
+**Hedefler:**
+1. `shop_inventory` tablosuna `spot_discount` kolonu ekle (nullable integer, 1/2/3 değerlerini kabul eder)
+2. Ürün ekleme/düzenleme formlarına Spot indirim seçeneği ekle
+3. Ürün listeleme/detay sayfalarında Spot indirim rozetini göster
+4. Faz 5'te satın alma transfer akışı için altyapıyı hazırlayacak şekilde tasarlaıştırıp canlı doğrulamayı tamamlamak.
 
 Bu tamamlandığında Faz 4 (Spot indirimli ürün) uygulamasına geçilir.
