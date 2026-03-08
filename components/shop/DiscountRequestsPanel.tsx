@@ -58,7 +58,7 @@ export default function DiscountRequestsPanel({ shopId, limit = 6 }: DiscountReq
       } else if (savedFilter === 'all' || savedFilter === 'pending' || savedFilter === 'approved') {
         setActiveFilter(savedFilter)
       } else {
-        setActiveFilter('all')
+        setActiveFilter('pending')
       }
     } catch (error) {
       console.error('Filter restore failed:', error)
