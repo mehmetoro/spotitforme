@@ -348,8 +348,8 @@ export default function MessagingLayout({
 
   return (
     <div className="relative flex min-h-[calc(100vh-120px)] bg-white rounded-xl shadow-lg">
-      {/* Sol sidebar - Thread listesi */}
-      <div className="w-full md:w-96 border-r border-gray-200 flex flex-col">
+      {/* Sol sidebar - Thread listesi - Mobilde sadece mesaj seçili değilken görünür */}
+      <div className={`w-full md:w-96 border-r border-gray-200 flex-col ${selectedThread ? 'hidden md:flex' : 'flex'}`}>
         <div className="p-4 border-b">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-bold text-gray-900">Mesajlar</h2>
@@ -385,8 +385,8 @@ export default function MessagingLayout({
         />
       </div>
 
-      {/* Sağ taraf - Mesajlaşma ekranı */}
-      <div className="flex-1 flex flex-col">
+      {/* Sağ taraf - Mesajlaşma ekranı - Mobilde sadece mesaj seçiliyken görünür */}
+      <div className={`flex-1 flex-col ${selectedThread ? 'flex' : 'hidden md:flex'}`}>
         {selectedThread ? (
           <MessageThread
             threadId={selectedThread}
