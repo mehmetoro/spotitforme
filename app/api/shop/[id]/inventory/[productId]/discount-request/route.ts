@@ -38,6 +38,8 @@ export async function GET(
       return NextResponse.json({ error: authError || 'Yetkisiz' }, { status: 401 });
     }
 
+    await supabase.rpc('ensure_spot_wallet', { p_user_id: user.id });
+
     // Get total spot balance - using RLS allowed read via service role wrapper
     const { data: walletData, error: walletError } = await supabase
       .from('spot_wallets')
@@ -146,14 +148,14 @@ export async function POST(
 
     const totalSpots = walletData?.balance || 0;
 
-    // Get blocked spots from pending/approved requests
+    // Get blocked spots from pending/approved requests (1 request = 1 blocked Spot)
     const { data: blockedRequests } = await supabase
       .from('shop_product_discount_requests')
-      .select('spot_amount')
+      .select('id')
       .eq('buyer_id', buyerId)
       .in('status', ['pending', 'approved']);
 
-    const blockedSpots = (blockedRequests || []).reduce((sum, req) => sum + (req.spot_amount || 0), 0);
+    const blockedSpots = blockedRequests?.length || 0;
     const availableSpots = Math.max(0, totalSpots - blockedSpots);
 
     if (availableSpots < 1) {
