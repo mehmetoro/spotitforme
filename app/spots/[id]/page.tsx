@@ -111,10 +111,10 @@ export default function SpotDetailPage() {
         return
       }
 
-      const draft = `Merhaba, \"${spot.title}\" spot paylaşımınız için yardımcı olmak istiyorum. Müsait olduğunuzda dönüş yapabilir misiniz?`
+      const draft = `Merhaba, \"${spot.title}\" spotunuz için size yardımcı olabilirim. Bu ürünü bulmanıza yardım etmek isterim.`
       const params = new URLSearchParams({
         receiver: spot.user_id,
-        type: 'spot',
+        type: 'help',
         draft,
       })
 
@@ -276,6 +276,24 @@ export default function SpotDetailPage() {
               title={spot.title} 
             />
 
+            {/* Yardım Teklif Et */}
+            {spot.user_id !== currentUserId && (
+              <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl shadow-lg p-6">
+                <h3 className="text-lg font-bold text-white mb-3">
+                  💬 Yardım Teklif Et
+                </h3>
+                <p className="text-emerald-50 text-sm mb-4">
+                  Bu ürünü bulmada yardımcı olabilir misiniz? Spot sahibine mesaj gönderin.
+                </p>
+                <button
+                  onClick={handleMessageRequest}
+                  className="w-full bg-white text-emerald-600 hover:bg-emerald-50 font-bold py-3 rounded-xl transition-colors"
+                >
+                  Mesaj Gönder
+                </button>
+              </div>
+            )}
+
             {/* Spot Sahibi */}
             <div className="bg-white rounded-2xl shadow-lg p-6">
               <h3 className="text-lg font-bold text-gray-900 mb-4">
@@ -292,14 +310,6 @@ export default function SpotDetailPage() {
                   </p>
                 </div>
               </div>
-              {spot.user_id !== currentUserId && (
-                <button
-                  onClick={handleMessageRequest}
-                  className="mt-4 w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl"
-                >
-                  Mesaj Talebi Gönder
-                </button>
-              )}
             </div>
 
             {/* İstatistikler */}
