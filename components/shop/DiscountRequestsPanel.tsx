@@ -27,6 +27,7 @@ interface DiscountRequestRow {
 }
 
 export default function DiscountRequestsPanel({ shopId, limit = 6 }: DiscountRequestsPanelProps) {
+  const filterStorageKey = `discount-requests-filter-${shopId}`
   const [requests, setRequests] = useState<DiscountRequestRow[]>([])
   const [productTitles, setProductTitles] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
@@ -43,6 +44,27 @@ export default function DiscountRequestsPanel({ shopId, limit = 6 }: DiscountReq
   useEffect(() => {
     fetchRequests()
   }, [shopId])
+
+  useEffect(() => {
+    try {
+      const savedFilter = localStorage.getItem(filterStorageKey)
+      if (savedFilter === 'all' || savedFilter === 'pending' || savedFilter === 'approved') {
+        setActiveFilter(savedFilter)
+      } else {
+        setActiveFilter('all')
+      }
+    } catch (error) {
+      console.error('Filter restore failed:', error)
+    }
+  }, [filterStorageKey])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(filterStorageKey, activeFilter)
+    } catch (error) {
+      console.error('Filter save failed:', error)
+    }
+  }, [activeFilter, filterStorageKey])
 
   const fetchRequests = async () => {
     try {
