@@ -370,7 +370,7 @@ export default function ThreadList({
   }
 
   return (
-    <div className="flex-1 overflow-y-auto">
+    <div className="flex-1">
       <div className="px-3 py-3 border-b border-gray-200 bg-white sticky top-0 z-10">
         <div className="relative mb-3">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
