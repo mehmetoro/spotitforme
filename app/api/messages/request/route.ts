@@ -37,11 +37,24 @@ function resolveThreadType(value?: string): ThreadType {
 }
 
 function getThreadTypeCandidates(threadType: ThreadType): ThreadType[] {
-  if (threadType === 'reward') {
-    return ['reward', 'help']
+  const fallbackMap: Record<ThreadType, ThreadType[]> = {
+    general: ['general', 'social', 'shop', 'spot'],
+    social: ['social', 'general', 'spot', 'shop'],
+    shop: ['shop', 'general', 'spot', 'social'],
+    spot: ['spot', 'general', 'social', 'shop'],
+    help: ['help', 'spot', 'general', 'social', 'shop'],
+    reward: ['reward', 'help', 'spot', 'general', 'social', 'shop'],
+    trade: ['trade', 'shop', 'general', 'social', 'spot'],
   }
 
-  return [threadType]
+  const uniqueCandidates: ThreadType[] = []
+  for (const candidate of fallbackMap[threadType]) {
+    if (!uniqueCandidates.includes(candidate)) {
+      uniqueCandidates.push(candidate)
+    }
+  }
+
+  return uniqueCandidates
 }
 
 function checkInMemoryRateLimit(userId: string) {

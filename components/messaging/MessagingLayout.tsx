@@ -98,7 +98,14 @@ export default function MessagingLayout({
 
   const focusExistingThread = useCallback(async (receiverId: string, threadType: string): Promise<boolean> => {
     try {
-      const threadTypeCandidates = threadType === 'reward' ? ['reward', 'help'] : [threadType]
+      const threadTypeCandidates =
+        threadType === 'reward'
+          ? ['reward', 'help', 'spot', 'general', 'social', 'shop']
+          : threadType === 'help'
+            ? ['help', 'spot', 'general', 'social', 'shop']
+            : threadType === 'trade'
+              ? ['trade', 'shop', 'general', 'social', 'spot']
+              : [threadType, 'general']
 
       const { data, error } = await supabase
         .from('active_conversations')
