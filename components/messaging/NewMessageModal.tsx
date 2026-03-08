@@ -72,6 +72,7 @@ export default function NewMessageModal({
   const [selectedSpot, setSelectedSpot] = useState<Spot | null>(null)
   const [messageType, setMessageType] = useState<'general' | 'spot' | 'help'>('general')
   const [prefillApplied, setPrefillApplied] = useState(false)
+  const [formError, setFormError] = useState('')
   
   const modalRef = useRef<HTMLDivElement>(null)
 
@@ -237,6 +238,7 @@ export default function NewMessageModal({
   }
 
   const handleSelectUser = (user: UserProfile) => {
+    setFormError('')
     setSelectedUser(user)
     setStep('compose')
     
@@ -250,10 +252,11 @@ export default function NewMessageModal({
 
   const handleSend = async () => {
     if (!selectedUser || !message.trim()) {
-      alert('Lütfen bir kullanıcı seçin ve mesajınızı yazın')
+      setFormError('Lütfen bir kullanıcı seçin ve mesajınızı yazın.')
       return
     }
 
+    setFormError('')
     setSending(true)
     try {
       const resolvedThreadType = initialThreadType || (selectedSpot ? 'spot' : messageType)
@@ -262,6 +265,7 @@ export default function NewMessageModal({
       const sent = await onSendMessage(selectedUser.id, message, resolvedThreadType)
 
       if (!sent) {
+        setFormError('Mesaj talebi gönderilemedi. Lütfen tekrar deneyin.')
         setSending(false)
         return
       }
@@ -275,7 +279,7 @@ export default function NewMessageModal({
       
     } catch (error) {
       console.error('Mesaj gönderilemedi:', error)
-      alert('Bir hata oluştu. Lütfen tekrar deneyin.')
+      setFormError('Bir hata oluştu. Lütfen tekrar deneyin.')
       setSending(false)
     }
   }
@@ -572,7 +576,10 @@ export default function NewMessageModal({
                     </label>
                     <textarea
                       value={message}
-                      onChange={(e) => setMessage(e.target.value)}
+                      onChange={(e) => {
+                        setMessage(e.target.value)
+                        if (formError) setFormError('')
+                      }}
                       placeholder="Mesajınızı detaylı bir şekilde yazın..."
                       className="w-full h-48 p-3 border rounded-lg focus:outline-none focus:border-blue-500 resize-none"
                       disabled={sending}
@@ -670,51 +677,60 @@ export default function NewMessageModal({
                 </div>
               </div>
             ) : (
-              <div className="flex justify-between items-center">
-                <button
-                  onClick={() => setStep('select')}
-                  className="px-4 py-2 border rounded-lg hover:bg-gray-100 transition-colors"
-                  disabled={sending}
-                >
-                  Geri
-                </button>
-                
-                <div className="flex items-center space-x-3">
+              <div className="space-y-3">
+                {formError && (
+                  <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                    {formError}
+                  </div>
+                )}
+
+                <div className="flex justify-between items-center">
                   <button
-                    onClick={() => {
-                      setMessage('')
-                      setSelectedUser(null)
-                      setStep('select')
-                    }}
-                    className="text-sm text-gray-600 hover:text-gray-800"
+                    onClick={() => setStep('select')}
+                    className="px-4 py-2 border rounded-lg hover:bg-gray-100 transition-colors"
                     disabled={sending}
                   >
-                    Temizle
+                    Geri
                   </button>
                   
-                  <button
-                    onClick={handleSend}
-                    disabled={sending || !selectedUser || !message.trim()}
-                    className={`
-                      px-6 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2
-                      ${sending || !selectedUser || !message.trim()
-                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                        : 'bg-blue-500 text-white hover:bg-blue-600'
-                      }
-                    `}
-                  >
-                    {sending ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        <span>Gönderiliyor...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Send className="w-4 h-4" />
-                        <span>Talep Gönder</span>
-                      </>
-                    )}
-                  </button>
+                  <div className="flex items-center space-x-3">
+                    <button
+                      onClick={() => {
+                        setFormError('')
+                        setMessage('')
+                        setSelectedUser(null)
+                        setStep('select')
+                      }}
+                      className="text-sm text-gray-600 hover:text-gray-800"
+                      disabled={sending}
+                    >
+                      Temizle
+                    </button>
+                    
+                    <button
+                      onClick={handleSend}
+                      disabled={sending || !selectedUser || !message.trim()}
+                      className={`
+                        px-6 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2
+                        ${sending || !selectedUser || !message.trim()
+                          ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                          : 'bg-blue-500 text-white hover:bg-blue-600'
+                        }
+                      `}
+                    >
+                      {sending ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          <span>Gönderiliyor...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Send className="w-4 h-4" />
+                          <span>Talep Gönder</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
             )}

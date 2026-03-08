@@ -49,6 +49,7 @@ export default function MessagingLayout({
   const [showNewMessageModal, setShowNewMessageModal] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
   const [autoRequestHandled, setAutoRequestHandled] = useState(false)
+  const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' | 'info' } | null>(null)
   const requestInFlightRef = useRef(false)
   
   // Realtime subscription için
@@ -143,7 +144,7 @@ export default function MessagingLayout({
       }
 
       if (!accessToken) {
-        alert('Oturum doğrulanamadı. Lütfen tekrar giriş yapın.')
+        setToast({ message: 'Oturum doğrulanamadı. Lütfen tekrar giriş yapın.', tone: 'error' })
         return false
       }
 
@@ -168,7 +169,7 @@ export default function MessagingLayout({
       }
 
       if (!response.ok) {
-        alert(result?.error || 'Mesaj gönderilemedi. Lütfen tekrar deneyin.')
+        setToast({ message: result?.error || 'Mesaj gönderilemedi. Lütfen tekrar deneyin.', tone: 'error' })
         return false
       }
 
@@ -180,18 +181,30 @@ export default function MessagingLayout({
       fetchThreads()
 
       if (result?.message) {
-        alert(result.message)
+        const successCodes = ['REQUEST_CREATED', 'REQUEST_REOPENED', 'MESSAGE_SENT']
+        const tone = successCodes.includes(result?.code) ? 'success' : 'info'
+        setToast({ message: result.message, tone })
       }
 
       return true
     } catch (error) {
       console.error('Mesaj gönderme hatası:', error)
-      alert('Mesaj gönderilemedi. Lütfen tekrar deneyin.')
+      setToast({ message: 'Mesaj gönderilemedi. Lütfen tekrar deneyin.', tone: 'error' })
       return false
     } finally {
       requestInFlightRef.current = false
     }
   }, [fetchThreads])
+
+  useEffect(() => {
+    if (!toast) return
+
+    const timeout = setTimeout(() => {
+      setToast(null)
+    }, 4000)
+
+    return () => clearTimeout(timeout)
+  }, [toast])
 
   const clearAutoRequestParams = useCallback(() => {
     const params = new URLSearchParams(searchParams.toString())
@@ -266,12 +279,28 @@ export default function MessagingLayout({
 
     } catch (error) {
       console.error('Thread silme hatası:', error)
-      alert('Konuşma silinemedi.')
+      setToast({ message: 'Konuşma silinemedi.', tone: 'error' })
     }
   }
 
   return (
-    <div className="flex h-[calc(100vh-200px)] bg-white rounded-xl shadow-lg overflow-hidden">
+    <div className="relative flex h-[calc(100vh-200px)] bg-white rounded-xl shadow-lg overflow-hidden">
+      {toast && (
+        <div className="absolute top-4 right-4 z-50">
+          <div
+            className={`px-4 py-3 rounded-lg shadow-lg text-sm font-medium max-w-sm ${
+              toast.tone === 'success'
+                ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                : toast.tone === 'error'
+                  ? 'bg-red-100 text-red-800 border border-red-200'
+                  : 'bg-blue-100 text-blue-800 border border-blue-200'
+            }`}
+          >
+            {toast.message}
+          </div>
+        </div>
+      )}
+
       {/* Sol sidebar - Thread listesi */}
       <div className="w-full md:w-96 border-r border-gray-200 flex flex-col">
         <div className="p-4 border-b">
