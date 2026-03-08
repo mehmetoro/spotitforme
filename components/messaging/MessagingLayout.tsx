@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import ThreadList from './ThreadList'
 import MessageThread from './MessageThread'
 import NewMessageModal from './NewMessageModal'
@@ -41,6 +41,8 @@ export default function MessagingLayout({
   initialDraft,
 }: MessagingLayoutProps) {
   const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const [selectedThread, setSelectedThread] = useState<string | null>(initialThreadId || null)
   const [threads, setThreads] = useState<Thread[]>([])
   const [loading, setLoading] = useState(true)
@@ -236,6 +238,25 @@ export default function MessagingLayout({
     }
   }, [userId])
 
+  const clearAutoRequestParams = useCallback(() => {
+    const params = new URLSearchParams(searchParams.toString())
+    const hadReceiver = params.has('receiver')
+    const hadType = params.has('type')
+    const hadDraft = params.has('draft')
+
+    if (!hadReceiver && !hadType && !hadDraft) {
+      return
+    }
+
+    params.delete('receiver')
+    params.delete('type')
+    params.delete('draft')
+
+    const query = params.toString()
+    const nextUrl = query ? `${pathname}?${query}` : pathname
+    router.replace(nextUrl, { scroll: false })
+  }, [pathname, router, searchParams])
+
   useEffect(() => {
     if (autoRequestHandled) return
     if (initialThreadId) return
@@ -245,9 +266,11 @@ export default function MessagingLayout({
     const threadType = initialThreadType || 'help'
 
     setAutoRequestHandled(true)
+    clearAutoRequestParams()
     handleNewMessage(initialReceiverId, draft, threadType)
   }, [
     autoRequestHandled,
+    clearAutoRequestParams,
     initialDraft,
     initialReceiverId,
     initialThreadId,
