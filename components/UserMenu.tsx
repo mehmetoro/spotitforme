@@ -155,6 +155,13 @@ export default function UserMenu() {
               <span>Bildirimler</span>
             </a>
             <a
+              href="/messages"
+              className="flex items-center space-x-3 px-4 py-3 hover:bg-gray-50 rounded-lg"
+            >
+              <span>💬</span>
+              <span>Mesajlar</span>
+            </a>
+            <a
               href="/my-spots"
               className="flex items-center space-x-3 px-4 py-3 hover:bg-gray-50 rounded-lg"
             >

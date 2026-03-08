@@ -43,6 +43,9 @@ export default function Header() {
             <Link href="/products" className="text-gray-700 hover:text-blue-600 font-medium">
               Ürünler
             </Link>
+            <Link href="/messages" className="text-gray-700 hover:text-blue-600 font-medium">
+              💬 Mesajlar
+            </Link>
           </nav>
 
           {/* Buttons */}
@@ -73,6 +76,9 @@ export default function Header() {
           </Link>
           <Link href="/for-business" className="text-gray-700 hover:text-blue-600 text-sm">
             İşletmeler
+          </Link>
+          <Link href="/messages" className="text-gray-700 hover:text-blue-600 text-sm">
+            💬 Mesajlar
           </Link>
         </div>
 

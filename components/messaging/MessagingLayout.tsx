@@ -109,10 +109,24 @@ export default function MessagingLayout({ initialThreadId, userId }: MessagingLa
 
   const handleNewMessage = async (receiverId: string, content: string, threadType: string) => {
     try {
-      // Önce thread var mı kontrol et
-      let threadId = selectedThread
-      
-      if (!threadId) {
+      // Önce iki kullanıcı arasında bu tipe ait aktif thread var mı kontrol et
+      let threadId: string | null = null
+
+      const { data: existingThread, error: existingThreadError } = await supabase
+        .from('message_threads')
+        .select('id')
+        .or(`and(participant1_id.eq.${userId},participant2_id.eq.${receiverId}),and(participant1_id.eq.${receiverId},participant2_id.eq.${userId})`)
+        .eq('thread_type', threadType)
+        .eq('status', 'active')
+        .order('last_message_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (existingThreadError) throw existingThreadError
+
+      if (existingThread?.id) {
+        threadId = existingThread.id
+      } else {
         // Yeni thread oluştur
         const { data: thread, error: threadError } = await supabase
           .from('message_threads')
@@ -122,11 +136,19 @@ export default function MessagingLayout({ initialThreadId, userId }: MessagingLa
             thread_type: threadType,
             status: 'active'
           })
-          .select()
+          .select('id')
           .single()
 
         if (threadError) throw threadError
         threadId = thread.id
+
+        // Katılımcı kayıtları (opsiyonel ama yararlı)
+        await supabase
+          .from('thread_participants')
+          .insert([
+            { thread_id: threadId, user_id: userId },
+            { thread_id: threadId, user_id: receiverId }
+          ])
       }
 
       // Mesajı gönder

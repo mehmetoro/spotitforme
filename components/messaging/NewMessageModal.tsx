@@ -30,10 +30,13 @@ interface NewMessageModalProps {
 // Database'den gelen user tipi
 interface DatabaseUser {
   id: string
-  full_name: string | null
-  avatar_url: string | null
-  last_seen: string | null
-  reputation_score: number | null
+  full_name?: string | null
+  name?: string | null
+  avatar_url?: string | null
+  avatar?: string | null
+  last_seen?: string | null
+  updated_at?: string | null
+  reputation_score?: number | null
 }
 
 // Database'den gelen spot tipi  
@@ -112,7 +115,7 @@ export default function NewMessageModal({
       // 1. Kullanıcıları getir
       const { data: usersData, error: usersError } = await supabase
         .from('user_profiles')
-        .select('id, full_name, avatar_url, last_seen, reputation_score')
+        .select('*')
         .neq('id', currentUserId)
         .limit(20)
         .order('last_seen', { ascending: false })
@@ -122,9 +125,9 @@ export default function NewMessageModal({
       // DÜZELTME 1: user parametresi için tip belirle
       const formattedUsers: UserProfile[] = (usersData || []).map((user: DatabaseUser) => ({
         id: user.id,
-        full_name: user.full_name || 'Kullanıcı',
-        avatar: user.avatar_url || '',
-        last_active: formatLastActive(user.last_seen || ''),
+        full_name: user.full_name || user.name || 'Kullanıcı',
+        avatar: user.avatar_url || user.avatar || '',
+        last_active: formatLastActive(user.last_seen || user.updated_at || ''),
         reputation_score: user.reputation_score || 0
       }))
 
@@ -221,57 +224,10 @@ export default function NewMessageModal({
 
     setSending(true)
     try {
-      // 1. Kullanıcı kimliğini al
-      const { data: { user: currentUser } } = await supabase.auth.getUser()
-      if (!currentUser) throw new Error('Kullanıcı bulunamadı')
-
-      // 2. Yeni thread oluştur
-      const { data: threadData, error: threadError } = await supabase
-        .from('message_threads')
-        .insert([{
-          participant1_id: currentUser.id,
-          participant2_id: selectedUser.id,
-          subject: selectedSpot ? `Spot: ${selectedSpot.title}` : 'Yeni Mesaj',
-          thread_type: selectedSpot ? 'spot' : 'general',
-          spot_id: selectedSpot?.id,
-          last_message_at: new Date().toISOString(),
-          last_message_preview: message.substring(0, 100),
-          unread_count_p2: 1,
-          status: 'active'
-        }])
-        .select()
-        .single()
-
-      if (threadError) throw threadError
-
-      // 3. İlk mesajı gönder
-      const { error: messageError } = await supabase
-        .from('messages')
-        .insert([{
-          thread_id: threadData.id,
-          sender_id: currentUser.id,
-          content: message,
-          topic: selectedSpot ? `Spot: ${selectedSpot.title}` : 'Yeni Mesaj',
-          type: 'text',
-          is_read: false
-        }])
-
-      if (messageError) throw messageError
-
-      // 4. thread_participants tablosuna ekle
-      const { error: participantsError } = await supabase
-        .from('thread_participants')
-        .insert([
-          { thread_id: threadData.id, user_id: currentUser.id },
-          { thread_id: threadData.id, user_id: selectedUser.id }
-        ])
-
-      if (participantsError) console.warn('Katılımcı eklenemedi:', participantsError)
-
-      // 5. Callback'i çağır
+      // Tek kaynak olarak parent callback üzerinden gönder
       await onSendMessage(selectedUser.id, message, selectedSpot ? 'spot' : 'general')
       
-      // 6. Başarılı - modal'ı kapat
+      // Başarılı - modal'ı kapat
       alert('Mesaj gönderildi!')
       setSending(false)
       setSelectedUser(null)
