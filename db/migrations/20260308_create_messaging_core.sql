@@ -81,6 +81,48 @@ CREATE TABLE IF NOT EXISTS messages (
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
+-- Backward compatibility: if messages table already existed from older schema,
+-- ensure required columns exist before indexes/policies/triggers.
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS receiver_id uuid;
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS content text;
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS attachments text[];
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS type varchar(20) DEFAULT 'text';
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS content_type varchar(30) DEFAULT 'text';
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS topic text;
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS metadata jsonb DEFAULT '{}'::jsonb;
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS is_system_message boolean DEFAULT false;
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS system_message_type varchar(40);
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS is_read boolean DEFAULT false;
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();
+
+UPDATE messages
+SET content = ''
+WHERE content IS NULL;
+
+ALTER TABLE messages ALTER COLUMN content SET DEFAULT '';
+ALTER TABLE messages ALTER COLUMN content SET NOT NULL;
+ALTER TABLE messages ALTER COLUMN metadata SET DEFAULT '{}'::jsonb;
+ALTER TABLE messages ALTER COLUMN metadata SET NOT NULL;
+ALTER TABLE messages ALTER COLUMN is_system_message SET DEFAULT false;
+ALTER TABLE messages ALTER COLUMN is_system_message SET NOT NULL;
+ALTER TABLE messages ALTER COLUMN is_read SET DEFAULT false;
+ALTER TABLE messages ALTER COLUMN is_read SET NOT NULL;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'messages_type_valid'
+      AND conrelid = 'messages'::regclass
+  ) THEN
+    ALTER TABLE messages
+      ADD CONSTRAINT messages_type_valid
+      CHECK (type IN ('text', 'image', 'file', 'agreement', 'system'));
+  END IF;
+END;
+$$;
+
 CREATE INDEX IF NOT EXISTS messages_thread_idx ON messages(thread_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS messages_sender_idx ON messages(sender_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS messages_receiver_idx ON messages(receiver_id, is_read, created_at DESC);
