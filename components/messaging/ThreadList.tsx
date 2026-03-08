@@ -46,6 +46,7 @@ interface ThreadListProps {
 type RequestFilter = 'all' | 'incoming' | 'outgoing'
 type ThreadTypeFilter = 'all' | 'general' | 'social' | 'shop' | 'spot' | 'help' | 'reward' | 'trade'
 type QuickFilter = 'all' | 'unread' | 'pending' | 'active'
+type SortOption = 'newest' | 'unread'
 
 const FILTER_STORAGE_KEY = 'messages.filter'
 const TYPE_STORAGE_KEY = 'messages.type'
@@ -63,6 +64,7 @@ export default function ThreadList({
   const searchParams = useSearchParams()
   const [searchQuery, setSearchQuery] = useState('')
   const [quickFilter, setQuickFilter] = useState<QuickFilter>('all')
+  const [sortBy, setSortBy] = useState<SortOption>('newest')
 
   const resolveFilter = (value: string | null): RequestFilter => {
     if (value === 'incoming' || value === 'outgoing') return value
@@ -208,8 +210,22 @@ export default function ThreadList({
       })
     }
 
+    // Sort threads
+    if (sortBy === 'unread') {
+      nextThreads = [...nextThreads].sort((a, b) => {
+        const aUnread = a.participant1_id === userId ? (a.unread_count_p1 || 0) : (a.unread_count_p2 || 0)
+        const bUnread = b.participant1_id === userId ? (b.unread_count_p1 || 0) : (b.unread_count_p2 || 0)
+        return bUnread - aUnread
+      })
+    } else {
+      // Default sort by newest (last_message_at)
+      nextThreads = [...nextThreads].sort((a, b) => {
+        return new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime()
+      })
+    }
+
     return nextThreads
-  }, [threads, activeFilter, activeTypeFilter, userId, searchQuery, quickFilter])
+  }, [threads, activeFilter, activeTypeFilter, userId, searchQuery, quickFilter, sortBy])
 
   const getThreadTypeLabel = (threadType?: string) => {
     switch (threadType) {
@@ -395,6 +411,27 @@ export default function ThreadList({
             }`}
           >
             Aktif Konuşmalar
+          </button>
+          <div className="flex-shrink-0 h-4 border-l border-gray-300 mx-1"></div>
+          <button
+            onClick={() => setSortBy('newest')}
+            className={`text-xs px-3 py-1.5 rounded-full whitespace-nowrap font-medium ${
+              sortBy === 'newest' 
+                ? 'bg-indigo-600 text-white' 
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            En Yeni
+          </button>
+          <button
+            onClick={() => setSortBy('unread')}
+            className={`text-xs px-3 py-1.5 rounded-full whitespace-nowrap font-medium ${
+              sortBy === 'unread' 
+                ? 'bg-indigo-600 text-white' 
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            Okunmamışlar Önce
           </button>
         </div>
       </div>
