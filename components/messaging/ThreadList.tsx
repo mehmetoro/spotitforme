@@ -1,6 +1,7 @@
 // components/messaging/ThreadList.tsx - DÜZELTİLMİŞ
 'use client'
 
+import { useMemo, useState } from 'react'
 import { MessageSquare, User, Clock, Trash2, CheckCircle } from 'lucide-react'
 
 interface Thread {
@@ -49,6 +50,66 @@ export default function ThreadList({
   loading,
   userId
 }: ThreadListProps) {
+  const [activeFilter, setActiveFilter] = useState<'all' | 'incoming' | 'outgoing'>('all')
+
+  const filteredThreads = useMemo(() => {
+    if (activeFilter === 'incoming') {
+      return threads.filter(
+        (thread) =>
+          thread.request_status === 'pending' &&
+          !!thread.request_initiator_id &&
+          thread.request_initiator_id !== userId
+      )
+    }
+
+    if (activeFilter === 'outgoing') {
+      return threads.filter(
+        (thread) =>
+          thread.request_status === 'pending' &&
+          thread.request_initiator_id === userId
+      )
+    }
+
+    return threads
+  }, [threads, activeFilter, userId])
+
+  const getThreadTypeLabel = (threadType?: string) => {
+    switch (threadType) {
+      case 'shop':
+        return 'shop'
+      case 'spot':
+        return 'spot'
+      case 'help':
+        return 'yardım'
+      case 'social':
+        return 'sosyal'
+      case 'reward':
+        return 'ödül'
+      case 'trade':
+        return 'ticaret'
+      default:
+        return 'genel'
+    }
+  }
+
+  const getThreadTypeClass = (threadType?: string) => {
+    switch (threadType) {
+      case 'shop':
+        return 'bg-indigo-100 text-indigo-800'
+      case 'spot':
+        return 'bg-sky-100 text-sky-800'
+      case 'help':
+        return 'bg-emerald-100 text-emerald-800'
+      case 'social':
+        return 'bg-pink-100 text-pink-800'
+      case 'reward':
+        return 'bg-amber-100 text-amber-800'
+      case 'trade':
+        return 'bg-purple-100 text-purple-800'
+      default:
+        return 'bg-gray-100 text-gray-700'
+    }
+  }
   
   const getOtherParticipantName = (thread: Thread) => {
     if (thread.participant1_id === userId) {
@@ -125,8 +186,41 @@ export default function ThreadList({
 
   return (
     <div className="flex-1 overflow-y-auto">
+      <div className="px-3 py-2 border-b border-gray-100 flex items-center gap-2 overflow-x-auto">
+        <button
+          onClick={() => setActiveFilter('all')}
+          className={`text-xs px-3 py-1 rounded-full whitespace-nowrap ${
+            activeFilter === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          }`}
+        >
+          Tümü
+        </button>
+        <button
+          onClick={() => setActiveFilter('incoming')}
+          className={`text-xs px-3 py-1 rounded-full whitespace-nowrap ${
+            activeFilter === 'incoming' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          }`}
+        >
+          Bana Gelen Talep
+        </button>
+        <button
+          onClick={() => setActiveFilter('outgoing')}
+          className={`text-xs px-3 py-1 rounded-full whitespace-nowrap ${
+            activeFilter === 'outgoing' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          }`}
+        >
+          Gönderdiğim Talep
+        </button>
+      </div>
+
+      {filteredThreads.length === 0 && (
+        <div className="p-6 text-center text-sm text-gray-500">
+          Bu filtreye uygun konuşma bulunamadı.
+        </div>
+      )}
+
       <div className="divide-y divide-gray-100">
-        {threads.map((thread) => {
+        {filteredThreads.map((thread) => {
           const unreadCount = getUnreadCount(thread)
           const isSelected = selectedThread === thread.id
           
@@ -152,6 +246,9 @@ export default function ThreadList({
                           <h4 className="font-medium text-gray-900 truncate">
                             {getOtherParticipantName(thread)}
                           </h4>
+                          <span className={`shrink-0 text-[10px] px-2 py-0.5 rounded-full font-medium ${getThreadTypeClass(thread.thread_type)}`}>
+                            {getThreadTypeLabel(thread.thread_type)}
+                          </span>
                           {thread.request_status === 'pending' && (
                             <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-medium">
                               talep
