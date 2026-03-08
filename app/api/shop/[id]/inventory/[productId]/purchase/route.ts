@@ -139,6 +139,7 @@ export async function POST(
         .from('shop_product_discount_requests')
         .update({
           status: 'completed',
+          seller_note: 'Satın alma sonrası otomatik tamamlandı',
           responded_at: now,
           updated_at: now,
         })

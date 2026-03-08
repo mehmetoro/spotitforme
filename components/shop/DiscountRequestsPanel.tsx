@@ -22,6 +22,8 @@ interface DiscountRequestRow {
   exchange_rate: number
   status: 'pending' | 'approved' | 'rejected' | 'completed' | 'cancelled'
   created_at: string
+  responded_at?: string | null
+  seller_note?: string | null
 }
 
 export default function DiscountRequestsPanel({ shopId, limit = 6 }: DiscountRequestsPanelProps) {
@@ -42,7 +44,7 @@ export default function DiscountRequestsPanel({ shopId, limit = 6 }: DiscountReq
 
       const { data, error } = await supabase
         .from('shop_product_discount_requests')
-        .select('id, product_id, buyer_id, spot_amount, discount_amount_usd, discount_amount_local, original_price, final_price, currency, exchange_rate, status, created_at')
+        .select('id, product_id, buyer_id, spot_amount, discount_amount_usd, discount_amount_local, original_price, final_price, currency, exchange_rate, status, created_at, responded_at, seller_note')
         .eq('shop_id', shopId)
         .order('created_at', { ascending: false })
         .limit(limit)
@@ -92,6 +94,7 @@ export default function DiscountRequestsPanel({ shopId, limit = 6 }: DiscountReq
         .from('shop_product_discount_requests')
         .update({
           status,
+          seller_note: status === 'approved' ? 'Mağaza tarafından onaylandı' : 'Mağaza tarafından reddedildi',
           responded_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
@@ -105,7 +108,14 @@ export default function DiscountRequestsPanel({ shopId, limit = 6 }: DiscountReq
 
       setRequests((prev) =>
         prev.map((request) =>
-          request.id === requestId ? { ...request, status } : request
+          request.id === requestId
+            ? {
+                ...request,
+                status,
+                seller_note: status === 'approved' ? 'Mağaza tarafından onaylandı' : 'Mağaza tarafından reddedildi',
+                responded_at: new Date().toISOString(),
+              }
+            : request
         )
       )
     } catch (error) {
@@ -188,6 +198,25 @@ export default function DiscountRequestsPanel({ shopId, limit = 6 }: DiscountReq
                     <p className="text-xs text-gray-500">
                       Talep No: {request.id.slice(0, 8)} • {new Date(request.created_at).toLocaleString('tr-TR')}
                     </p>
+
+                    {request.status === 'approved' && (
+                      <p className="text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1 inline-block">
+                        ✅ Onaylandı — Müşteri satın alım yapınca otomatik tamamlanır
+                      </p>
+                    )}
+
+                    {request.status === 'completed' && (
+                      <div className="text-xs font-medium text-blue-800 bg-blue-50 border border-blue-200 rounded px-2 py-1 inline-block">
+                        🧾 Satın alma ile tamamlandı
+                        {request.responded_at ? ` • ${new Date(request.responded_at).toLocaleString('tr-TR')}` : ''}
+                      </div>
+                    )}
+
+                    {request.seller_note && request.status !== 'completed' && (
+                      <p className="text-xs text-gray-600 italic">
+                        Not: {request.seller_note}
+                      </p>
+                    )}
                   </div>
 
                   {request.status === 'pending' && (
