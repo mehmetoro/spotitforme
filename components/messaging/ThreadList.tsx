@@ -45,6 +45,7 @@ interface ThreadListProps {
 
 type RequestFilter = 'all' | 'incoming' | 'outgoing'
 type ThreadTypeFilter = 'all' | 'general' | 'social' | 'shop' | 'spot' | 'help' | 'reward' | 'trade'
+type QuickFilter = 'all' | 'unread' | 'pending' | 'active'
 
 const FILTER_STORAGE_KEY = 'messages.filter'
 const TYPE_STORAGE_KEY = 'messages.type'
@@ -61,6 +62,7 @@ export default function ThreadList({
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const [searchQuery, setSearchQuery] = useState('')
+  const [quickFilter, setQuickFilter] = useState<QuickFilter>('all')
 
   const resolveFilter = (value: string | null): RequestFilter => {
     if (value === 'incoming' || value === 'outgoing') return value
@@ -156,6 +158,20 @@ export default function ThreadList({
   const filteredThreads = useMemo(() => {
     let nextThreads = threads
 
+    // Quick filter presets
+    if (quickFilter === 'unread') {
+      nextThreads = nextThreads.filter((thread) => {
+        const unreadCount = thread.participant1_id === userId 
+          ? thread.unread_count_p1 || 0 
+          : thread.unread_count_p2 || 0
+        return unreadCount > 0
+      })
+    } else if (quickFilter === 'pending') {
+      nextThreads = nextThreads.filter((thread) => thread.request_status === 'pending')
+    } else if (quickFilter === 'active') {
+      nextThreads = nextThreads.filter((thread) => thread.request_status === 'accepted')
+    }
+
     if (activeFilter === 'incoming') {
       nextThreads = nextThreads.filter(
         (thread) =>
@@ -193,7 +209,7 @@ export default function ThreadList({
     }
 
     return nextThreads
-  }, [threads, activeFilter, activeTypeFilter, userId, searchQuery])
+  }, [threads, activeFilter, activeTypeFilter, userId, searchQuery, quickFilter])
 
   const getThreadTypeLabel = (threadType?: string) => {
     switch (threadType) {
@@ -320,7 +336,7 @@ export default function ThreadList({
   return (
     <div className="flex-1 overflow-y-auto">
       <div className="px-3 py-3 border-b border-gray-200 bg-white sticky top-0 z-10">
-        <div className="relative">
+        <div className="relative mb-3">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
@@ -337,6 +353,49 @@ export default function ThreadList({
               ×
             </button>
           )}
+        </div>
+        
+        <div className="flex items-center gap-2 overflow-x-auto pb-1">
+          <button
+            onClick={() => setQuickFilter('all')}
+            className={`text-xs px-3 py-1.5 rounded-full whitespace-nowrap font-medium ${
+              quickFilter === 'all' 
+                ? 'bg-emerald-600 text-white' 
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            Tümü
+          </button>
+          <button
+            onClick={() => setQuickFilter('unread')}
+            className={`text-xs px-3 py-1.5 rounded-full whitespace-nowrap font-medium ${
+              quickFilter === 'unread' 
+                ? 'bg-emerald-600 text-white' 
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            Okunmamışlar
+          </button>
+          <button
+            onClick={() => setQuickFilter('pending')}
+            className={`text-xs px-3 py-1.5 rounded-full whitespace-nowrap font-medium ${
+              quickFilter === 'pending' 
+                ? 'bg-emerald-600 text-white' 
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            Bekleyen Talepler
+          </button>
+          <button
+            onClick={() => setQuickFilter('active')}
+            className={`text-xs px-3 py-1.5 rounded-full whitespace-nowrap font-medium ${
+              quickFilter === 'active' 
+                ? 'bg-emerald-600 text-white' 
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            Aktif Konuşmalar
+          </button>
         </div>
       </div>
 
