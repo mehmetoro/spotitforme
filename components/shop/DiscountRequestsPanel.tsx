@@ -31,8 +31,14 @@ export default function DiscountRequestsPanel({ shopId, limit = 6 }: DiscountReq
   const [productTitles, setProductTitles] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [processingId, setProcessingId] = useState<string | null>(null)
+  const [activeFilter, setActiveFilter] = useState<'all' | 'pending' | 'approved'>('all')
 
   const pendingCount = useMemo(() => requests.filter((request) => request.status === 'pending').length, [requests])
+  const approvedCount = useMemo(() => requests.filter((request) => request.status === 'approved').length, [requests])
+  const filteredRequests = useMemo(() => {
+    if (activeFilter === 'all') return requests
+    return requests.filter((request) => request.status === activeFilter)
+  }, [requests, activeFilter])
 
   useEffect(() => {
     fetchRequests()
@@ -167,13 +173,52 @@ export default function DiscountRequestsPanel({ shopId, limit = 6 }: DiscountReq
         </span>
       </div>
 
+      {requests.length > 0 && (
+        <div className="flex items-center gap-2 mb-4">
+          <button
+            onClick={() => setActiveFilter('all')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${
+              activeFilter === 'all'
+                ? 'bg-gray-900 text-white border-gray-900'
+                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+            }`}
+          >
+            Tümü ({requests.length})
+          </button>
+          <button
+            onClick={() => setActiveFilter('pending')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${
+              activeFilter === 'pending'
+                ? 'bg-yellow-600 text-white border-yellow-600'
+                : 'bg-white text-yellow-700 border-yellow-300 hover:bg-yellow-50'
+            }`}
+          >
+            Bekleyen ({pendingCount})
+          </button>
+          <button
+            onClick={() => setActiveFilter('approved')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${
+              activeFilter === 'approved'
+                ? 'bg-green-600 text-white border-green-600'
+                : 'bg-white text-green-700 border-green-300 hover:bg-green-50'
+            }`}
+          >
+            Onaylı ({approvedCount})
+          </button>
+        </div>
+      )}
+
       {requests.length === 0 ? (
         <div className="border border-dashed border-gray-300 rounded-lg p-6 text-center text-gray-600 text-sm">
           Henüz indirim talebi yok.
         </div>
+      ) : filteredRequests.length === 0 ? (
+        <div className="border border-dashed border-gray-300 rounded-lg p-6 text-center text-gray-600 text-sm">
+          Bu filtrede talep bulunamadı.
+        </div>
       ) : (
         <div className="space-y-3">
-          {requests.map((request) => {
+          {filteredRequests.map((request) => {
             const localCurrency = request.currency || 'TRY'
             const productTitle = productTitles[request.product_id] || 'Ürün'
 
