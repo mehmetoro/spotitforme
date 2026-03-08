@@ -68,78 +68,38 @@ export default function UserProfilePage() {
       const { data: { user: currentUser } } = await supabase.auth.getUser()
       setIsCurrentUser(currentUser?.id === userId)
 
-      // Kullanıcı bilgileri (şema farklılıklarına karşı fallback select)
+      // Direkt API'den veri çek (RLS sorunlarını bypass eder)
+      console.log('Fetching profile from API for user:', userId)
+      
       let userData: any = null
-      const profileSelectCandidates = [
-        'id, full_name, name, username, email, avatar_url, bio, location, created_at',
-        'id, full_name, name, email, avatar_url, bio, location, created_at',
-        'id, name, email, avatar_url, bio, location, created_at',
-        'id, name, email, avatar_url, created_at',
-      ]
+      let sightingsData: any[] = []
+      let spotsData: any[] = []
 
-      for (const selectFields of profileSelectCandidates) {
-        const { data, error } = await supabase
-          .from('user_profiles')
-          .select(selectFields)
-          .eq('id', userId)
-          .maybeSingle()
+      try {
+        const response = await fetch(`/api/profile/${userId}`)
+        console.log('API Response status:', response.status)
 
-        if (!error && data) {
-          userData = data
-          break
+        if (response.ok) {
+          const payload = await response.json()
+          console.log('API Response payload:', payload)
+          
+          userData = payload?.user || null
+          sightingsData = payload?.sightings || []
+          spotsData = payload?.spots || []
+          
+          console.log('User data from API:', userData)
+        } else {
+          const errorText = await response.text()
+          console.error('API Error Response:', errorText)
         }
-      }
-
-      // Sightings
-      let { data: sightingsData } = await supabase
-        .from('quick_sightings')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('status', 'active')
-        .order('created_at', { ascending: false })
-
-      // Spots
-      let { data: spotsData } = await supabase
-        .from('spots')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-
-      // RLS / legacy şema durumlarında server-side fallback
-      if (!userData) {
-        console.log('Client-side query failed, trying API fallback...')
-        try {
-          const response = await fetch(`/api/profile/${userId}`)
-
-          if (response.ok) {
-            const payload = await response.json()
-            console.log('API Response:', payload)
-            
-            if (payload?.user) {
-              userData = payload.user
-              console.log('User data from API:', userData)
-            }
-
-            if ((!sightingsData || sightingsData.length === 0) && Array.isArray(payload?.sightings)) {
-              sightingsData = payload.sightings
-            }
-
-            if ((!spotsData || spotsData.length === 0) && Array.isArray(payload?.spots)) {
-              spotsData = payload.spots
-            }
-          } else {
-            const errorText = await response.text()
-            console.error('API profil hatası:', errorText)
-          }
-        } catch (apiError) {
-          console.error('API çağrısı başarısız:', apiError)
-        }
+      } catch (apiError) {
+        console.error('API çağrısı başarısız:', apiError)
       }
 
       console.log('Final userData:', userData)
       setUser(userData)
-      setSightings(sightingsData || [])
-      setSpots(spotsData || [])
+      setSightings(sightingsData)
+      setSpots(spotsData)
     } catch (error) {
       console.error('Profil yüklenemedi:', error)
     } finally {

@@ -27,44 +27,49 @@ export async function GET(
 
     const supabase = getSupabaseAdmin()
 
-    let profileData: any = null
-    const profileSelectCandidates = [
-      'id, full_name, name, username, email, avatar_url, bio, location, created_at',
-      'id, full_name, name, email, avatar_url, bio, location, created_at',
-      'id, name, email, avatar_url, bio, location, created_at',
-      'id, name, email, avatar_url, created_at',
-    ]
+    // Önce auth.users'dan kullanıcıyı al (her zaman var olmalı)
+    const { data: authUserData, error: authError } = await supabase.auth.admin.getUserById(userId)
+    
+    if (authError || !authUserData?.user) {
+      return NextResponse.json({ error: 'Kullanıcı bulunamadı', details: authError?.message }, { status: 404 })
+    }
 
-    for (const selectFields of profileSelectCandidates) {
-      const { data, error } = await supabase
+    // Auth user'dan profil oluştur
+    let profileData: any = {
+      id: authUserData.user.id,
+      email: authUserData.user.email,
+      full_name: authUserData.user.user_metadata?.full_name || null,
+      name: authUserData.user.user_metadata?.name || null,
+      username: authUserData.user.user_metadata?.username || null,
+      avatar_url: authUserData.user.user_metadata?.avatar_url || null,
+      bio: null,
+      location: null,
+      created_at: authUserData.user.created_at,
+    }
+
+    // user_profiles varsa ondan ek bilgileri al
+    try {
+      const { data: profileExtra } = await supabase
         .from('user_profiles')
-        .select(selectFields)
+        .select('bio, location, avatar_url, full_name, name, username')
         .eq('id', userId)
         .maybeSingle()
 
-      if (!error && data) {
-        profileData = data
-        break
-      }
-    }
-
-    // Eğer user_profiles'da bulunamadıysa auth.users'dan çek
-    if (!profileData) {
-      const { data: authUserData } = await supabase.auth.admin.getUserById(userId)
-      
-      if (authUserData?.user) {
+      if (profileExtra) {
+        // user_profiles'daki değerler varsa onları kullan
         profileData = {
-          id: authUserData.user.id,
-          email: authUserData.user.email,
-          full_name: authUserData.user.user_metadata?.full_name || null,
-          name: authUserData.user.user_metadata?.name || null,
-          username: authUserData.user.user_metadata?.username || null,
-          avatar_url: authUserData.user.user_metadata?.avatar_url || null,
-          bio: null,
-          location: null,
-          created_at: authUserData.user.created_at,
+          ...profileData,
+          bio: profileExtra.bio || profileData.bio,
+          location: profileExtra.location || profileData.location,
+          avatar_url: profileExtra.avatar_url || profileData.avatar_url,
+          full_name: profileExtra.full_name || profileData.full_name,
+          name: profileExtra.name || profileData.name,
+          username: profileExtra.username || profileData.username,
         }
       }
+    } catch (e) {
+      // user_profiles tablosu yoksa veya hata varsa, sadece auth verisiyle devam et
+      console.log('user_profiles query failed, using auth data only')
     }
 
     const [{ data: sightingsData }, { data: spotsData }] = await Promise.all([
