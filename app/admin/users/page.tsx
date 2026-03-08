@@ -8,6 +8,8 @@ interface UserProfile {
   id: string;
   email: string;
   name: string | null;
+  full_name?: string | null;
+  username?: string | null;
   created_at: string;
   is_admin: boolean;
   total_spots: number;
@@ -23,6 +25,8 @@ interface SupabaseUserProfile {
   id: string;
   email: string;
   name: string | null;
+  full_name?: string | null;
+  username?: string | null;
   created_at: string;
   is_admin: boolean;
   avatar_url?: string;
@@ -38,6 +42,18 @@ export default function AdminUsersPage() {
   useEffect(() => {
     fetchUsers();
   }, [page, search]);
+
+  const resolveDisplayName = (user: SupabaseUserProfile): string => {
+    const emailPrefix = user.email?.split('@')?.[0]?.trim();
+
+    return (
+      user.full_name?.trim() ||
+      user.username?.trim() ||
+      user.name?.trim() ||
+      emailPrefix ||
+      `Kullanıcı-${user.id.slice(0, 8)}`
+    );
+  };
 
   const fetchUsers = async () => {
     try {
@@ -69,6 +85,7 @@ export default function AdminUsersPage() {
 
           return {
             ...user,
+            name: resolveDisplayName(user),
             total_spots: spotsRes.count || 0,
             total_helps: sightingsRes.count || 0
           } as UserWithStats;
