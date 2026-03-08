@@ -53,6 +53,8 @@ export default function ProfilePage() {
   })
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'spots' | 'help' | 'shop' | 'settings'>('spots')
+  const [spotBalance, setSpotBalance] = useState<number>(0)
+  const [blockedSpots, setBlockedSpots] = useState<number>(0)
 
   useEffect(() => {
     checkAuth()
@@ -91,6 +93,22 @@ export default function ProfilePage() {
         .select('id, shop_name, city, subscription_type, is_verified')
         .eq('owner_id', userId)
         .single()
+
+      // Spot cüzdanı bilgileri
+      const { data: walletData } = await supabase
+        .from('spot_wallets')
+        .select('balance')
+        .eq('user_id', userId)
+        .maybeSingle()
+
+      // Bloke edilen Spot'lar (pending + approved taleplerde)
+      const { data: blockedRequests } = await supabase
+        .from('shop_product_discount_requests')
+        .select('spot_amount')
+        .eq('buyer_id', userId)
+        .in('status', ['pending', 'approved'])
+
+      const blocked = (blockedRequests || []).reduce((sum, req) => sum + (req.spot_amount || 0), 0)
 
       // Sosyal istatistikleri
       const [
@@ -134,6 +152,9 @@ export default function ProfilePage() {
         totalCommentsReceived: commentsData?.length || 0,
         spotsFound: foundData?.length || 0
       })
+
+      setSpotBalance(walletData?.balance || 0)
+      setBlockedSpots(blocked)
 
       setUser({
         id: userId,
@@ -247,6 +268,18 @@ export default function ProfilePage() {
               {userSpots.reduce((sum, spot) => sum + spot.helps, 0)}
             </div>
             <div className="text-gray-600">Yardım</div>
+          </div>
+
+          <div className="bg-gradient-to-br from-yellow-300 to-yellow-500 rounded-xl p-4 shadow text-center hover:shadow-md transition md:col-span-2">
+            <div className="text-3xl font-bold text-white mb-1">
+              💎 {spotBalance}
+            </div>
+            <div className="text-yellow-900 font-medium">Mevcut Spot Bakiyesi</div>
+            {blockedSpots > 0 && (
+              <div className="text-xs text-yellow-900 mt-2 opacity-80">
+                🔒 {blockedSpots} Spot taleplerde bloke
+              </div>
+            )}
           </div>
         </div>
 
