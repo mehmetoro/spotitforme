@@ -1,7 +1,7 @@
 // components/messaging/MessagingLayout.tsx - DÜZELTİLMİŞ
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import ThreadList from './ThreadList'
@@ -49,6 +49,7 @@ export default function MessagingLayout({
   const [showNewMessageModal, setShowNewMessageModal] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
   const [autoRequestHandled, setAutoRequestHandled] = useState(false)
+  const requestInFlightRef = useRef(false)
   
   // Realtime subscription için
   const [subscription, setSubscription] = useState<any>(null)
@@ -64,7 +65,7 @@ export default function MessagingLayout({
     }
   }, [userId])
 
-  const fetchThreads = async () => {
+  const fetchThreads = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('active_conversations')
@@ -91,7 +92,7 @@ export default function MessagingLayout({
     } finally {
       setLoading(false)
     }
-  }
+  }, [userId])
 
   const setupRealtimeSubscription = () => {
     const channel = supabase
@@ -122,22 +123,35 @@ export default function MessagingLayout({
     setSubscription(channel)
   }
 
-  const handleNewMessage = useCallback(async (receiverId: string, content: string, threadType: string) => {
+  const handleNewMessage = useCallback(async (receiverId: string, content: string, threadType: string): Promise<boolean> => {
+    if (requestInFlightRef.current) {
+      return false
+    }
+
+    requestInFlightRef.current = true
+
     try {
       const {
         data: { session },
       } = await supabase.auth.getSession()
 
-      if (!session?.access_token) {
+      let accessToken = session?.access_token || null
+
+      if (!accessToken) {
+        const { data: refreshed } = await supabase.auth.refreshSession()
+        accessToken = refreshed.session?.access_token || null
+      }
+
+      if (!accessToken) {
         alert('Oturum doğrulanamadı. Lütfen tekrar giriş yapın.')
-        return
+        return false
       }
 
       const response = await fetch('/api/messages/request', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
+          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
           receiverId,
@@ -146,11 +160,16 @@ export default function MessagingLayout({
         }),
       })
 
-      const result = await response.json()
+      let result: any = null
+      try {
+        result = await response.json()
+      } catch {
+        result = null
+      }
 
       if (!response.ok) {
         alert(result?.error || 'Mesaj gönderilemedi. Lütfen tekrar deneyin.')
-        return
+        return false
       }
 
       if (result?.threadId) {
@@ -163,9 +182,14 @@ export default function MessagingLayout({
       if (result?.message) {
         alert(result.message)
       }
+
+      return true
     } catch (error) {
       console.error('Mesaj gönderme hatası:', error)
       alert('Mesaj gönderilemedi. Lütfen tekrar deneyin.')
+      return false
+    } finally {
+      requestInFlightRef.current = false
     }
   }, [fetchThreads])
 
@@ -195,10 +219,22 @@ export default function MessagingLayout({
 
     const draft = initialDraft?.trim() || 'Merhaba, sizinle bu konu hakkında iletişime geçmek istiyorum.'
     const threadType = initialThreadType || 'help'
+    const autoGuardKey = `messages:auto-request:${initialReceiverId}:${threadType}:${draft}`
+
+    if (typeof window !== 'undefined') {
+      const alreadyHandledInSession = sessionStorage.getItem(autoGuardKey)
+      if (alreadyHandledInSession) {
+        setAutoRequestHandled(true)
+        clearAutoRequestParams()
+        return
+      }
+
+      sessionStorage.setItem(autoGuardKey, '1')
+    }
 
     setAutoRequestHandled(true)
     clearAutoRequestParams()
-    handleNewMessage(initialReceiverId, draft, threadType)
+    void handleNewMessage(initialReceiverId, draft, threadType)
   }, [
     autoRequestHandled,
     clearAutoRequestParams,

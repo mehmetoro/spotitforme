@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Alıcı ve mesaj zorunludur' }, { status: 400 })
     }
 
-    if (content.length > 1200) {
+    if (content.length > 2000) {
       return NextResponse.json({ error: 'Mesaj çok uzun' }, { status: 400 })
     }
 

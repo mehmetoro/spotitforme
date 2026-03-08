@@ -22,7 +22,7 @@ interface Spot {
 interface NewMessageModalProps {
   isOpen: boolean
   onClose: () => void
-  onSendMessage: (receiverId: string, content: string, threadType: string) => Promise<void>
+  onSendMessage: (receiverId: string, content: string, threadType: string) => Promise<boolean>
   currentUserId: string
   spotId?: string
   initialReceiverId?: string
@@ -259,7 +259,12 @@ export default function NewMessageModal({
       const resolvedThreadType = initialThreadType || (selectedSpot ? 'spot' : messageType)
 
       // Tek kaynak olarak parent callback üzerinden gönder
-      await onSendMessage(selectedUser.id, message, resolvedThreadType)
+      const sent = await onSendMessage(selectedUser.id, message, resolvedThreadType)
+
+      if (!sent) {
+        setSending(false)
+        return
+      }
       
       // Başarılı - modal'ı kapat
       setSending(false)
