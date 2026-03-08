@@ -404,7 +404,7 @@ export default function ThreadList({
               onClick={() => setFiltersAndSyncUrl('all', activeTypeFilter)}
               className="text-xs px-3 py-1 rounded-full bg-blue-100 text-blue-800 hover:bg-blue-200"
             >
-              Talep: {getRequestFilterLabel(activeFilter)} ×
+              Talep: {getRequestFilterLabel(activeFilter)} ({filteredThreads.length}) ×
             </button>
           )}
           {activeTypeFilter !== 'all' && (
@@ -412,7 +412,7 @@ export default function ThreadList({
               onClick={() => setFiltersAndSyncUrl(activeFilter, 'all')}
               className="text-xs px-3 py-1 rounded-full bg-slate-100 text-slate-800 hover:bg-slate-200"
             >
-              Tür: {getThreadTypeLabel(activeTypeFilter)} ×
+              Tür: {getThreadTypeLabel(activeTypeFilter)} ({filteredThreads.length}) ×
             </button>
           )}
           <button
