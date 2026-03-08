@@ -1,7 +1,7 @@
 // components/messaging/ThreadList.tsx - DÜZELTİLMİŞ
 'use client'
 
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { MessageSquare, User, Clock, Trash2, CheckCircle } from 'lucide-react'
 
@@ -46,6 +46,9 @@ interface ThreadListProps {
 type RequestFilter = 'all' | 'incoming' | 'outgoing'
 type ThreadTypeFilter = 'all' | 'general' | 'social' | 'shop' | 'spot' | 'help' | 'reward' | 'trade'
 
+const FILTER_STORAGE_KEY = 'messages.filter'
+const TYPE_STORAGE_KEY = 'messages.type'
+
 export default function ThreadList({
   threads,
   selectedThread,
@@ -80,6 +83,50 @@ export default function ThreadList({
 
   const activeFilter = resolveFilter(searchParams.get('filter'))
   const activeTypeFilter = resolveTypeFilter(searchParams.get('type'))
+
+  useEffect(() => {
+    const hasFilterQuery = !!searchParams.get('filter')
+    const hasTypeQuery = !!searchParams.get('type')
+
+    if (hasFilterQuery || hasTypeQuery) {
+      return
+    }
+
+    const storedFilter = resolveFilter(localStorage.getItem(FILTER_STORAGE_KEY))
+    const storedType = resolveTypeFilter(localStorage.getItem(TYPE_STORAGE_KEY))
+
+    if (storedFilter === 'all' && storedType === 'all') {
+      return
+    }
+
+    const params = new URLSearchParams(searchParams.toString())
+
+    if (storedFilter !== 'all') {
+      params.set('filter', storedFilter)
+    }
+
+    if (storedType !== 'all') {
+      params.set('type', storedType)
+    }
+
+    const query = params.toString()
+    const nextUrl = query ? `${pathname}?${query}` : pathname
+    router.replace(nextUrl, { scroll: false })
+  }, [searchParams, pathname, router])
+
+  useEffect(() => {
+    if (activeFilter === 'all') {
+      localStorage.removeItem(FILTER_STORAGE_KEY)
+    } else {
+      localStorage.setItem(FILTER_STORAGE_KEY, activeFilter)
+    }
+
+    if (activeTypeFilter === 'all') {
+      localStorage.removeItem(TYPE_STORAGE_KEY)
+    } else {
+      localStorage.setItem(TYPE_STORAGE_KEY, activeTypeFilter)
+    }
+  }, [activeFilter, activeTypeFilter])
 
   const setFiltersAndSyncUrl = (
     nextFilter: RequestFilter = activeFilter,
