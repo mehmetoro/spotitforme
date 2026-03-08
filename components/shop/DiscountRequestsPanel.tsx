@@ -33,11 +33,12 @@ export default function DiscountRequestsPanel({ shopId, limit = 6 }: DiscountReq
   const [productTitles, setProductTitles] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [processingId, setProcessingId] = useState<string | null>(null)
-  const [activeFilter, setActiveFilter] = useState<'all' | 'pending' | 'approved'>('all')
+  const [activeFilter, setActiveFilter] = useState<'all' | 'pending' | 'approved' | 'completed'>('all')
   const [filterInitialized, setFilterInitialized] = useState(false)
 
   const pendingCount = useMemo(() => requests.filter((request) => request.status === 'pending').length, [requests])
   const approvedCount = useMemo(() => requests.filter((request) => request.status === 'approved').length, [requests])
+  const completedCount = useMemo(() => requests.filter((request) => request.status === 'completed').length, [requests])
   const filteredRequests = useMemo(() => {
     if (activeFilter === 'all') return requests
     return requests.filter((request) => request.status === activeFilter)
@@ -53,9 +54,9 @@ export default function DiscountRequestsPanel({ shopId, limit = 6 }: DiscountReq
       const urlFilter = url.searchParams.get(filterQueryParam)
       const savedFilter = localStorage.getItem(filterStorageKey)
 
-      if (urlFilter === 'all' || urlFilter === 'pending' || urlFilter === 'approved') {
+      if (urlFilter === 'all' || urlFilter === 'pending' || urlFilter === 'approved' || urlFilter === 'completed') {
         setActiveFilter(urlFilter)
-      } else if (savedFilter === 'all' || savedFilter === 'pending' || savedFilter === 'approved') {
+      } else if (savedFilter === 'all' || savedFilter === 'pending' || savedFilter === 'approved' || savedFilter === 'completed') {
         setActiveFilter(savedFilter)
       } else {
         setActiveFilter('pending')
@@ -246,6 +247,16 @@ export default function DiscountRequestsPanel({ shopId, limit = 6 }: DiscountReq
             }`}
           >
             Onaylı ({approvedCount})
+          </button>
+          <button
+            onClick={() => setActiveFilter('completed')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${
+              activeFilter === 'completed'
+                ? 'bg-blue-600 text-white border-blue-600'
+                : 'bg-white text-blue-700 border-blue-300 hover:bg-blue-50'
+            }`}
+          >
+            Tamamlanan ({completedCount})
           </button>
         </div>
       )}
