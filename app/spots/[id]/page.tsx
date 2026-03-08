@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { useToast } from '@/hooks/useToast'
 import SimpleMap from '@/components/SimpleMap'
 import SimpleShareButtons from '@/components/SimpleShareButtons'
 import SightingModal from '@/components/SightingModal'
@@ -28,6 +29,7 @@ interface Spot {
 export default function SpotDetailPage() {
   const params = useParams()
   const router = useRouter()
+  const toast = useToast()
   const spotId = params.id as string
   
   const [spot, setSpot] = useState<Spot | null>(null)
@@ -96,18 +98,18 @@ export default function SpotDetailPage() {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
-        alert('Mesaj talebi için giriş yapmanız gerekir')
+        toast.error('Mesaj talebi için giriş yapmanız gerekir')
         router.push('/auth/login')
         return
       }
 
       if (!spot?.user_id) {
-        alert('Spot sahibi bilgisi bulunamadı')
+        toast.error('Spot sahibi bilgisi bulunamadı')
         return
       }
 
       if (spot.user_id === user.id) {
-        alert('Kendi spotunuza mesaj talebi gönderemezsiniz.')
+        toast.error('Kendi spotunuza mesaj talebi gönderemezsiniz.')
         return
       }
 
@@ -121,7 +123,7 @@ export default function SpotDetailPage() {
       router.push(`/messages?${params.toString()}`)
     } catch (error) {
       console.error('Spot message request navigation error:', error)
-      alert('Mesaj talebi başlatılamadı')
+      toast.error('Mesaj talebi başlatılamadı')
     }
   }
 
@@ -130,7 +132,7 @@ export default function SpotDetailPage() {
     // Spot verilerini yeniden yükle
     fetchSpotDetails()
     // Başarı mesajı göster (opsiyonel)
-    alert('Teşekkürler! Yardım bildiriminiz inceleme için gönderildi. Onaylandığında Spot ödülü işlenecek. 🎉')
+    toast.success('Teşekkürler! Yardım bildiriminiz inceleme için gönderildi. Onaylandığında Spot ödülü işlenecek. 🎉', 5000)
   }
 
   if (loading) {

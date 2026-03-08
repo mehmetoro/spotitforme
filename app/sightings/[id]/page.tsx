@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter, useParams } from 'next/navigation'
+import { useToast } from '@/hooks/useToast'
 import Link from 'next/link'
 
 interface Sighting {
@@ -26,6 +27,7 @@ interface Sighting {
 export default function SightingDetailPage() {
   const router = useRouter()
   const params = useParams()
+  const toast = useToast()
   const [sighting, setSighting] = useState<Sighting | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -161,18 +163,18 @@ export default function SightingDetailPage() {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
-        alert('Mesaj talebi için giriş yapmanız gerekir')
+        toast.error('Mesaj talebi için giriş yapmanız gerekir')
         router.push('/auth/login')
         return
       }
 
       if (!sighting?.spotter_id) {
-        alert('Yardım sağlayan kullanıcı bilgisi bulunamadı')
+        toast.error('Yardım sağlayan kullanıcı bilgisi bulunamadı')
         return
       }
 
       if (sighting.spotter_id === user.id) {
-        alert('Kendi yardım bildiriminiz için mesaj talebi gönderemezsiniz.')
+        toast.error('Kendi yardım bildiriminiz için mesaj talebi gönderemezsiniz.')
         return
       }
 
@@ -186,7 +188,7 @@ export default function SightingDetailPage() {
       router.push(`/messages?${params.toString()}`)
     } catch (err) {
       console.error('Sighting message request navigation error:', err)
-      alert('Mesaj talebi başlatılamadı')
+      toast.error('Mesaj talebi başlatılamadı')
     }
   }
 

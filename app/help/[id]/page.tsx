@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { useToast } from '@/hooks/useToast'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 
@@ -19,6 +20,7 @@ interface SpotInfo {
 export default function HelpPage() {
   const params = useParams()
   const router = useRouter()
+  const toast = useToast()
   const spotId = params.id as string
   
   const [spot, setSpot] = useState<SpotInfo | null>(null)
@@ -149,18 +151,18 @@ export default function HelpPage() {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
-        alert('Mesaj talebi için giriş yapmanız gerekir')
+        toast.error('Mesaj talebi için giriş yapmanız gerekir')
         router.push('/auth/login')
         return
       }
 
       if (!spot?.user_id) {
-        alert('Spot sahibi bilgisi bulunamadı')
+        toast.error('Spot sahibi bilgisi bulunamadı')
         return
       }
 
       if (spot.user_id === user.id) {
-        alert('Kendi spotunuz için mesaj talebi gönderemezsiniz.')
+        toast.error('Kendi spotunuz için mesaj talebi gönderemezsiniz.')
         return
       }
 
@@ -174,7 +176,7 @@ export default function HelpPage() {
       router.push(`/messages?${params.toString()}`)
     } catch (err) {
       console.error('Help message request navigation error:', err)
-      alert('Mesaj talebi başlatılamadı')
+      toast.error('Mesaj talebi başlatılamadı')
     }
   }
 
