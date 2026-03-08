@@ -6,6 +6,67 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 );
 
+async function getAuthenticatedUser(request: NextRequest) {
+  const authHeader = request.headers.get('authorization');
+  if (!authHeader) {
+    return { user: null, error: 'Yetkilendirme hatası' };
+  }
+
+  const token = authHeader.replace('Bearer ', '');
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser(token);
+
+  if (authError || !user) {
+    return { user: null, error: 'Kullanıcı bulunamadı' };
+  }
+
+  return { user, error: null };
+}
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string; productId: string } }
+) {
+  try {
+    const shopId = params.id;
+    const productId = params.productId;
+
+    const { user, error: authError } = await getAuthenticatedUser(request);
+    if (authError || !user) {
+      return NextResponse.json({ error: authError || 'Yetkisiz' }, { status: 401 });
+    }
+
+    const { data: requestRow, error } = await supabase
+      .from('shop_product_discount_requests')
+      .select('id, spot_amount, discount_amount_usd, discount_amount_local, original_price, final_price, currency, exchange_rate, status, created_at, responded_at, updated_at')
+      .eq('buyer_id', user.id)
+      .eq('shop_id', shopId)
+      .eq('product_id', productId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      return NextResponse.json({ error: error.message || 'Talep durumu alınamadı' }, { status: 400 });
+    }
+
+    return NextResponse.json({
+      success: true,
+      request: requestRow || null,
+    });
+  } catch (error: any) {
+    return NextResponse.json(
+      {
+        error: error.message || 'Sunucu hatası',
+        details: process.env.NODE_ENV === 'development' ? error.toString() : undefined,
+      },
+      { status: 500 }
+    );
+  }
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string; productId: string } }
@@ -24,19 +85,9 @@ export async function POST(
     const shopId = params.id;
     const productId = params.productId;
 
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader) {
-      return NextResponse.json({ error: 'Yetkilendirme hatası' }, { status: 401 });
-    }
-
-    const token = authHeader.replace('Bearer ', '');
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser(token);
-
+    const { user, error: authError } = await getAuthenticatedUser(request);
     if (authError || !user) {
-      return NextResponse.json({ error: 'Kullanıcı bulunamadı' }, { status: 401 });
+      return NextResponse.json({ error: authError || 'Yetkisiz' }, { status: 401 });
     }
 
     const buyerId = user.id;

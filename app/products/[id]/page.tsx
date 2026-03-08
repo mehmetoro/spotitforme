@@ -13,6 +13,21 @@ import Link from 'next/link';
 import SimpleShareButtons from '@/components/SimpleShareButtons';
 import NativeAd from '@/components/NativeAd';
 
+interface MyDiscountRequest {
+  id: string;
+  spot_amount: number;
+  discount_amount_usd: number;
+  discount_amount_local: number;
+  original_price: number;
+  final_price: number;
+  currency: string;
+  exchange_rate: number;
+  status: 'pending' | 'approved' | 'rejected' | 'completed' | 'cancelled';
+  created_at: string;
+  responded_at?: string | null;
+  updated_at?: string | null;
+}
+
 export default function ProductPage() {
   const params = useParams();
   const router = useRouter();
@@ -31,6 +46,8 @@ export default function ProductPage() {
   const [exchangeRate, setExchangeRate] = useState<number>(1);
   const [exchangeRateSource, setExchangeRateSource] = useState<'live' | 'fallback'>('fallback');
   const [loadingRate, setLoadingRate] = useState(false);
+  const [myDiscountRequest, setMyDiscountRequest] = useState<MyDiscountRequest | null>(null);
+  const [loadingMyDiscountRequest, setLoadingMyDiscountRequest] = useState(false);
 
   useEffect(() => {
     loadProduct();
@@ -64,6 +81,12 @@ export default function ProductPage() {
       fetchExchangeRate();
     }
   }, [product?.price_currency]);
+
+  useEffect(() => {
+    if (product?.shop_id && product?.id) {
+      fetchMyDiscountRequest(product.shop_id, product.id);
+    }
+  }, [product?.shop_id, product?.id]);
 
   const loadProduct = async () => {
     try {
@@ -119,6 +142,37 @@ export default function ProductPage() {
       router.push('/');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchMyDiscountRequest = async (shopId: string, inventoryProductId: string) => {
+    try {
+      setLoadingMyDiscountRequest(true);
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        setMyDiscountRequest(null);
+        return;
+      }
+
+      const response = await fetch(`/api/shop/${shopId}/inventory/${inventoryProductId}/discount-request`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        console.error('Discount request status fetch failed:', result?.error || 'unknown error');
+        return;
+      }
+
+      setMyDiscountRequest(result.request || null);
+    } catch (error) {
+      console.error('Discount request status error:', error);
+    } finally {
+      setLoadingMyDiscountRequest(false);
     }
   };
 
@@ -180,7 +234,31 @@ export default function ProductPage() {
         return;
       }
 
-      alert(`✅ İndirim talebiniz mağazaya iletildi.\n\n${spotAmount} Spot İndirim Talebiniz:\n${discountAmountLocal.toFixed(2)} ${product.price_currency} indirim\nYeni Fiyat: ${finalPrice.toFixed(2)} ${product.price_currency}`);
+      await fetchMyDiscountRequest(product.shop_id, product.id);
+
+      const isExistingPending = typeof result.message === 'string' && result.message.toLowerCase().includes('bekleyen');
+
+      if (isExistingPending) {
+        alert(`ℹ️ ${result.message}`);
+      } else {
+        setMyDiscountRequest({
+          id: result.request_id,
+          spot_amount: spotAmount,
+          discount_amount_usd: discountAmountUsd,
+          discount_amount_local: discountAmountLocal,
+          original_price: Number(product.price) || 0,
+          final_price: finalPrice,
+          currency: product.price_currency || 'TRY',
+          exchange_rate: exchangeRate,
+          status: 'pending',
+          created_at: new Date().toISOString(),
+          responded_at: null,
+          updated_at: new Date().toISOString(),
+        });
+
+        alert(`✅ İndirim talebiniz mağazaya iletildi.\n\n${spotAmount} Spot İndirim Talebiniz:\n${discountAmountLocal.toFixed(2)} ${product.price_currency} indirim\nYeni Fiyat: ${finalPrice.toFixed(2)} ${product.price_currency}`);
+      }
+
       setShowSpotModal(false);
       setSelectedSpots(1);
       setCustomSpots('');
@@ -256,6 +334,27 @@ export default function ProductPage() {
   const discountAmountUsdPreview = spotAmountPreview;
   const discountAmountLocalPreview = discountAmountUsdPreview * exchangeRate;
   const finalPricePreview = Math.max(0, (product?.price || 0) - discountAmountLocalPreview);
+  const isPendingRequest = myDiscountRequest?.status === 'pending';
+  const requestStatusLabel =
+    myDiscountRequest?.status === 'pending'
+      ? 'Beklemede'
+      : myDiscountRequest?.status === 'approved'
+        ? 'Onaylandı'
+        : myDiscountRequest?.status === 'rejected'
+          ? 'Reddedildi'
+          : myDiscountRequest?.status === 'completed'
+            ? 'Tamamlandı'
+            : myDiscountRequest?.status === 'cancelled'
+              ? 'İptal'
+              : null;
+  const requestStatusClass =
+    myDiscountRequest?.status === 'pending'
+      ? 'bg-yellow-50 border-yellow-200 text-yellow-800'
+      : myDiscountRequest?.status === 'approved'
+        ? 'bg-green-50 border-green-200 text-green-800'
+        : myDiscountRequest?.status === 'rejected'
+          ? 'bg-red-50 border-red-200 text-red-800'
+          : 'bg-gray-50 border-gray-200 text-gray-700';
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -569,15 +668,49 @@ export default function ProductPage() {
                     Nihai ödeme ve teslimat detayları mağaza ile iletişim sonrası netleşir.
                   </p>
                 </div>
+
+                {myDiscountRequest && (
+                  <div className={`border rounded-lg p-4 ${requestStatusClass}`}>
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <span className="text-sm font-semibold">Son İndirim Talebiniz</span>
+                      {requestStatusLabel && (
+                        <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-white/70">
+                          {requestStatusLabel}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs">
+                      {myDiscountRequest.spot_amount} Spot ≈ {Number(myDiscountRequest.discount_amount_local || 0).toFixed(2)} {myDiscountRequest.currency || product.price_currency}
+                    </p>
+                    <p className="text-xs mt-1 opacity-90">
+                      {myDiscountRequest.status === 'pending'
+                        ? 'Mağaza yanıtı bekleniyor. Yanıt gelene kadar yeni talep açılamaz.'
+                        : myDiscountRequest.status === 'approved'
+                          ? 'Talebiniz onaylandı. Mağaza ile iletişime geçebilirsiniz.'
+                          : myDiscountRequest.status === 'rejected'
+                            ? 'Talep reddedildi. İsterseniz yeni bir miktarla tekrar deneyebilirsiniz.'
+                            : 'Talep geçmişinizde kayıtlı.'}
+                    </p>
+                  </div>
+                )}
                 
                 {/* Butonlar */}
                 <div className="space-y-3">
                   <button
                     onClick={() => setShowSpotModal(true)}
-                    className="w-full bg-purple-600 hover:bg-purple-700 text-white py-4 rounded-xl font-bold flex items-center justify-center"
+                    disabled={loadingMyDiscountRequest || isPendingRequest}
+                    className={`w-full text-white py-4 rounded-xl font-bold flex items-center justify-center ${
+                      loadingMyDiscountRequest || isPendingRequest
+                        ? 'bg-gray-400 cursor-not-allowed'
+                        : 'bg-purple-600 hover:bg-purple-700'
+                    }`}
                   >
                     <MessageCircle className="mr-2" size={20} />
-                    💎 İndirim Talep Et
+                    {loadingMyDiscountRequest
+                      ? 'Durum Kontrol Ediliyor...'
+                      : isPendingRequest
+                        ? '⏳ Talebiniz Beklemede'
+                        : '💎 İndirim Talep Et'}
                   </button>
 
                   <button
