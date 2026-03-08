@@ -262,7 +262,6 @@ export default function NewMessageModal({
       await onSendMessage(selectedUser.id, message, resolvedThreadType)
       
       // Başarılı - modal'ı kapat
-      alert('Mesajlaşma talebi gönderildi!')
       setSending(false)
       setSelectedUser(null)
       setMessage('')

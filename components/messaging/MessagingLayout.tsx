@@ -124,119 +124,50 @@ export default function MessagingLayout({
 
   const handleNewMessage = useCallback(async (receiverId: string, content: string, threadType: string) => {
     try {
-      // Önce iki kullanıcı arasında bu tipe ait aktif thread var mı kontrol et
-      let threadId: string | null = null
-      const nowIso = new Date().toISOString()
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
 
-      const { data: existingThread, error: existingThreadError } = await supabase
-        .from('message_threads')
-        .select('id, participant1_id, participant2_id, request_status, request_initiator_id')
-        .or(`and(participant1_id.eq.${userId},participant2_id.eq.${receiverId}),and(participant1_id.eq.${receiverId},participant2_id.eq.${userId})`)
-        .eq('thread_type', threadType)
-        .eq('status', 'active')
-        .order('last_message_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
-
-      if (existingThreadError) throw existingThreadError
-
-      if (existingThread?.id) {
-        threadId = existingThread.id
-
-        if (existingThread.request_status === 'pending') {
-          setSelectedThread(threadId)
-          setShowNewMessageModal(false)
-
-          if (existingThread.request_initiator_id === userId) {
-            alert('Bu kullanıcıya mesajlaşma talebi zaten gönderildi. Onay bekleniyor.')
-          } else {
-            alert('Bu kullanıcı size mesajlaşma talebi göndermiş. Önce talebi yanıtlayın.')
-          }
-          return
-        }
-
-        if (existingThread.request_status === 'rejected') {
-          const { error: reopenError } = await supabase
-            .from('message_threads')
-            .update({
-              request_status: 'pending',
-              request_initiator_id: userId,
-              request_message: content,
-              request_responded_at: null,
-              last_message_at: nowIso,
-              last_message_preview: 'Mesajlaşma talebi gönderildi',
-              updated_at: nowIso,
-            })
-            .eq('id', threadId)
-
-          if (reopenError) throw reopenError
-
-          setSelectedThread(threadId)
-          setShowNewMessageModal(false)
-          fetchThreads()
-          alert('Mesajlaşma talebi yeniden gönderildi.')
-          return
-        }
-      } else {
-        // Yeni thread oluştur (ilk temas = talep)
-        const { data: thread, error: threadError } = await supabase
-          .from('message_threads')
-          .insert({
-            participant1_id: userId,
-            participant2_id: receiverId,
-            thread_type: threadType,
-            status: 'active',
-            request_status: 'pending',
-            request_initiator_id: userId,
-            request_message: content,
-            last_message_preview: 'Mesajlaşma talebi gönderildi',
-            last_message_at: nowIso,
-          })
-          .select('id')
-          .single()
-
-        if (threadError) throw threadError
-        threadId = thread.id
-
-        // Katılımcı kayıtları (opsiyonel ama yararlı)
-        await supabase
-          .from('thread_participants')
-          .insert([
-            { thread_id: threadId, user_id: userId },
-            { thread_id: threadId, user_id: receiverId }
-          ])
-
-        setSelectedThread(threadId)
-        setShowNewMessageModal(false)
-        fetchThreads()
-        alert('Mesajlaşma talebi gönderildi. Karşı taraf onaylayınca sohbet açılacak.')
+      if (!session?.access_token) {
+        alert('Oturum doğrulanamadı. Lütfen tekrar giriş yapın.')
         return
       }
 
-      // Sadece kabul edilmiş threadlerde mesaj gönder
-      const { error: messageError } = await supabase
-        .from('messages')
-        .insert({
-          thread_id: threadId,
-          sender_id: userId,
-          receiver_id: receiverId,
-          content: content
-        })
+      const response = await fetch('/api/messages/request', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          receiverId,
+          content,
+          threadType,
+        }),
+      })
 
-      if (messageError) throw messageError
+      const result = await response.json()
 
-      // Thread'i seç ve modal'ı kapat
-      setSelectedThread(threadId)
+      if (!response.ok) {
+        alert(result?.error || 'Mesaj gönderilemedi. Lütfen tekrar deneyin.')
+        return
+      }
+
+      if (result?.threadId) {
+        setSelectedThread(result.threadId)
+      }
+
       setShowNewMessageModal(false)
-      
-      // Thread listesini güncelle
       fetchThreads()
 
+      if (result?.message) {
+        alert(result.message)
+      }
     } catch (error) {
       console.error('Mesaj gönderme hatası:', error)
       alert('Mesaj gönderilemedi. Lütfen tekrar deneyin.')
     }
-  }, [userId])
+  }, [fetchThreads])
 
   const clearAutoRequestParams = useCallback(() => {
     const params = new URLSearchParams(searchParams.toString())
