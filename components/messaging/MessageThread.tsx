@@ -4,7 +4,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/hooks/useToast'
-import { Send, Paperclip, Image as ImageIcon, X, ArrowLeft, MoreVertical, Phone, Video, Info, Trash2, MessageSquare } from 'lucide-react'
+import { Send, Paperclip, Image as ImageIcon, X, ArrowLeft, MoreVertical, Info, Trash2, MessageSquare } from 'lucide-react'
 
 interface Message {
   id: string
@@ -67,6 +67,21 @@ export default function MessageThread({ threadId, userId, onBack }: MessageThrea
     scrollToBottom()
   }, [messages])
 
+  // Menüyü dışarı tıklayınca kapat
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showOptions) {
+        const target = event.target as HTMLElement
+        if (!target.closest('button[title]') && !target.closest('.absolute')) {
+          setShowOptions(false)
+        }
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [showOptions])
+
   const fetchThreadData = async () => {
     setLoading(true)
     setLoadError(null)
@@ -100,7 +115,7 @@ export default function MessageThread({ threadId, userId, onBack }: MessageThrea
 
       const { data: profileData, error: profileError } = await supabase
         .from('user_profiles')
-        .select('id, full_name, name, avatar_url, avatar, last_seen')
+        .select('id, full_name, name, username, avatar_url, avatar, last_seen')
         .eq('id', otherParticipantId)
         .maybeSingle()
 
@@ -109,6 +124,7 @@ export default function MessageThread({ threadId, userId, onBack }: MessageThrea
       }
 
       const participantName =
+        (profileData as any)?.username ||
         (profileData as any)?.full_name ||
         (profileData as any)?.name ||
         `Kullanıcı-${String(otherParticipantId).slice(0, 8)}`
@@ -428,12 +444,6 @@ export default function MessageThread({ threadId, userId, onBack }: MessageThrea
         </div>
         
         <div className="flex items-center space-x-2">
-          <button className="p-2 hover:bg-gray-100 rounded-lg" title="Ara">
-            <Phone className="w-5 h-5 text-gray-600" />
-          </button>
-          <button className="p-2 hover:bg-gray-100 rounded-lg" title="Görüntülü ara">
-            <Video className="w-5 h-5 text-gray-600" />
-          </button>
           <button 
             onClick={() => setShowOptions(!showOptions)}
             className="p-2 hover:bg-gray-100 rounded-lg relative"
@@ -441,17 +451,17 @@ export default function MessageThread({ threadId, userId, onBack }: MessageThrea
             <MoreVertical className="w-5 h-5 text-gray-600" />
             {showOptions && (
               <div className="absolute right-0 top-full mt-1 w-48 bg-white border rounded-lg shadow-lg py-2 z-20">
-                <button className="w-full px-4 py-2 text-left hover:bg-gray-100 text-sm flex items-center">
+                <a 
+                  href={`/profile/${participant?.id}`}
+                  className="w-full px-4 py-2 text-left hover:bg-gray-100 text-sm flex items-center block"
+                  onClick={() => setShowOptions(false)}
+                >
                   <Info className="w-4 h-4 mr-2" />
                   Profili görüntüle
-                </button>
-                <button className="w-full px-4 py-2 text-left hover:bg-gray-100 text-sm flex items-center">
+                </a>
+                <button className="w-full px-4 py-2 text-left hover:bg-gray-100 text-sm flex items-center text-red-600">
                   <Trash2 className="w-4 h-4 mr-2" />
-                  Görüşmeyi sil
-                </button>
-                <button className="w-full px-4 py-2 text-left hover:bg-gray-100 text-sm flex items-center">
-                  <X className="w-4 h-4 mr-2" />
-                  Bildirimleri kapat
+                  Konuşmayı sil
                 </button>
               </div>
             )}
