@@ -25,22 +25,7 @@ export async function GET(
       return NextResponse.json({ error: 'Geçersiz kullanıcı kimliği' }, { status: 400 })
     }
 
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Yetkilendirme hatası' }, { status: 401 })
-    }
-
-    const token = authHeader.replace('Bearer ', '')
     const supabase = getSupabaseAdmin()
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser(token)
-
-    if (authError || !user?.id) {
-      return NextResponse.json({ error: 'Kullanıcı doğrulanamadı' }, { status: 401 })
-    }
 
     let profileData: any = null
     const profileSelectCandidates = [

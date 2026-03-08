@@ -107,19 +107,12 @@ export default function UserProfilePage() {
 
       // RLS / legacy şema durumlarında server-side fallback
       if (!userData) {
-        const { data: sessionData } = await supabase.auth.getSession()
-        const accessToken = sessionData?.session?.access_token
-
-        if (accessToken) {
-          const response = await fetch(`/api/profile/${userId}`, {
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-            },
-          })
+        try {
+          const response = await fetch(`/api/profile/${userId}`)
 
           if (response.ok) {
             const payload = await response.json()
-            userData = payload?.user || userData
+            userData = payload?.user || null
 
             if ((!sightingsData || sightingsData.length === 0) && Array.isArray(payload?.sightings)) {
               sightingsData = payload.sightings
@@ -128,7 +121,11 @@ export default function UserProfilePage() {
             if ((!spotsData || spotsData.length === 0) && Array.isArray(payload?.spots)) {
               spotsData = payload.spots
             }
+          } else {
+            console.error('API profil hatası:', await response.text())
           }
+        } catch (apiError) {
+          console.error('API çağrısı başarısız:', apiError)
         }
       }
 
