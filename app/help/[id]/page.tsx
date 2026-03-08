@@ -13,6 +13,7 @@ interface SpotInfo {
   description: string
   location: string | null
   image_url: string | null
+  user_id: string
 }
 
 export default function HelpPage() {
@@ -38,7 +39,7 @@ export default function HelpPage() {
     try {
       const { data, error } = await supabase
         .from('spots')
-        .select('id, title, description, location, image_url')
+        .select('id, title, description, location, image_url, user_id')
         .eq('id', spotId)
         .single()
 
@@ -134,6 +135,39 @@ export default function HelpPage() {
     return data?.helps || 0
   }
 
+  const handleMessageRequest = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        alert('Mesaj talebi için giriş yapmanız gerekir')
+        router.push('/auth/login')
+        return
+      }
+
+      if (!spot?.user_id) {
+        alert('Spot sahibi bilgisi bulunamadı')
+        return
+      }
+
+      if (spot.user_id === user.id) {
+        alert('Kendi spotunuz için mesaj talebi gönderemezsiniz.')
+        return
+      }
+
+      const draft = `Merhaba, \"${spot.title}\" için yardım süreci hakkında konuşmak istiyorum. Uygun olunca dönüş yapabilir misiniz?`
+      const params = new URLSearchParams({
+        receiver: spot.user_id,
+        type: 'help',
+        draft,
+      })
+
+      router.push(`/messages?${params.toString()}`)
+    } catch (err) {
+      console.error('Help message request navigation error:', err)
+      alert('Mesaj talebi başlatılamadı')
+    }
+  }
+
   if (!spot && error) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -223,6 +257,12 @@ export default function HelpPage() {
             <p className="text-gray-600">
               Bu ürünü gördüyseniz, spot sahibine yardımcı olun.
             </p>
+            <button
+              onClick={handleMessageRequest}
+              className="mt-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-lg"
+            >
+              Mesaj Talebi Gönder
+            </button>
           </div>
 
           <div className="bg-white rounded-2xl shadow-lg p-8">

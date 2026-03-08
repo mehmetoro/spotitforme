@@ -149,6 +149,40 @@ export default function PostPage({ params }: PostPageProps) {
     }
   }
 
+  const handleMessageRequest = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        alert('Mesaj talebi için giriş yapmanız gerekir')
+        router.push('/auth/login')
+        return
+      }
+
+      if (!post?.user_id) {
+        alert('Gönderi sahibi bilgisi bulunamadı')
+        return
+      }
+
+      if (post.user_id === user.id) {
+        alert('Kendi gönderiniz için mesaj talebi gönderemezsiniz.')
+        return
+      }
+
+      const postTitle = (post?.title || post?.content || post?.description || 'gönderi').toString().slice(0, 80)
+      const draft = `Merhaba, paylaştığınız \"${postTitle}\" gönderisi hakkında iletişime geçmek istiyorum. Uygun olunca dönüş yapabilir misiniz?`
+      const params = new URLSearchParams({
+        receiver: post.user_id,
+        type: 'social',
+        draft,
+      })
+
+      router.push(`/messages?${params.toString()}`)
+    } catch (err) {
+      console.error('Social message request navigation error:', err)
+      alert('Mesaj talebi başlatılamadı')
+    }
+  }
+
   if (loading) {
     return <div className="text-center py-12">Yükleniyor...</div>
   }
@@ -168,6 +202,14 @@ export default function PostPage({ params }: PostPageProps) {
           className="text-blue-600 hover:underline"
         >
           ← Geri
+        </button>
+      </div>
+      <div className="mb-4">
+        <button
+          onClick={handleMessageRequest}
+          className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2 rounded-lg"
+        >
+          Mesaj Talebi Gönder
         </button>
       </div>
       {post && (

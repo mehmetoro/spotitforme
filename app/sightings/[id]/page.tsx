@@ -149,6 +149,39 @@ export default function SightingDetailPage() {
     }
   }
 
+  const handleMessageRequest = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        alert('Mesaj talebi için giriş yapmanız gerekir')
+        router.push('/auth/login')
+        return
+      }
+
+      if (!sighting?.spotter_id) {
+        alert('Yardım sağlayan kullanıcı bilgisi bulunamadı')
+        return
+      }
+
+      if (sighting.spotter_id === user.id) {
+        alert('Kendi yardım bildiriminiz için mesaj talebi gönderemezsiniz.')
+        return
+      }
+
+      const draft = `Merhaba, \"${sighting.spot?.title || 'yardım bildirimi'}\" için paylaştığınız bilgi hakkında konuşmak istiyorum. Uygun olunca dönüş yapabilir misiniz?`
+      const params = new URLSearchParams({
+        receiver: sighting.spotter_id,
+        type: 'reward',
+        draft,
+      })
+
+      router.push(`/messages?${params.toString()}`)
+    } catch (err) {
+      console.error('Sighting message request navigation error:', err)
+      alert('Mesaj talebi başlatılamadı')
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -219,6 +252,12 @@ export default function SightingDetailPage() {
                   </p>
                 </div>
               </div>
+              <button
+                onClick={handleMessageRequest}
+                className="mt-4 w-full bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 text-sm font-semibold"
+              >
+                Yardımcıya Mesaj Talebi Gönder
+              </button>
             </div>
 
             {/* Price */}
