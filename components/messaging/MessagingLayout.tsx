@@ -4,6 +4,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { X } from 'lucide-react'
 import ThreadList from './ThreadList'
 import MessageThread from './MessageThread'
 import NewMessageModal from './NewMessageModal'
@@ -50,6 +51,7 @@ export default function MessagingLayout({
   const [unreadCount, setUnreadCount] = useState(0)
   const [autoRequestHandled, setAutoRequestHandled] = useState(false)
   const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' | 'info' } | null>(null)
+  const [toastVisible, setToastVisible] = useState(false)
   const requestInFlightRef = useRef(false)
   
   // Realtime subscription için
@@ -197,14 +199,34 @@ export default function MessagingLayout({
   }, [fetchThreads])
 
   useEffect(() => {
-    if (!toast) return
+    if (!toast) {
+      setToastVisible(false)
+      return
+    }
 
-    const timeout = setTimeout(() => {
+    const frame = requestAnimationFrame(() => {
+      setToastVisible(true)
+    })
+
+    const hideTimeout = setTimeout(() => {
+      setToastVisible(false)
+    }, 3500)
+
+    const removeTimeout = setTimeout(() => {
       setToast(null)
-    }, 4000)
+    }, 3800)
 
-    return () => clearTimeout(timeout)
+    return () => {
+      cancelAnimationFrame(frame)
+      clearTimeout(hideTimeout)
+      clearTimeout(removeTimeout)
+    }
   }, [toast])
+
+  const dismissToast = useCallback(() => {
+    setToastVisible(false)
+    setTimeout(() => setToast(null), 180)
+  }, [])
 
   const clearAutoRequestParams = useCallback(() => {
     const params = new URLSearchParams(searchParams.toString())
@@ -286,9 +308,13 @@ export default function MessagingLayout({
   return (
     <div className="relative flex h-[calc(100vh-200px)] bg-white rounded-xl shadow-lg overflow-hidden">
       {toast && (
-        <div className="absolute top-4 right-4 z-50">
+        <div
+          className={`absolute top-4 right-4 z-50 transition-all duration-200 ease-out ${
+            toastVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none'
+          }`}
+        >
           <div
-            className={`px-4 py-3 rounded-lg shadow-lg text-sm font-medium max-w-sm ${
+            className={`px-4 py-3 rounded-lg shadow-lg text-sm font-medium max-w-sm flex items-start gap-3 ${
               toast.tone === 'success'
                 ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                 : toast.tone === 'error'
@@ -296,7 +322,14 @@ export default function MessagingLayout({
                   : 'bg-blue-100 text-blue-800 border border-blue-200'
             }`}
           >
-            {toast.message}
+            <span className="flex-1">{toast.message}</span>
+            <button
+              onClick={dismissToast}
+              className="shrink-0 rounded p-0.5 hover:bg-black/10 transition-colors"
+              aria-label="Bildirimi kapat"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
         </div>
       )}
