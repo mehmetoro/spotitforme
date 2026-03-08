@@ -218,57 +218,59 @@ export default function DiscountRequestsPanel({ shopId, limit = 6 }: DiscountReq
       </div>
 
       {requests.length > 0 && (
-        <div className="flex items-center gap-2 mb-4">
-          <button
-            onClick={() => setActiveFilter('all')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${
-              activeFilter === 'all'
-                ? 'bg-gray-900 text-white border-gray-900'
-                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-            }`}
-          >
-            Tümü ({requests.length})
-          </button>
-          <button
-            onClick={() => setActiveFilter('pending')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${
-              activeFilter === 'pending'
-                ? 'bg-yellow-600 text-white border-yellow-600'
-                : 'bg-white text-yellow-700 border-yellow-300 hover:bg-yellow-50'
-            }`}
-          >
-            Bekleyen ({pendingCount})
-          </button>
-          <button
-            onClick={() => setActiveFilter('approved')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${
-              activeFilter === 'approved'
-                ? 'bg-green-600 text-white border-green-600'
-                : 'bg-white text-green-700 border-green-300 hover:bg-green-50'
-            }`}
-          >
-            Onaylı ({approvedCount})
-          </button>
-          <button
-            onClick={() => setActiveFilter('completed')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${
-              activeFilter === 'completed'
-                ? 'bg-blue-600 text-white border-blue-600'
-                : 'bg-white text-blue-700 border-blue-300 hover:bg-blue-50'
-            }`}
-          >
-            Tamamlanan ({completedCount})
-          </button>
-          <button
-            onClick={() => setActiveFilter('rejected')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${
-              activeFilter === 'rejected'
-                ? 'bg-red-600 text-white border-red-600'
-                : 'bg-white text-red-700 border-red-300 hover:bg-red-50'
-            }`}
-          >
-            Reddedilen ({rejectedCount})
-          </button>
+        <div className="mb-4 -mx-1 px-1 overflow-x-auto">
+          <div className="flex items-center gap-2 min-w-max">
+            <button
+              onClick={() => setActiveFilter('all')}
+              className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-medium border ${
+                activeFilter === 'all'
+                  ? 'bg-gray-900 text-white border-gray-900'
+                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              Tümü ({requests.length})
+            </button>
+            <button
+              onClick={() => setActiveFilter('pending')}
+              className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-medium border ${
+                activeFilter === 'pending'
+                  ? 'bg-yellow-600 text-white border-yellow-600'
+                  : 'bg-white text-yellow-700 border-yellow-300 hover:bg-yellow-50'
+              }`}
+            >
+              Bekleyen ({pendingCount})
+            </button>
+            <button
+              onClick={() => setActiveFilter('approved')}
+              className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-medium border ${
+                activeFilter === 'approved'
+                  ? 'bg-green-600 text-white border-green-600'
+                  : 'bg-white text-green-700 border-green-300 hover:bg-green-50'
+              }`}
+            >
+              Onaylı ({approvedCount})
+            </button>
+            <button
+              onClick={() => setActiveFilter('completed')}
+              className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-medium border ${
+                activeFilter === 'completed'
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-white text-blue-700 border-blue-300 hover:bg-blue-50'
+              }`}
+            >
+              Tamamlanan ({completedCount})
+            </button>
+            <button
+              onClick={() => setActiveFilter('rejected')}
+              className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-medium border ${
+                activeFilter === 'rejected'
+                  ? 'bg-red-600 text-white border-red-600'
+                  : 'bg-white text-red-700 border-red-300 hover:bg-red-50'
+              }`}
+            >
+              Reddedilen ({rejectedCount})
+            </button>
+          </div>
         </div>
       )}
 
