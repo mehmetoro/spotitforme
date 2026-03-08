@@ -91,7 +91,7 @@ export default function UserProfilePage() {
       }
 
       // Sightings
-      const { data: sightingsData } = await supabase
+      let { data: sightingsData } = await supabase
         .from('quick_sightings')
         .select('*')
         .eq('user_id', userId)
@@ -99,11 +99,38 @@ export default function UserProfilePage() {
         .order('created_at', { ascending: false })
 
       // Spots
-      const { data: spotsData } = await supabase
+      let { data: spotsData } = await supabase
         .from('spots')
         .select('*')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
+
+      // RLS / legacy şema durumlarında server-side fallback
+      if (!userData) {
+        const { data: sessionData } = await supabase.auth.getSession()
+        const accessToken = sessionData?.session?.access_token
+
+        if (accessToken) {
+          const response = await fetch(`/api/profile/${userId}`, {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          })
+
+          if (response.ok) {
+            const payload = await response.json()
+            userData = payload?.user || userData
+
+            if ((!sightingsData || sightingsData.length === 0) && Array.isArray(payload?.sightings)) {
+              sightingsData = payload.sightings
+            }
+
+            if ((!spotsData || spotsData.length === 0) && Array.isArray(payload?.spots)) {
+              spotsData = payload.spots
+            }
+          }
+        }
+      }
 
       setUser(userData)
       setSightings(sightingsData || [])
