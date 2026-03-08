@@ -237,14 +237,21 @@ export default function MessagingLayout({
     const hadReceiver = params.has('receiver')
     const hadType = params.has('type')
     const hadDraft = params.has('draft')
+    const hadFilter = params.has('filter')
 
-    if (!hadReceiver && !hadType && !hadDraft) {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('messages.filter')
+      localStorage.removeItem('messages.type')
+    }
+
+    if (!hadReceiver && !hadType && !hadDraft && !hadFilter) {
       return
     }
 
     params.delete('receiver')
     params.delete('type')
     params.delete('draft')
+    params.delete('filter')
 
     const query = params.toString()
     const nextUrl = query ? `${pathname}?${query}` : pathname

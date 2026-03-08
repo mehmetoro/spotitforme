@@ -46,6 +46,7 @@ export default function MessageThread({ threadId, userId, onBack }: MessageThrea
   const [newMessage, setNewMessage] = useState('')
   const [participant, setParticipant] = useState<Participant | null>(null)
   const [threadMeta, setThreadMeta] = useState<ThreadMeta | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [requestActionLoading, setRequestActionLoading] = useState(false)
@@ -68,6 +69,7 @@ export default function MessageThread({ threadId, userId, onBack }: MessageThrea
 
   const fetchThreadData = async () => {
     setLoading(true)
+    setLoadError(null)
     try {
       // 1. Thread bilgilerini çek
       const { data: threadData, error: threadError } = await supabase
@@ -130,40 +132,9 @@ export default function MessageThread({ threadId, userId, onBack }: MessageThrea
 
     } catch (error) {
       console.error('Mesajlar yüklenemedi:', error)
-      // Fallback veri
-      setParticipant({
-        id: '123',
-        name: 'Ahmet Yılmaz',
-        avatar: '',
-        is_online: true
-      })
-      
-      setMessages([
-        {
-          id: '1',
-          sender_id: '123',
-          content: 'Merhaba, o vintage Sony Walkman\'i nerede bulabilirim?',
-          created_at: '2024-01-15T10:00:00',
-          is_read: true,
-          type: 'text'
-        },
-        {
-          id: '2',
-          sender_id: userId,
-          content: 'Kadıköy çarşısında bir antikacıda görmüştüm, tam adres: Kadıköy Rıhtım Cd. No:25',
-          created_at: '2024-01-15T10:05:00',
-          is_read: true,
-          type: 'text'
-        },
-        {
-          id: '3',
-          sender_id: '123',
-          content: 'Harika! Hafta sonu uğrayacağım. Fiyat fikriniz var mı?',
-          created_at: '2024-01-15T10:10:00',
-          is_read: false,
-          type: 'text'
-        }
-      ])
+      setParticipant(null)
+      setMessages([])
+      setLoadError('Konuşma yüklenemedi. Lütfen tekrar deneyin.')
     } finally {
       setLoading(false)
     }
@@ -476,7 +447,11 @@ export default function MessageThread({ threadId, userId, onBack }: MessageThrea
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
-        {isPendingRequest ? (
+        {loadError ? (
+          <div className="max-w-2xl mx-auto bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-800">
+            {loadError}
+          </div>
+        ) : isPendingRequest ? (
           <div className="max-w-2xl mx-auto bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-300 rounded-xl p-6 shadow-lg">
             <div className="flex items-start gap-3 mb-4">
               <div className="flex-shrink-0 w-12 h-12 bg-amber-500 rounded-full flex items-center justify-center animate-pulse">
