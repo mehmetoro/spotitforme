@@ -71,15 +71,12 @@ export default function MessageThread({ threadId, userId, onBack }: MessageThrea
     setLoading(true)
     setLoadError(null)
     try {
-      // 1. Thread bilgilerini çek
+      // 1. Thread bilgilerini çek (legacy şemalarda ilişki join sorunlarına karşı sade sorgu)
       const { data: threadData, error: threadError } = await supabase
         .from('message_threads')
-        .select(`
-          *,
-          participant1:user_profiles!participant1_id(*),
-          participant2:user_profiles!participant2_id(*),
-          spot:spots(title)
-        `)
+        .select(
+          'id, participant1_id, participant2_id, request_status, request_initiator_id, request_message, request_responded_at'
+        )
         .eq('id', threadId)
         .single()
 
@@ -95,25 +92,42 @@ export default function MessageThread({ threadId, userId, onBack }: MessageThrea
         request_responded_at: threadData.request_responded_at,
       })
 
-      // 2. Hangi katılımcı biz değiliz?
-      let otherParticipant = null
-      let isParticipant1 = false
-      
-      if (threadData.participant1_id === userId) {
-        otherParticipant = threadData.participant2
-        isParticipant1 = true
-      } else {
-        otherParticipant = threadData.participant1
-        isParticipant1 = false
+      // 2. Karşı tarafı belirle ve profile bilgisini ayrı çek
+      const isParticipant1 = threadData.participant1_id === userId
+      const otherParticipantId = isParticipant1
+        ? threadData.participant2_id
+        : threadData.participant1_id
+
+      const { data: profileData, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('id, full_name, name, avatar_url, avatar, last_seen')
+        .eq('id', otherParticipantId)
+        .maybeSingle()
+
+      if (profileError) {
+        console.warn('Katılımcı profili yüklenemedi:', profileError)
       }
 
+      const participantName =
+        (profileData as any)?.full_name ||
+        (profileData as any)?.name ||
+        `Kullanıcı-${String(otherParticipantId).slice(0, 8)}`
+
+      const participantAvatar =
+        (profileData as any)?.avatar_url ||
+        (profileData as any)?.avatar ||
+        ''
+
+      const participantLastSeen = (profileData as any)?.last_seen || undefined
+
       setParticipant({
-        id: otherParticipant?.id || 'unknown',
-        name: otherParticipant?.name || 'Kullanıcı',
-        avatar: otherParticipant?.avatar_url || '',
-        is_online: otherParticipant?.last_seen ? 
-          new Date(otherParticipant.last_seen).getTime() > Date.now() - 5 * 60 * 1000 : false,
-        last_seen: otherParticipant?.last_seen
+        id: otherParticipantId || 'unknown',
+        name: participantName,
+        avatar: participantAvatar,
+        is_online: participantLastSeen
+          ? new Date(participantLastSeen).getTime() > Date.now() - 5 * 60 * 1000
+          : false,
+        last_seen: participantLastSeen,
       })
 
       // 3. Mesajları çek
