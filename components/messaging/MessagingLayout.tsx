@@ -12,6 +12,9 @@ import SecurityDisclaimer from './SecurityDisclaimer'
 interface MessagingLayoutProps {
   initialThreadId?: string
   userId: string
+  initialReceiverId?: string
+  initialThreadType?: string
+  initialDraft?: string
 }
 
 // Thread türünü tanımla
@@ -30,13 +33,20 @@ interface Thread {
   [key: string]: any // Diğer özellikler için
 }
 
-export default function MessagingLayout({ initialThreadId, userId }: MessagingLayoutProps) {
+export default function MessagingLayout({
+  initialThreadId,
+  userId,
+  initialReceiverId,
+  initialThreadType,
+  initialDraft,
+}: MessagingLayoutProps) {
   const router = useRouter()
   const [selectedThread, setSelectedThread] = useState<string | null>(initialThreadId || null)
   const [threads, setThreads] = useState<Thread[]>([])
   const [loading, setLoading] = useState(true)
   const [showNewMessageModal, setShowNewMessageModal] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
+  const [prefillUsed, setPrefillUsed] = useState(false)
   
   // Realtime subscription için
   const [subscription, setSubscription] = useState<any>(null)
@@ -51,6 +61,15 @@ export default function MessagingLayout({ initialThreadId, userId }: MessagingLa
       }
     }
   }, [userId])
+
+  useEffect(() => {
+    if (prefillUsed) return
+    if (initialThreadId) return
+    if (!initialReceiverId) return
+
+    setShowNewMessageModal(true)
+    setPrefillUsed(true)
+  }, [initialReceiverId, initialThreadId, prefillUsed])
 
   const fetchThreads = async () => {
     try {
@@ -323,6 +342,9 @@ export default function MessagingLayout({ initialThreadId, userId }: MessagingLa
         onClose={() => setShowNewMessageModal(false)}
         onSendMessage={handleNewMessage}
         currentUserId={userId}
+        initialReceiverId={initialReceiverId}
+        initialThreadType={initialThreadType}
+        initialDraft={initialDraft}
       />
     </div>
   )

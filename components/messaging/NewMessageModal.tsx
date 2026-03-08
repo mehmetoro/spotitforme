@@ -25,6 +25,9 @@ interface NewMessageModalProps {
   onSendMessage: (receiverId: string, content: string, threadType: string) => Promise<void>
   currentUserId: string
   spotId?: string
+  initialReceiverId?: string
+  initialThreadType?: string
+  initialDraft?: string
 }
 
 // Database'den gelen user tipi
@@ -51,7 +54,10 @@ export default function NewMessageModal({
   onClose, 
   onSendMessage, 
   currentUserId,
-  spotId 
+  spotId,
+  initialReceiverId,
+  initialThreadType,
+  initialDraft,
 }: NewMessageModalProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null)
@@ -65,6 +71,7 @@ export default function NewMessageModal({
   const [showTips, setShowTips] = useState(true)
   const [selectedSpot, setSelectedSpot] = useState<Spot | null>(null)
   const [messageType, setMessageType] = useState<'general' | 'spot' | 'help'>('general')
+  const [prefillApplied, setPrefillApplied] = useState(false)
   
   const modalRef = useRef<HTMLDivElement>(null)
 
@@ -72,6 +79,7 @@ export default function NewMessageModal({
     if (isOpen) {
       fetchInitialData()
       document.body.style.overflow = 'hidden'
+      setPrefillApplied(false)
     } else {
       document.body.style.overflow = 'unset'
     }
@@ -133,6 +141,30 @@ export default function NewMessageModal({
 
       setUsers(formattedUsers)
       setFilteredUsers(formattedUsers)
+
+      if (!prefillApplied && initialReceiverId) {
+        const preselected = formattedUsers.find((user) => user.id === initialReceiverId)
+        if (preselected) {
+          setSelectedUser(preselected)
+          setStep('compose')
+
+          if (initialThreadType === 'spot') {
+            setMessageType('spot')
+          } else if (initialThreadType === 'help') {
+            setMessageType('help')
+          } else {
+            setMessageType('general')
+          }
+
+          if (initialDraft && initialDraft.trim()) {
+            setMessage(initialDraft)
+          } else {
+            setMessage(`Merhaba ${preselected.full_name},\n\nMesajlaşma talebi göndermek istiyorum.`)
+          }
+
+          setPrefillApplied(true)
+        }
+      }
 
       // 2. Spot'ları getir
       const { data: spotsData, error: spotsError } = await supabase
@@ -224,8 +256,10 @@ export default function NewMessageModal({
 
     setSending(true)
     try {
+      const resolvedThreadType = initialThreadType || (selectedSpot ? 'spot' : messageType)
+
       // Tek kaynak olarak parent callback üzerinden gönder
-      await onSendMessage(selectedUser.id, message, selectedSpot ? 'spot' : 'general')
+      await onSendMessage(selectedUser.id, message, resolvedThreadType)
       
       // Başarılı - modal'ı kapat
       alert('Mesajlaşma talebi gönderildi!')

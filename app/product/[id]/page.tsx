@@ -189,6 +189,39 @@ export default function ProductPage() {
     }
   };
 
+  const handleMessageRequest = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        alert('Mesaj talebi için giriş yapmanız gerekir');
+        router.push('/auth/login');
+        return;
+      }
+
+      if (!shop?.owner_id) {
+        alert('Mağaza sahibi bilgisi bulunamadı');
+        return;
+      }
+
+      if (shop.owner_id === user.id) {
+        alert('Kendi mağazanıza mesaj talebi gönderemezsiniz.');
+        return;
+      }
+
+      const draft = `Merhaba, \"${product?.title || 'ürün'}\" ürünü hakkında bilgi almak istiyorum. Uygun olunca dönüş yapabilir misiniz?`;
+      const params = new URLSearchParams({
+        receiver: shop.owner_id,
+        type: 'shop',
+        draft,
+      });
+
+      router.push(`/messages?${params.toString()}`);
+    } catch (error) {
+      console.error('Message request navigation error:', error);
+      alert('Mesaj talebi başlatılamadı');
+    }
+  };
+
   const handleRequestSpotDiscount = async () => {
     // Kaç Spot talep ettiğini belirle
     const spotAmount = customSpots ? parseInt(customSpots, 10) : selectedSpots;
@@ -748,6 +781,14 @@ export default function ProductPage() {
                   >
                     <MessageCircle className="mr-2" size={20} />
                     Mağaza ile İletişime Geç
+                  </button>
+
+                  <button
+                    onClick={handleMessageRequest}
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-bold flex items-center justify-center"
+                  >
+                    <MessageCircle className="mr-2" size={18} />
+                    Mesaj Talebi Gönder
                   </button>
 
                   <p className="text-xs text-purple-700 bg-purple-50 rounded-lg p-3">

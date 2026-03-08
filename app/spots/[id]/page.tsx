@@ -82,6 +82,39 @@ export default function SpotDetailPage() {
     setShowSightingModal(true)
   }
 
+  const handleMessageRequest = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        alert('Mesaj talebi için giriş yapmanız gerekir')
+        router.push('/auth/login')
+        return
+      }
+
+      if (!spot?.user_id) {
+        alert('Spot sahibi bilgisi bulunamadı')
+        return
+      }
+
+      if (spot.user_id === user.id) {
+        alert('Kendi spotunuza mesaj talebi gönderemezsiniz.')
+        return
+      }
+
+      const draft = `Merhaba, \"${spot.title}\" spot paylaşımınız için yardımcı olmak istiyorum. Müsait olduğunuzda dönüş yapabilir misiniz?`
+      const params = new URLSearchParams({
+        receiver: spot.user_id,
+        type: 'spot',
+        draft,
+      })
+
+      router.push(`/messages?${params.toString()}`)
+    } catch (error) {
+      console.error('Spot message request navigation error:', error)
+      alert('Mesaj talebi başlatılamadı')
+    }
+  }
+
   const handleSightingSuccess = () => {
     setShowSightingModal(false)
     // Spot verilerini yeniden yükle
@@ -249,6 +282,12 @@ export default function SpotDetailPage() {
                   </p>
                 </div>
               </div>
+              <button
+                onClick={handleMessageRequest}
+                className="mt-4 w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl"
+              >
+                Mesaj Talebi Gönder
+              </button>
             </div>
 
             {/* İstatistikler */}
