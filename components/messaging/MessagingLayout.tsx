@@ -67,6 +67,26 @@ export default function MessagingLayout({
     }
   }, [userId])
 
+  // Mobil geri tuşu kontrolü - mesajlaşma ekranındayken geri tuşu listeye döner
+  useEffect(() => {
+    const handlePopState = () => {
+      if (selectedThread) {
+        setSelectedThread(null)
+      }
+    }
+
+    // selectedThread açıldığında history state ekle
+    if (selectedThread) {
+      window.history.pushState({ threadOpen: true }, '')
+    }
+
+    window.addEventListener('popstate', handlePopState)
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState)
+    }
+  }, [selectedThread])
+
   const fetchThreads = useCallback(async () => {
     try {
       const { data, error } = await supabase
