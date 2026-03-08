@@ -49,10 +49,20 @@ export default function ProductPage() {
   const [myDiscountRequest, setMyDiscountRequest] = useState<MyDiscountRequest | null>(null);
   const [loadingMyDiscountRequest, setLoadingMyDiscountRequest] = useState(false);
   const [availableSpots, setAvailableSpots] = useState<number>(0);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
     loadProduct();
   }, [productId]);
+
+  useEffect(() => {
+    const loadCurrentUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setCurrentUserId(user?.id ?? null);
+    };
+
+    loadCurrentUser();
+  }, []);
 
   // Döviz kurunu fetch et
   useEffect(() => {
@@ -394,6 +404,7 @@ export default function ProductPage() {
         : myDiscountRequest?.status === 'rejected'
           ? 'bg-red-50 border-red-200 text-red-800'
           : 'bg-gray-50 border-gray-200 text-gray-700';
+  const canSendMessageRequest = !!shop?.owner_id && shop.owner_id !== currentUserId;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -783,13 +794,15 @@ export default function ProductPage() {
                     Mağaza ile İletişime Geç
                   </button>
 
-                  <button
-                    onClick={handleMessageRequest}
-                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-bold flex items-center justify-center"
-                  >
-                    <MessageCircle className="mr-2" size={18} />
-                    Mesaj Talebi Gönder
-                  </button>
+                  {canSendMessageRequest && (
+                    <button
+                      onClick={handleMessageRequest}
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-bold flex items-center justify-center"
+                    >
+                      <MessageCircle className="mr-2" size={18} />
+                      Mesaj Talebi Gönder
+                    </button>
+                  )}
 
                   <p className="text-xs text-purple-700 bg-purple-50 rounded-lg p-3">
                     Spot indirimi anlık satın alma değildir. Talep sonrası alışveriş gerçekleşirse, mağaza onayıyla Spot transferi yapılır.

@@ -29,8 +29,16 @@ export default function SightingDetailPage() {
   const [sighting, setSighting] = useState<Sighting | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
   useEffect(() => {
+    const loadCurrentUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      setCurrentUserId(user?.id ?? null)
+    }
+
+    loadCurrentUser()
+
     const id = Array.isArray(params.id) ? params.id[0] : params.id
     console.log('🔄 useEffect params.id:', { id, paramsId: params.id })
     
@@ -252,12 +260,14 @@ export default function SightingDetailPage() {
                   </p>
                 </div>
               </div>
-              <button
-                onClick={handleMessageRequest}
-                className="mt-4 w-full bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 text-sm font-semibold"
-              >
-                Yardımcıya Mesaj Talebi Gönder
-              </button>
+              {sighting.spotter_id !== currentUserId && (
+                <button
+                  onClick={handleMessageRequest}
+                  className="mt-4 w-full bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 text-sm font-semibold"
+                >
+                  Yardımcıya Mesaj Talebi Gönder
+                </button>
+              )}
             </div>
 
             {/* Price */}

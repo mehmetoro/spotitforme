@@ -30,10 +30,20 @@ export default function HelpPage() {
   const [loading, setLoading] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState('')
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
   useEffect(() => {
     fetchSpotDetails()
   }, [spotId])
+
+  useEffect(() => {
+    const loadCurrentUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      setCurrentUserId(user?.id ?? null)
+    }
+
+    loadCurrentUser()
+  }, [])
 
   const fetchSpotDetails = async () => {
     try {
@@ -235,6 +245,8 @@ export default function HelpPage() {
     )
   }
 
+  const canSendMessageRequest = !!spot?.user_id && spot.user_id !== currentUserId
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
@@ -257,12 +269,14 @@ export default function HelpPage() {
             <p className="text-gray-600">
               Bu ürünü gördüyseniz, spot sahibine yardımcı olun.
             </p>
-            <button
-              onClick={handleMessageRequest}
-              className="mt-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-lg"
-            >
-              Mesaj Talebi Gönder
-            </button>
+            {canSendMessageRequest && (
+              <button
+                onClick={handleMessageRequest}
+                className="mt-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-lg"
+              >
+                Mesaj Talebi Gönder
+              </button>
+            )}
           </div>
 
           <div className="bg-white rounded-2xl shadow-lg p-8">

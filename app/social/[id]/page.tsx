@@ -15,6 +15,7 @@ export default function PostPage({ params }: PostPageProps) {
   const [post, setPost] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
   useEffect(() => {
     const fetch = async () => {
@@ -64,6 +65,7 @@ export default function PostPage({ params }: PostPageProps) {
         }
 
         const { data: { user } } = await supabase.auth.getUser()
+        setCurrentUserId(user?.id ?? null)
         if (user) {
           const [{ data: ld }, { data: sd }] = await Promise.all([
             supabase
@@ -204,14 +206,16 @@ export default function PostPage({ params }: PostPageProps) {
           ← Geri
         </button>
       </div>
-      <div className="mb-4">
-        <button
-          onClick={handleMessageRequest}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2 rounded-lg"
-        >
-          Mesaj Talebi Gönder
-        </button>
-      </div>
+      {post?.user_id && post.user_id !== currentUserId && (
+        <div className="mb-4">
+          <button
+            onClick={handleMessageRequest}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2 rounded-lg"
+          >
+            Mesaj Talebi Gönder
+          </button>
+        </div>
+      )}
       {post && (
         <FeedPost
           post={post}

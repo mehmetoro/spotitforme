@@ -33,12 +33,22 @@ export default function SpotDetailPage() {
   const [spot, setSpot] = useState<Spot | null>(null)
   const [loading, setLoading] = useState(true)
   const [showSightingModal, setShowSightingModal] = useState(false)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
   useEffect(() => {
     if (spotId) {
       fetchSpotDetails()
     }
   }, [spotId])
+
+  useEffect(() => {
+    const loadCurrentUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      setCurrentUserId(user?.id ?? null)
+    }
+
+    loadCurrentUser()
+  }, [])
 
   const fetchSpotDetails = async () => {
     try {
@@ -282,12 +292,14 @@ export default function SpotDetailPage() {
                   </p>
                 </div>
               </div>
-              <button
-                onClick={handleMessageRequest}
-                className="mt-4 w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl"
-              >
-                Mesaj Talebi Gönder
-              </button>
+              {spot.user_id !== currentUserId && (
+                <button
+                  onClick={handleMessageRequest}
+                  className="mt-4 w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl"
+                >
+                  Mesaj Talebi Gönder
+                </button>
+              )}
             </div>
 
             {/* İstatistikler */}
