@@ -120,7 +120,32 @@ export async function POST(
       );
     }
 
-    // 8) Return success response
+    // 8) If buyer has an approved discount request for this product, complete it
+    const { data: approvedRequest } = await supabase
+      .from('shop_product_discount_requests')
+      .select('id')
+      .eq('buyer_id', buyerId)
+      .eq('seller_id', sellerId)
+      .eq('shop_id', shopId)
+      .eq('product_id', productId)
+      .eq('status', 'approved')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (approvedRequest?.id) {
+      const now = new Date().toISOString();
+      await supabase
+        .from('shop_product_discount_requests')
+        .update({
+          status: 'completed',
+          responded_at: now,
+          updated_at: now,
+        })
+        .eq('id', approvedRequest.id);
+    }
+
+    // 9) Return success response
     return NextResponse.json(
       {
         success: true,
