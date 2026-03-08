@@ -1,7 +1,7 @@
 // components/messaging/MessagingLayout.tsx - DÜZELTİLMİŞ
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import ThreadList from './ThreadList'
@@ -46,7 +46,7 @@ export default function MessagingLayout({
   const [loading, setLoading] = useState(true)
   const [showNewMessageModal, setShowNewMessageModal] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
-  const [prefillUsed, setPrefillUsed] = useState(false)
+  const [autoRequestHandled, setAutoRequestHandled] = useState(false)
   
   // Realtime subscription için
   const [subscription, setSubscription] = useState<any>(null)
@@ -61,15 +61,6 @@ export default function MessagingLayout({
       }
     }
   }, [userId])
-
-  useEffect(() => {
-    if (prefillUsed) return
-    if (initialThreadId) return
-    if (!initialReceiverId) return
-
-    setShowNewMessageModal(true)
-    setPrefillUsed(true)
-  }, [initialReceiverId, initialThreadId, prefillUsed])
 
   const fetchThreads = async () => {
     try {
@@ -129,7 +120,7 @@ export default function MessagingLayout({
     setSubscription(channel)
   }
 
-  const handleNewMessage = async (receiverId: string, content: string, threadType: string) => {
+  const handleNewMessage = useCallback(async (receiverId: string, content: string, threadType: string) => {
     try {
       // Önce iki kullanıcı arasında bu tipe ait aktif thread var mı kontrol et
       let threadId: string | null = null
@@ -243,7 +234,26 @@ export default function MessagingLayout({
       console.error('Mesaj gönderme hatası:', error)
       alert('Mesaj gönderilemedi. Lütfen tekrar deneyin.')
     }
-  }
+  }, [userId])
+
+  useEffect(() => {
+    if (autoRequestHandled) return
+    if (initialThreadId) return
+    if (!initialReceiverId) return
+
+    const draft = initialDraft?.trim() || 'Merhaba, sizinle bu konu hakkında iletişime geçmek istiyorum.'
+    const threadType = initialThreadType || 'help'
+
+    setAutoRequestHandled(true)
+    handleNewMessage(initialReceiverId, draft, threadType)
+  }, [
+    autoRequestHandled,
+    initialDraft,
+    initialReceiverId,
+    initialThreadId,
+    initialThreadType,
+    handleNewMessage,
+  ])
 
   const handleDeleteThread = async (threadId: string) => {
     if (!confirm('Bu konuşmayı silmek istediğinize emin misiniz?')) return
