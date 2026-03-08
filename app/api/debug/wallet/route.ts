@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
       user_email: user.email,
       wallet,
       blocked_requests: blockedRequests,
-      blocked_spots_total: (blockedRequests || []).reduce((sum, r) => sum + (r.spot_amount || 0), 0),
+      blocked_spots_total: blockedRequests?.length || 0, // 1 spot per request, not per discount amount
       recent_ledger: ledger,
     });
   } catch (error: any) {

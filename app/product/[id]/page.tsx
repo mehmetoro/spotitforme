@@ -259,7 +259,8 @@ export default function ProductPage() {
           updated_at: new Date().toISOString(),
         });
 
-        setAvailableSpots(Math.max(0, availableSpots - (result.blocked_spots || 1)));
+        // availableSpots API'den gelen güncel değerle güncelle (1 spot bloke edildi)
+        setAvailableSpots(result.availableSpots || Math.max(0, availableSpots - 1));
 
         alert(`✅ İndirim talebiniz mağazaya iletildi.\n\n${spotAmount} Spot İndirim Talebiniz:\n${discountAmountLocal.toFixed(2)} ${product.price_currency} indirim\nYeni Fiyat: ${finalPrice.toFixed(2)} ${product.price_currency}\n\n🔒 1 Spot bloke edilmiştir.`);
       }

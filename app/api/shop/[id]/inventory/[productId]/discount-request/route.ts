@@ -47,14 +47,14 @@ export async function GET(
 
     const totalSpots = walletData?.balance || 0;
 
-    // Get blocked spots (pending + approved requests for this user)
+    // Get blocked spots: 1 Spot per pending/approved request (not per discount amount)
     const { data: blockedRequests, error: blockedError } = await supabase
       .from('shop_product_discount_requests')
-      .select('spot_amount')
+      .select('id')
       .eq('buyer_id', user.id)
       .in('status', ['pending', 'approved']);
 
-    const blockedSpots = (blockedRequests || []).reduce((sum, req) => sum + (req.spot_amount || 0), 0);
+    const blockedSpots = blockedRequests?.length || 0; // 1 spot per request, not per discount amount
     const availableSpots = Math.max(0, totalSpots - blockedSpots);
 
     // Get current request status

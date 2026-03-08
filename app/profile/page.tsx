@@ -101,14 +101,14 @@ export default function ProfilePage() {
         .eq('user_id', userId)
         .maybeSingle()
 
-      // Bloke edilen Spot'lar (pending + approved taleplerde)
+      // Bloke edilen Spot'lar: Her talep = 1 Spot
       const { data: blockedRequests } = await supabase
         .from('shop_product_discount_requests')
-        .select('spot_amount')
+        .select('id')
         .eq('buyer_id', userId)
         .in('status', ['pending', 'approved'])
 
-      const blocked = (blockedRequests || []).reduce((sum, req) => sum + (req.spot_amount || 0), 0)
+      const blocked = blockedRequests?.length || 0 // 1 spot per request
 
       // Sosyal istatistikleri
       const [
