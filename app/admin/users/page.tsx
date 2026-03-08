@@ -246,7 +246,7 @@ export default function AdminUsersPage() {
                           <button
                             onClick={() => {
                               // Kullanıcı detay sayfasına git
-                              window.open(`/profile?user=${user.id}`, '_blank');
+                              window.open(`/profile/${user.id}`, '_blank');
                             }}
                             className="px-3 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded text-xs font-medium border border-blue-200"
                           >

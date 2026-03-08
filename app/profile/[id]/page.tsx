@@ -12,7 +12,9 @@ type TabType = 'sightings' | 'spots' | 'reputation' | 'social'
 
 interface UserProfile {
   id: string
-  full_name: string | null
+  full_name?: string | null
+  name?: string | null
+  username?: string | null
   email?: string
   avatar_url: string | null
   bio: string | null
@@ -31,6 +33,20 @@ export default function UserProfilePage() {
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<TabType>('sightings')
   const [isCurrentUser, setIsCurrentUser] = useState(false)
+
+  const resolveDisplayName = (profile: UserProfile | null) => {
+    if (!profile) return 'Kullanıcı'
+
+    const emailPrefix = profile.email?.split('@')?.[0]?.trim()
+
+    return (
+      profile.full_name?.trim() ||
+      profile.name?.trim() ||
+      profile.username?.trim() ||
+      emailPrefix ||
+      `Kullanıcı-${profile.id.slice(0, 8)}`
+    )
+  }
 
   // Tab tanımları - tip güvenli
   const tabs: { id: TabType; label: string }[] = [
@@ -52,12 +68,27 @@ export default function UserProfilePage() {
       const { data: { user: currentUser } } = await supabase.auth.getUser()
       setIsCurrentUser(currentUser?.id === userId)
 
-      // Kullanıcı bilgileri
-      const { data: userData } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('id', userId)
-        .single()
+      // Kullanıcı bilgileri (şema farklılıklarına karşı fallback select)
+      let userData: any = null
+      const profileSelectCandidates = [
+        'id, full_name, name, username, email, avatar_url, bio, location, created_at',
+        'id, full_name, name, email, avatar_url, bio, location, created_at',
+        'id, name, email, avatar_url, bio, location, created_at',
+        'id, name, email, avatar_url, created_at',
+      ]
+
+      for (const selectFields of profileSelectCandidates) {
+        const { data, error } = await supabase
+          .from('user_profiles')
+          .select(selectFields)
+          .eq('id', userId)
+          .maybeSingle()
+
+        if (!error && data) {
+          userData = data
+          break
+        }
+      }
 
       // Sightings
       const { data: sightingsData } = await supabase
@@ -87,7 +118,7 @@ export default function UserProfilePage() {
   // Tab değiştirme fonksiyonu - tip güvenli
   const handleTabChange = (tabId: string) => {
     // Type assertion ile tip güvenli hale getir
-    if (tabId === 'sightings' || tabId === 'spots' || tabId === 'reputation') {
+    if (tabId === 'sightings' || tabId === 'spots' || tabId === 'reputation' || tabId === 'social') {
       setActiveTab(tabId)
     }
   }
@@ -119,6 +150,8 @@ export default function UserProfilePage() {
     )
   }
 
+  const displayName = resolveDisplayName(user)
+
   return (
     <div className="min-h-screen bg-gray-50">
       
@@ -132,12 +165,12 @@ export default function UserProfilePage() {
                   {user.avatar_url ? (
                     <img
                       src={user.avatar_url}
-                      alt={user.full_name || 'User'}
+                      alt={displayName}
                       className="w-full h-full rounded-full object-cover"
                     />
                   ) : (
                     <div className="text-3xl font-bold text-blue-600">
-                      {user.full_name ? user.full_name[0].toUpperCase() : 'K'}
+                      {displayName[0]?.toUpperCase() || 'K'}
                     </div>
                   )}
                 </div>
@@ -147,7 +180,7 @@ export default function UserProfilePage() {
               </div>
               
               <div>
-                <h1 className="text-3xl font-bold mb-2">{user.full_name || 'Kullanıcı'}</h1>
+                <h1 className="text-3xl font-bold mb-2">{displayName}</h1>
                 {user.bio && <p className="text-blue-100">{user.bio}</p>}
                 {user.location && (
                   <p className="text-blue-100 text-sm mt-2">📍 {user.location}</p>
