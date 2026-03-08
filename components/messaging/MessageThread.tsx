@@ -453,7 +453,7 @@ export default function MessageThread({ threadId, userId, onBack }: MessageThrea
               <div className="absolute right-0 top-full mt-1 w-48 bg-white border rounded-lg shadow-lg py-2 z-20">
                 <a 
                   href={`/profile/${participant?.id}`}
-                  className="w-full px-4 py-2 text-left hover:bg-gray-100 text-sm flex items-center block"
+                  className="w-full px-4 py-2 text-left hover:bg-gray-100 text-sm flex items-center"
                   onClick={() => setShowOptions(false)}
                 >
                   <Info className="w-4 h-4 mr-2" />
