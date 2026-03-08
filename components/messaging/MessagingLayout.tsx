@@ -96,7 +96,7 @@ export default function MessagingLayout({
     }
   }, [userId])
 
-  const focusExistingThread = useCallback(async (receiverId: string, threadType: string) => {
+  const focusExistingThread = useCallback(async (receiverId: string, threadType: string): Promise<boolean> => {
     try {
       const { data, error } = await supabase
         .from('active_conversations')
@@ -118,9 +118,14 @@ export default function MessagingLayout({
         if (data.request_status === 'pending' && data.request_initiator_id === userId) {
           toast.info('Bu kullanıcıya gönderdiğiniz talep hâlâ onay bekliyor.', 6000)
         }
+
+        return true
       }
+
+      return false
     } catch (error) {
       console.error('Mevcut thread odaklanamadı:', error)
+      return false
     }
   }, [toast, userId])
 
@@ -267,21 +272,34 @@ export default function MessagingLayout({
     const threadType = initialThreadType || 'help'
     const autoGuardKey = `messages:auto-request:${initialReceiverId}:${threadType}:${draft}`
 
-    if (typeof window !== 'undefined') {
-      const alreadyHandledInSession = sessionStorage.getItem(autoGuardKey)
-      if (alreadyHandledInSession) {
-        setAutoRequestHandled(true)
-        clearAutoRequestParams()
-        void fetchThreads().then(() => focusExistingThread(initialReceiverId, threadType))
-        return
+    const runAutoRequest = async () => {
+      setAutoRequestHandled(true)
+
+      if (typeof window !== 'undefined') {
+        const alreadyHandledInSession = sessionStorage.getItem(autoGuardKey)
+        if (alreadyHandledInSession) {
+          clearAutoRequestParams()
+          await fetchThreads()
+          const found = await focusExistingThread(initialReceiverId, threadType)
+
+          if (found) {
+            return
+          }
+
+          // Eski/bozuk guard anahtarıysa tekrar denemeye izin ver
+          sessionStorage.removeItem(autoGuardKey)
+        }
       }
 
-      sessionStorage.setItem(autoGuardKey, '1')
+      clearAutoRequestParams()
+      const sent = await handleNewMessage(initialReceiverId, draft, threadType)
+
+      if (sent && typeof window !== 'undefined') {
+        sessionStorage.setItem(autoGuardKey, '1')
+      }
     }
 
-    setAutoRequestHandled(true)
-    clearAutoRequestParams()
-    void handleNewMessage(initialReceiverId, draft, threadType)
+    void runAutoRequest()
   }, [
     autoRequestHandled,
     clearAutoRequestParams,
