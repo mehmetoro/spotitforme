@@ -1,7 +1,8 @@
 // components/messaging/ThreadList.tsx - DÜZELTİLMİŞ
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { MessageSquare, User, Clock, Trash2, CheckCircle } from 'lucide-react'
 
 interface Thread {
@@ -50,7 +51,37 @@ export default function ThreadList({
   loading,
   userId
 }: ThreadListProps) {
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const [activeFilter, setActiveFilter] = useState<'all' | 'incoming' | 'outgoing'>('all')
+
+  const resolveFilter = (value: string | null): 'all' | 'incoming' | 'outgoing' => {
+    if (value === 'incoming' || value === 'outgoing') return value
+    return 'all'
+  }
+
+  useEffect(() => {
+    const queryFilter = resolveFilter(searchParams.get('filter'))
+    if (queryFilter !== activeFilter) {
+      setActiveFilter(queryFilter)
+    }
+  }, [searchParams, activeFilter])
+
+  const setFilterAndSyncUrl = (nextFilter: 'all' | 'incoming' | 'outgoing') => {
+    setActiveFilter(nextFilter)
+
+    const params = new URLSearchParams(searchParams.toString())
+    if (nextFilter === 'all') {
+      params.delete('filter')
+    } else {
+      params.set('filter', nextFilter)
+    }
+
+    const query = params.toString()
+    const nextUrl = query ? `${pathname}?${query}` : pathname
+    router.replace(nextUrl, { scroll: false })
+  }
 
   const filteredThreads = useMemo(() => {
     if (activeFilter === 'incoming') {
@@ -188,7 +219,7 @@ export default function ThreadList({
     <div className="flex-1 overflow-y-auto">
       <div className="px-3 py-2 border-b border-gray-100 flex items-center gap-2 overflow-x-auto">
         <button
-          onClick={() => setActiveFilter('all')}
+          onClick={() => setFilterAndSyncUrl('all')}
           className={`text-xs px-3 py-1 rounded-full whitespace-nowrap ${
             activeFilter === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
           }`}
@@ -196,7 +227,7 @@ export default function ThreadList({
           Tümü
         </button>
         <button
-          onClick={() => setActiveFilter('incoming')}
+          onClick={() => setFilterAndSyncUrl('incoming')}
           className={`text-xs px-3 py-1 rounded-full whitespace-nowrap ${
             activeFilter === 'incoming' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
           }`}
@@ -204,7 +235,7 @@ export default function ThreadList({
           Bana Gelen Talep
         </button>
         <button
-          onClick={() => setActiveFilter('outgoing')}
+          onClick={() => setFilterAndSyncUrl('outgoing')}
           className={`text-xs px-3 py-1 rounded-full whitespace-nowrap ${
             activeFilter === 'outgoing' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
           }`}
