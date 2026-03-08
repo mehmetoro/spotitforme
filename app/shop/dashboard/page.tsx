@@ -16,6 +16,7 @@ import ShopHeader from '@/components/shop/ShopHeader'
 import ActiveSearches from '@/components/shop/ActiveSearches'
 import ShopSocialFeed from '@/components/shop/ShopSocialFeed'
 import ShopStatsPublic from '@/components/shop/ShopStatsPublic'
+import DiscountRequestsPanel from '@/components/shop/DiscountRequestsPanel'
 
 interface Shop {
   id: string
@@ -380,6 +381,14 @@ export default function ShopDashboardPage() {
               <RecentMatches 
                 shopId={shop.id}
                 limit={5}
+              />
+            )}
+
+            {/* İndirim Talepleri */}
+            {shop && (
+              <DiscountRequestsPanel
+                shopId={shop.id}
+                limit={6}
               />
             )}
 
