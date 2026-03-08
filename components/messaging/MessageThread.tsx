@@ -3,6 +3,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useToast } from '@/hooks/useToast'
 import { Send, Paperclip, Image as ImageIcon, X, ArrowLeft, MoreVertical, Phone, Video, Info, Trash2, MessageSquare } from 'lucide-react'
 
 interface Message {
@@ -40,6 +41,7 @@ interface MessageThreadProps {
 }
 
 export default function MessageThread({ threadId, userId, onBack }: MessageThreadProps) {
+  const toast = useToast()
   const [messages, setMessages] = useState<Message[]>([])
   const [newMessage, setNewMessage] = useState('')
   const [participant, setParticipant] = useState<Participant | null>(null)
@@ -197,12 +199,12 @@ export default function MessageThread({ threadId, userId, onBack }: MessageThrea
 
   const handleSendMessage = async () => {
     if (threadMeta?.request_status === 'pending') {
-      alert('Bu sohbet için önce mesajlaşma talebinin kabul edilmesi gerekiyor.')
+      toast.error('Bu sohbet için önce mesajlaşma talebinin kabul edilmesi gerekiyor.')
       return
     }
 
     if (threadMeta?.request_status === 'rejected') {
-      alert('Bu sohbet talebi reddedildi. Yeni bir talep başlatmalısınız.')
+      toast.error('Bu sohbet talebi reddedildi. Yeni bir talep başlatmalısınız.')
       return
     }
 
@@ -276,7 +278,7 @@ export default function MessageThread({ threadId, userId, onBack }: MessageThrea
 
     } catch (error) {
       console.error('Mesaj gönderilemedi:', error)
-      alert('Mesaj gönderilemedi. Lütfen tekrar deneyin.')
+      toast.error('Mesaj gönderilemedi. Lütfen tekrar deneyin.')
       
       // Optimistik mesajı geri al
       setMessages(prev => prev.filter(msg => msg.id !== tempMessageId))
@@ -289,13 +291,13 @@ export default function MessageThread({ threadId, userId, onBack }: MessageThrea
     const file = e.target.files?.[0]
     if (file) {
       if (file.size > 10 * 1024 * 1024) {
-        alert('Dosya boyutu 10MB\'dan küçük olmalı')
+        toast.error('Dosya boyutu 10MB\'dan küçük olmalı')
         return
       }
       
       const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf']
       if (!allowedTypes.includes(file.type)) {
-        alert('Sadece JPG, PNG, GIF veya PDF dosyaları yükleyebilirsiniz')
+        toast.error('Sadece JPG, PNG, GIF veya PDF dosyaları yükleyebilirsiniz')
         return
       }
       
@@ -364,7 +366,7 @@ export default function MessageThread({ threadId, userId, onBack }: MessageThrea
       await fetchThreadData()
     } catch (error) {
       console.error('Request decision failed:', error)
-      alert('Talep yanıtlanamadı. Lütfen tekrar deneyin.')
+      toast.error('Talep yanıtlanamadı. Lütfen tekrar deneyin.')
     } finally {
       setRequestActionLoading(false)
     }
@@ -475,31 +477,42 @@ export default function MessageThread({ threadId, userId, onBack }: MessageThrea
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
         {isPendingRequest ? (
-          <div className="max-w-2xl mx-auto bg-amber-50 border border-amber-200 rounded-xl p-4">
-            <h4 className="font-semibold text-amber-900 mb-2">🛂 Mesajlaşma Talebi</h4>
-            <p className="text-sm text-amber-800 mb-3">
-              {threadMeta?.request_message || 'Mesajlaşma başlatmak için talep gönderildi.'}
-            </p>
+          <div className="max-w-2xl mx-auto bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-300 rounded-xl p-6 shadow-lg">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="flex-shrink-0 w-12 h-12 bg-amber-500 rounded-full flex items-center justify-center animate-pulse">
+                <span className="text-2xl">🔔</span>
+              </div>
+              <div className="flex-1">
+                <h4 className="font-bold text-amber-900 text-lg mb-1">
+                  {isRequestInitiator ? '⚡ Mesaj Talebi Gönderildi' : '🔔 Yeni Mesaj Talebi'}
+                </h4>
+                <p className="text-sm text-amber-800 leading-relaxed">
+                  {threadMeta?.request_message || 'Mesajlaşma başlatmak için talep gönderildi.'}
+                </p>
+              </div>
+            </div>
 
             {isRequestInitiator ? (
-              <p className="text-sm text-amber-700">
-                Talebiniz gönderildi. Karşı taraf kabul ettiğinde sohbet açılacak.
-              </p>
+              <div className="bg-white/60 rounded-lg p-4 border border-amber-200">
+                <p className="text-sm text-amber-900 font-medium">
+                  ⏳ Talebiniz karşı tarafa iletildi. Kabul ettiğinde mesajlaşmaya başlayabileceksiniz.
+                </p>
+              </div>
             ) : (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3 bg-white/60 rounded-lg p-4 border border-amber-200">
                 <button
                   onClick={() => handleRequestDecision('accept')}
                   disabled={requestActionLoading}
-                  className="px-3 py-2 rounded-lg text-sm font-medium bg-green-600 text-white hover:bg-green-700 disabled:opacity-60"
+                  className="flex-1 px-4 py-3 rounded-lg text-sm font-semibold bg-green-600 text-white hover:bg-green-700 disabled:opacity-60 shadow-md hover:shadow-lg transition-all"
                 >
-                  Kabul Et
+                  ✔️ Kabul Et
                 </button>
                 <button
                   onClick={() => handleRequestDecision('reject')}
                   disabled={requestActionLoading}
-                  className="px-3 py-2 rounded-lg text-sm font-medium bg-red-600 text-white hover:bg-red-700 disabled:opacity-60"
+                  className="flex-1 px-4 py-3 rounded-lg text-sm font-semibold bg-red-600 text-white hover:bg-red-700 disabled:opacity-60 shadow-md hover:shadow-lg transition-all"
                 >
-                  Reddet
+                  ❌ Reddet
                 </button>
               </div>
             )}

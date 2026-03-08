@@ -96,6 +96,34 @@ export default function MessagingLayout({
     }
   }, [userId])
 
+  const focusExistingThread = useCallback(async (receiverId: string, threadType: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('active_conversations')
+        .select('id, request_status, request_initiator_id')
+        .or(`participant1_id.eq.${userId},participant2_id.eq.${userId}`)
+        .eq('thread_type', threadType)
+        .or(
+          `and(participant1_id.eq.${userId},participant2_id.eq.${receiverId}),and(participant1_id.eq.${receiverId},participant2_id.eq.${userId})`
+        )
+        .order('last_message_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (error) throw error
+
+      if (data?.id) {
+        setSelectedThread(data.id)
+
+        if (data.request_status === 'pending' && data.request_initiator_id === userId) {
+          toast.info('Bu kullanıcıya gönderdiğiniz talep hâlâ onay bekliyor.', 6000)
+        }
+      }
+    } catch (error) {
+      console.error('Mevcut thread odaklanamadı:', error)
+    }
+  }, [toast, userId])
+
   const setupRealtimeSubscription = () => {
     const channel = supabase
       .channel('message-changes')
@@ -174,19 +202,23 @@ export default function MessagingLayout({
         return false
       }
 
+      setShowNewMessageModal(false)
+      
+      // Thread listesini yenile ve bekle
+      await fetchThreads()
+
+      // Thread yüklendikten SONRA seç
       if (result?.threadId) {
         setSelectedThread(result.threadId)
       }
 
-      setShowNewMessageModal(false)
-      fetchThreads()
-
+      // Başarı mesajını daha uzun süre göster (6 saniye)
       if (result?.message) {
         const successCodes = ['REQUEST_CREATED', 'REQUEST_REOPENED', 'MESSAGE_SENT']
         if (successCodes.includes(result?.code)) {
-          toast.success(result.message)
+          toast.success(result.message, 6000)
         } else {
-          toast.info(result.message)
+          toast.info(result.message, 6000)
         }
       }
 
@@ -233,6 +265,7 @@ export default function MessagingLayout({
       if (alreadyHandledInSession) {
         setAutoRequestHandled(true)
         clearAutoRequestParams()
+        void fetchThreads().then(() => focusExistingThread(initialReceiverId, threadType))
         return
       }
 
@@ -245,6 +278,8 @@ export default function MessagingLayout({
   }, [
     autoRequestHandled,
     clearAutoRequestParams,
+    fetchThreads,
+    focusExistingThread,
     initialDraft,
     initialReceiverId,
     initialThreadId,

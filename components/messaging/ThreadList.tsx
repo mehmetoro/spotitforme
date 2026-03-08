@@ -567,12 +567,18 @@ export default function ThreadList({
         {filteredThreads.map((thread) => {
           const unreadCount = getUnreadCount(thread)
           const isSelected = selectedThread === thread.id
+          const isPending = thread.request_status === 'pending'
+          const isRejected = thread.request_status === 'rejected'
+          const isRequestInitiator = thread.request_initiator_id === userId
           
           return (
             <div
               key={thread.id}
-              className={`p-4 hover:bg-gray-50 cursor-pointer transition-colors ${
-                isSelected ? 'bg-blue-50 border-r-4 border-r-blue-600' : ''
+              className={`p-4 cursor-pointer transition-colors ${
+                isSelected ? 'bg-blue-50 border-r-4 border-r-blue-600' : 
+                isPending ? 'bg-amber-50/30 hover:bg-amber-50' :
+                isRejected ? 'bg-red-50/20 hover:bg-red-50/40' :
+                'hover:bg-gray-50'
               }`}
               onClick={() => onSelectThread(thread.id)}
             >
@@ -593,12 +599,12 @@ export default function ThreadList({
                           <span className={`shrink-0 text-[10px] px-2 py-0.5 rounded-full font-medium ${getThreadTypeClass(thread.thread_type)}`}>
                             {getThreadTypeLabel(thread.thread_type)}
                           </span>
-                          {thread.request_status === 'pending' && (
-                            <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-medium">
-                              talep
+                          {isPending && (
+                            <span className="shrink-0 text-xs px-2.5 py-1 rounded-full bg-amber-500 text-white font-semibold animate-pulse shadow-sm">
+                              {isRequestInitiator ? '⚡ Onay Bekleniyor' : '🔔 Yeni Talep'}
                             </span>
                           )}
-                          {thread.request_status === 'rejected' && (
+                          {isRejected && (
                             <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium">
                               reddedildi
                             </span>
