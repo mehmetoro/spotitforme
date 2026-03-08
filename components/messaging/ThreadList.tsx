@@ -227,6 +227,26 @@ export default function ThreadList({
     return nextThreads
   }, [threads, activeFilter, activeTypeFilter, userId, searchQuery, quickFilter, sortBy])
 
+  const outgoingPendingCount = useMemo(() => {
+    return threads.filter(
+      (thread) => thread.request_status === 'pending' && thread.request_initiator_id === userId
+    ).length
+  }, [threads, userId])
+
+  const incomingPendingCount = useMemo(() => {
+    return threads.filter(
+      (thread) =>
+        thread.request_status === 'pending' &&
+        !!thread.request_initiator_id &&
+        thread.request_initiator_id !== userId
+    ).length
+  }, [threads, userId])
+
+  const handlePendingSummaryClick = (targetFilter: RequestFilter) => {
+    setQuickFilter('all')
+    setFiltersAndSyncUrl(targetFilter, 'all')
+  }
+
   const getThreadTypeLabel = (threadType?: string) => {
     switch (threadType) {
       case 'shop':
@@ -438,6 +458,33 @@ export default function ThreadList({
 
       <div className="px-3 py-2 border-b border-gray-100 flex items-center gap-2 overflow-x-auto">
         <button
+          onClick={() => handlePendingSummaryClick('outgoing')}
+          className={`flex-1 min-w-[180px] text-left rounded-xl border px-3 py-2 transition-colors ${
+            activeFilter === 'outgoing'
+              ? 'border-amber-300 bg-amber-50'
+              : 'border-gray-200 bg-white hover:bg-gray-50'
+          }`}
+        >
+          <p className="text-[11px] uppercase tracking-wide text-gray-500">Gönderdiğim Talepler</p>
+          <p className="mt-1 text-lg font-semibold text-gray-900">{outgoingPendingCount}</p>
+          <p className="text-xs text-gray-600">Onay bekleyen</p>
+        </button>
+        <button
+          onClick={() => handlePendingSummaryClick('incoming')}
+          className={`flex-1 min-w-[180px] text-left rounded-xl border px-3 py-2 transition-colors ${
+            activeFilter === 'incoming'
+              ? 'border-blue-300 bg-blue-50'
+              : 'border-gray-200 bg-white hover:bg-gray-50'
+          }`}
+        >
+          <p className="text-[11px] uppercase tracking-wide text-gray-500">Bana Gelen Talepler</p>
+          <p className="mt-1 text-lg font-semibold text-gray-900">{incomingPendingCount}</p>
+          <p className="text-xs text-gray-600">Yanıt bekleyen</p>
+        </button>
+      </div>
+
+      <div className="px-3 py-2 border-b border-gray-100 flex items-center gap-2 overflow-x-auto">
+        <button
           onClick={() => setFiltersAndSyncUrl('all', activeTypeFilter)}
           className={`text-xs px-3 py-1 rounded-full whitespace-nowrap ${
             activeFilter === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -451,7 +498,7 @@ export default function ThreadList({
             activeFilter === 'incoming' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
           }`}
         >
-          Bana Gelen Talep
+          Bana Gelen Talep ({incomingPendingCount})
         </button>
         <button
           onClick={() => setFiltersAndSyncUrl('outgoing', activeTypeFilter)}
@@ -459,7 +506,7 @@ export default function ThreadList({
             activeFilter === 'outgoing' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
           }`}
         >
-          Gönderdiğim Talep
+          Gönderdiğim Talep ({outgoingPendingCount})
         </button>
       </div>
 
