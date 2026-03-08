@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { X } from 'lucide-react'
+import { useToast } from '@/hooks/useToast'
 import ThreadList from './ThreadList'
 import MessageThread from './MessageThread'
 import NewMessageModal from './NewMessageModal'
@@ -50,9 +50,8 @@ export default function MessagingLayout({
   const [showNewMessageModal, setShowNewMessageModal] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
   const [autoRequestHandled, setAutoRequestHandled] = useState(false)
-  const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' | 'info' } | null>(null)
-  const [toastVisible, setToastVisible] = useState(false)
   const requestInFlightRef = useRef(false)
+  const toast = useToast()
   
   // Realtime subscription için
   const [subscription, setSubscription] = useState<any>(null)
@@ -146,7 +145,7 @@ export default function MessagingLayout({
       }
 
       if (!accessToken) {
-        setToast({ message: 'Oturum doğrulanamadı. Lütfen tekrar giriş yapın.', tone: 'error' })
+        toast.error('Oturum doğrulanamadı. Lütfen tekrar giriş yapın.')
         return false
       }
 
@@ -171,7 +170,7 @@ export default function MessagingLayout({
       }
 
       if (!response.ok) {
-        setToast({ message: result?.error || 'Mesaj gönderilemedi. Lütfen tekrar deneyin.', tone: 'error' })
+        toast.error(result?.error || 'Mesaj gönderilemedi. Lütfen tekrar deneyin.')
         return false
       }
 
@@ -184,49 +183,22 @@ export default function MessagingLayout({
 
       if (result?.message) {
         const successCodes = ['REQUEST_CREATED', 'REQUEST_REOPENED', 'MESSAGE_SENT']
-        const tone = successCodes.includes(result?.code) ? 'success' : 'info'
-        setToast({ message: result.message, tone })
+        if (successCodes.includes(result?.code)) {
+          toast.success(result.message)
+        } else {
+          toast.info(result.message)
+        }
       }
 
       return true
     } catch (error) {
       console.error('Mesaj gönderme hatası:', error)
-      setToast({ message: 'Mesaj gönderilemedi. Lütfen tekrar deneyin.', tone: 'error' })
+      toast.error('Mesaj gönderilemedi. Lütfen tekrar deneyin.')
       return false
     } finally {
       requestInFlightRef.current = false
     }
-  }, [fetchThreads])
-
-  useEffect(() => {
-    if (!toast) {
-      setToastVisible(false)
-      return
-    }
-
-    const frame = requestAnimationFrame(() => {
-      setToastVisible(true)
-    })
-
-    const hideTimeout = setTimeout(() => {
-      setToastVisible(false)
-    }, 3500)
-
-    const removeTimeout = setTimeout(() => {
-      setToast(null)
-    }, 3800)
-
-    return () => {
-      cancelAnimationFrame(frame)
-      clearTimeout(hideTimeout)
-      clearTimeout(removeTimeout)
-    }
-  }, [toast])
-
-  const dismissToast = useCallback(() => {
-    setToastVisible(false)
-    setTimeout(() => setToast(null), 180)
-  }, [])
+  }, [fetchThreads, toast])
 
   const clearAutoRequestParams = useCallback(() => {
     const params = new URLSearchParams(searchParams.toString())
@@ -301,39 +273,12 @@ export default function MessagingLayout({
 
     } catch (error) {
       console.error('Thread silme hatası:', error)
-      setToast({ message: 'Konuşma silinemedi.', tone: 'error' })
+      toast.error('Konuşma silinemedi.')
     }
   }
 
   return (
     <div className="relative flex h-[calc(100vh-200px)] bg-white rounded-xl shadow-lg overflow-hidden">
-      {toast && (
-        <div
-          className={`absolute top-4 right-4 z-50 transition-all duration-200 ease-out ${
-            toastVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none'
-          }`}
-        >
-          <div
-            className={`px-4 py-3 rounded-lg shadow-lg text-sm font-medium max-w-sm flex items-start gap-3 ${
-              toast.tone === 'success'
-                ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                : toast.tone === 'error'
-                  ? 'bg-red-100 text-red-800 border border-red-200'
-                  : 'bg-blue-100 text-blue-800 border border-blue-200'
-            }`}
-          >
-            <span className="flex-1">{toast.message}</span>
-            <button
-              onClick={dismissToast}
-              className="shrink-0 rounded p-0.5 hover:bg-black/10 transition-colors"
-              aria-label="Bildirimi kapat"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Sol sidebar - Thread listesi */}
       <div className="w-full md:w-96 border-r border-gray-200 flex flex-col">
         <div className="p-4 border-b">
