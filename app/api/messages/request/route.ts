@@ -21,6 +21,13 @@ const ALLOWED_THREAD_TYPES: ThreadType[] = [
   'trade',
 ]
 
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+function isValidUuid(value: string) {
+  return UUID_REGEX.test(value)
+}
+
 function resolveThreadType(value?: string): ThreadType {
   if (value && ALLOWED_THREAD_TYPES.includes(value as ThreadType)) {
     return value as ThreadType
@@ -87,6 +94,10 @@ export async function POST(request: NextRequest) {
 
     if (!receiverId || !content) {
       return NextResponse.json({ error: 'Alıcı ve mesaj zorunludur' }, { status: 400 })
+    }
+
+    if (!isValidUuid(receiverId)) {
+      return NextResponse.json({ error: 'Geçersiz alıcı kimliği' }, { status: 400 })
     }
 
     if (content.length > 2000) {

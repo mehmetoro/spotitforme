@@ -49,6 +49,13 @@ interface DatabaseSpot {
   image_url: string | null
 }
 
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+function isValidUuid(value: string) {
+  return UUID_REGEX.test(value)
+}
+
 export default function NewMessageModal({ 
   isOpen, 
   onClose, 
@@ -127,7 +134,7 @@ export default function NewMessageModal({
         .select('*')
         .neq('id', currentUserId)
         .limit(20)
-        .order('last_seen', { ascending: false })
+        .order('updated_at', { ascending: false })
 
       if (usersError) throw usersError
 
@@ -203,21 +210,12 @@ export default function NewMessageModal({
 
     } catch (error) {
       console.error('Başlangıç verileri yüklenemedi:', error)
-      // Fallback veri
-      const fallbackUsers: UserProfile[] = [
-        { id: '1', full_name: 'Ahmet Yılmaz', avatar: '', last_active: '2 saat önce', reputation_score: 150 },
-        { id: '2', full_name: 'Zeynep Demir', avatar: '', last_active: '1 gün önce', reputation_score: 89 },
-        { id: '3', full_name: 'Mehmet Öz', avatar: '', last_active: 'Çevrimiçi', reputation_score: 42 }
-      ]
-      
-      const fallbackSpots: Spot[] = [
-        { id: '1', title: 'Vintage Sony Walkman', image_url: '' },
-        { id: '2', title: 'Çelik Düdük 1980 Model', image_url: '' }
-      ]
-      
-      setUsers(fallbackUsers)
-      setFilteredUsers(fallbackUsers)
-      setSpots(fallbackSpots)
+      setUsers([])
+      setFilteredUsers([])
+      setSpots([])
+      setSelectedUser(null)
+      setStep('select')
+      setFormError('Kullanıcı listesi yüklenemedi. Lütfen sayfayı yenileyip tekrar deneyin.')
     } finally {
       setLoading(false)
     }
@@ -253,6 +251,11 @@ export default function NewMessageModal({
   const handleSend = async () => {
     if (!selectedUser || !message.trim()) {
       setFormError('Lütfen bir kullanıcı seçin ve mesajınızı yazın.')
+      return
+    }
+
+    if (!isValidUuid(selectedUser.id)) {
+      setFormError('Geçersiz kullanıcı seçimi. Lütfen listeden tekrar seçim yapın.')
       return
     }
 
@@ -409,6 +412,12 @@ export default function NewMessageModal({
 
                 {/* Kullanıcı Listesi */}
                 <div className="p-4">
+                  {formError && (
+                    <div className="mb-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                      {formError}
+                    </div>
+                  )}
+
                   <h3 className="text-sm font-medium text-gray-700 mb-3">
                     {searchQuery ? 'Arama Sonuçları' : 'Önerilen Kullanıcılar'}
                   </h3>
