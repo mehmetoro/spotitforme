@@ -107,12 +107,18 @@ export default function UserProfilePage() {
 
       // RLS / legacy şema durumlarında server-side fallback
       if (!userData) {
+        console.log('Client-side query failed, trying API fallback...')
         try {
           const response = await fetch(`/api/profile/${userId}`)
 
           if (response.ok) {
             const payload = await response.json()
-            userData = payload?.user || null
+            console.log('API Response:', payload)
+            
+            if (payload?.user) {
+              userData = payload.user
+              console.log('User data from API:', userData)
+            }
 
             if ((!sightingsData || sightingsData.length === 0) && Array.isArray(payload?.sightings)) {
               sightingsData = payload.sightings
@@ -122,13 +128,15 @@ export default function UserProfilePage() {
               spotsData = payload.spots
             }
           } else {
-            console.error('API profil hatası:', await response.text())
+            const errorText = await response.text()
+            console.error('API profil hatası:', errorText)
           }
         } catch (apiError) {
           console.error('API çağrısı başarısız:', apiError)
         }
       }
 
+      console.log('Final userData:', userData)
       setUser(userData)
       setSightings(sightingsData || [])
       setSpots(spotsData || [])

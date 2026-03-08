@@ -48,6 +48,25 @@ export async function GET(
       }
     }
 
+    // Eğer user_profiles'da bulunamadıysa auth.users'dan çek
+    if (!profileData) {
+      const { data: authUserData } = await supabase.auth.admin.getUserById(userId)
+      
+      if (authUserData?.user) {
+        profileData = {
+          id: authUserData.user.id,
+          email: authUserData.user.email,
+          full_name: authUserData.user.user_metadata?.full_name || null,
+          name: authUserData.user.user_metadata?.name || null,
+          username: authUserData.user.user_metadata?.username || null,
+          avatar_url: authUserData.user.user_metadata?.avatar_url || null,
+          bio: null,
+          location: null,
+          created_at: authUserData.user.created_at,
+        }
+      }
+    }
+
     const [{ data: sightingsData }, { data: spotsData }] = await Promise.all([
       supabase
         .from('quick_sightings')
