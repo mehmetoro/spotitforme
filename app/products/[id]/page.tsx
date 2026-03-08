@@ -48,6 +48,7 @@ export default function ProductPage() {
   const [loadingRate, setLoadingRate] = useState(false);
   const [myDiscountRequest, setMyDiscountRequest] = useState<MyDiscountRequest | null>(null);
   const [loadingMyDiscountRequest, setLoadingMyDiscountRequest] = useState(false);
+  const [availableSpots, setAvailableSpots] = useState<number>(0);
 
   useEffect(() => {
     loadProduct();
@@ -152,6 +153,7 @@ export default function ProductPage() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) {
         setMyDiscountRequest(null);
+        setAvailableSpots(0);
         return;
       }
 
@@ -169,6 +171,7 @@ export default function ProductPage() {
       }
 
       setMyDiscountRequest(result.request || null);
+      setAvailableSpots(result.availableSpots || 0);
     } catch (error) {
       console.error('Discount request status error:', error);
     } finally {
@@ -256,7 +259,9 @@ export default function ProductPage() {
           updated_at: new Date().toISOString(),
         });
 
-        alert(`✅ İndirim talebiniz mağazaya iletildi.\n\n${spotAmount} Spot İndirim Talebiniz:\n${discountAmountLocal.toFixed(2)} ${product.price_currency} indirim\nYeni Fiyat: ${finalPrice.toFixed(2)} ${product.price_currency}`);
+        setAvailableSpots(Math.max(0, availableSpots - (result.blocked_spots || 1)));
+
+        alert(`✅ İndirim talebiniz mağazaya iletildi.\n\n${spotAmount} Spot İndirim Talebiniz:\n${discountAmountLocal.toFixed(2)} ${product.price_currency} indirim\nYeni Fiyat: ${finalPrice.toFixed(2)} ${product.price_currency}\n\n🔒 1 Spot bloke edilmiştir.`);
       }
 
       setShowSpotModal(false);
@@ -696,11 +701,25 @@ export default function ProductPage() {
                 
                 {/* Butonlar */}
                 <div className="space-y-3">
+                  {availableSpots < 1 && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                      <div className="flex items-start gap-2">
+                        <span className="text-2xl">⚠️</span>
+                        <div>
+                          <p className="font-bold text-red-900">Yeterli Spot'unuz Yok</p>
+                          <p className="text-sm text-red-700 mt-1">
+                            İndirim talebi vermek için en az 1 Spot'a ihtiyacınız var.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   <button
                     onClick={() => setShowSpotModal(true)}
-                    disabled={loadingMyDiscountRequest || isPendingRequest}
+                    disabled={loadingMyDiscountRequest || isPendingRequest || availableSpots < 1}
                     className={`w-full text-white py-4 rounded-xl font-bold flex items-center justify-center ${
-                      loadingMyDiscountRequest || isPendingRequest
+                      loadingMyDiscountRequest || isPendingRequest || availableSpots < 1
                         ? 'bg-gray-400 cursor-not-allowed'
                         : 'bg-purple-600 hover:bg-purple-700'
                     }`}
@@ -710,8 +729,17 @@ export default function ProductPage() {
                       ? 'Durum Kontrol Ediliyor...'
                       : isPendingRequest
                         ? '⏳ Talebiniz Beklemede'
-                        : '💎 İndirim Talep Et'}
+                        : availableSpots < 1
+                          ? '❌ Spotu Yok'
+                          : '💎 İndirim Talep Et'}
                   </button>
+
+                  {availableSpots >= 1 && !isPendingRequest && (
+                    <p className="text-xs text-gray-600 px-2">
+                      ℹ️ Bu teklifi verirken <span className="font-bold text-amber-700">1 Spot bloke</span> edilecektir. 
+                      Talep onaylanırsa veya reddedilirse spot serbest bırakılacaktır.
+                    </p>
+                  )}
 
                   <button
                     onClick={handleContact}

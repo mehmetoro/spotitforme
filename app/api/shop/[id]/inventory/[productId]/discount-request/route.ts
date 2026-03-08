@@ -38,6 +38,26 @@ export async function GET(
       return NextResponse.json({ error: authError || 'Yetkisiz' }, { status: 401 });
     }
 
+    // Get total spot balance - using RLS allowed read via service role wrapper
+    const { data: walletData, error: walletError } = await supabase
+      .from('spot_wallets')
+      .select('balance')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    const totalSpots = walletData?.balance || 0;
+
+    // Get blocked spots (pending + approved requests for this user)
+    const { data: blockedRequests, error: blockedError } = await supabase
+      .from('shop_product_discount_requests')
+      .select('spot_amount')
+      .eq('buyer_id', user.id)
+      .in('status', ['pending', 'approved']);
+
+    const blockedSpots = (blockedRequests || []).reduce((sum, req) => sum + (req.spot_amount || 0), 0);
+    const availableSpots = Math.max(0, totalSpots - blockedSpots);
+
+    // Get current request status
     const { data: requestRow, error } = await supabase
       .from('shop_product_discount_requests')
       .select('id, spot_amount, discount_amount_usd, discount_amount_local, original_price, final_price, currency, exchange_rate, status, created_at, responded_at, updated_at')
@@ -55,6 +75,9 @@ export async function GET(
     return NextResponse.json({
       success: true,
       request: requestRow || null,
+      availableSpots,
+      totalSpots,
+      blockedSpots,
     });
   } catch (error: any) {
     return NextResponse.json(
@@ -92,6 +115,44 @@ export async function POST(
 
     const buyerId = user.id;
 
+    // ==========================================
+    // 1. CHECK: Sufficient spot balance
+    // ==========================================
+    const { data: walletData, error: walletError } = await supabase
+      .from('spot_wallets')
+      .select('balance')
+      .eq('user_id', buyerId)
+      .maybeSingle();
+
+    if (walletError) {
+      return NextResponse.json(
+        { error: 'Spot bakiyesi kontrol edilemedi' },
+        { status: 400 }
+      );
+    }
+
+    const totalSpots = walletData?.balance || 0;
+
+    // Get blocked spots from pending/approved requests
+    const { data: blockedRequests } = await supabase
+      .from('shop_product_discount_requests')
+      .select('spot_amount')
+      .eq('buyer_id', buyerId)
+      .in('status', ['pending', 'approved']);
+
+    const blockedSpots = (blockedRequests || []).reduce((sum, req) => sum + (req.spot_amount || 0), 0);
+    const availableSpots = Math.max(0, totalSpots - blockedSpots);
+
+    if (availableSpots < 1) {
+      return NextResponse.json(
+        { error: 'Yeterli Spot\'unuz yok. İndirim talebi için en az 1 Spot gereklidir.' },
+        { status: 402 }
+      );
+    }
+
+    // ==========================================
+    // 2. CHECK: Product exists and is active
+    // ==========================================
     const { data: product, error: productError } = await supabase
       .from('shop_inventory')
       .select('id, shop_id, title, status, spot_discount')
@@ -149,6 +210,9 @@ export async function POST(
       );
     }
 
+    // ==========================================
+    // 3. CREATE: Discount request with blocked spot
+    // ==========================================
     const { data: requestRow, error: insertError } = await supabase
       .from('shop_product_discount_requests')
       .insert({
@@ -164,6 +228,7 @@ export async function POST(
         currency: currency || 'TRY',
         exchange_rate: Number(exchangeRate) || 1,
         status: 'pending',
+        blocked_spots: 1, // 1 spot başarıyla bloke edildi
       })
       .select('id')
       .single();
@@ -180,8 +245,10 @@ export async function POST(
       {
         success: true,
         request_id: requestRow.id,
+        blocked_spots: 1,
+        availableSpots: availableSpots - 1,
         message:
-          'İndirim talebiniz mağazaya iletildi. Alışveriş tamamlandığında ve mağaza onayladığında Spot transferi gerçekleşir.',
+          'İndirim talebiniz mağazaya iletildi. 1 Spot blokelenmiştir.\n\nAlışveriş tamamlandığında ve mağaza onayladığında Spot transferi gerçekleşir.',
       },
       { status: 200 }
     );

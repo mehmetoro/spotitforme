@@ -89,6 +89,57 @@ CREATE POLICY "Discount requests update seller"
 COMMENT ON TABLE shop_product_discount_requests IS 'Buyer discount requests for spot-based discount flow';
 COMMENT ON COLUMN shop_product_discount_requests.status IS 'pending/approved/rejected/completed/cancelled';
 COMMENT ON COLUMN shop_product_discount_requests.spot_amount IS 'Requested Spot discount amount (1-50)';
+
+-- =============================================
+-- ADD NEW COLUMNS IF NOT EXISTS (for updates)
+-- =============================================
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                 WHERE table_name='shop_product_discount_requests' 
+                 AND column_name='discount_amount_usd') THEN
+    ALTER TABLE shop_product_discount_requests 
+      ADD COLUMN discount_amount_usd decimal(10, 2) DEFAULT 0;
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                 WHERE table_name='shop_product_discount_requests' 
+                 AND column_name='discount_amount_local') THEN
+    ALTER TABLE shop_product_discount_requests 
+      ADD COLUMN discount_amount_local decimal(10, 2) DEFAULT 0;
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                 WHERE table_name='shop_product_discount_requests' 
+                 AND column_name='original_price') THEN
+    ALTER TABLE shop_product_discount_requests 
+      ADD COLUMN original_price decimal(10, 2) DEFAULT 0;
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                 WHERE table_name='shop_product_discount_requests' 
+                 AND column_name='final_price') THEN
+    ALTER TABLE shop_product_discount_requests 
+      ADD COLUMN final_price decimal(10, 2) DEFAULT 0;
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                 WHERE table_name='shop_product_discount_requests' 
+                 AND column_name='currency') THEN
+    ALTER TABLE shop_product_discount_requests 
+      ADD COLUMN currency varchar(3) DEFAULT 'TRY';
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                 WHERE table_name='shop_product_discount_requests' 
+                 AND column_name='exchange_rate') THEN
+    ALTER TABLE shop_product_discount_requests 
+      ADD COLUMN exchange_rate decimal(10, 4) DEFAULT 1;
+  END IF;
+END $$;
+
+-- Add comments
 COMMENT ON COLUMN shop_product_discount_requests.discount_amount_usd IS 'Discount calculated in USD (1 Spot = 1 USD)';
 COMMENT ON COLUMN shop_product_discount_requests.discount_amount_local IS 'Discount amount in product local currency';
 COMMENT ON COLUMN shop_product_discount_requests.final_price IS 'Final price after discount (informational)';
