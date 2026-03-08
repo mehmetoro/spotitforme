@@ -33,12 +33,13 @@ export default function DiscountRequestsPanel({ shopId, limit = 6 }: DiscountReq
   const [productTitles, setProductTitles] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [processingId, setProcessingId] = useState<string | null>(null)
-  const [activeFilter, setActiveFilter] = useState<'all' | 'pending' | 'approved' | 'completed'>('all')
+  const [activeFilter, setActiveFilter] = useState<'all' | 'pending' | 'approved' | 'completed' | 'rejected'>('all')
   const [filterInitialized, setFilterInitialized] = useState(false)
 
   const pendingCount = useMemo(() => requests.filter((request) => request.status === 'pending').length, [requests])
   const approvedCount = useMemo(() => requests.filter((request) => request.status === 'approved').length, [requests])
   const completedCount = useMemo(() => requests.filter((request) => request.status === 'completed').length, [requests])
+  const rejectedCount = useMemo(() => requests.filter((request) => request.status === 'rejected').length, [requests])
   const filteredRequests = useMemo(() => {
     if (activeFilter === 'all') return requests
     return requests.filter((request) => request.status === activeFilter)
@@ -54,9 +55,9 @@ export default function DiscountRequestsPanel({ shopId, limit = 6 }: DiscountReq
       const urlFilter = url.searchParams.get(filterQueryParam)
       const savedFilter = localStorage.getItem(filterStorageKey)
 
-      if (urlFilter === 'all' || urlFilter === 'pending' || urlFilter === 'approved' || urlFilter === 'completed') {
+      if (urlFilter === 'all' || urlFilter === 'pending' || urlFilter === 'approved' || urlFilter === 'completed' || urlFilter === 'rejected') {
         setActiveFilter(urlFilter)
-      } else if (savedFilter === 'all' || savedFilter === 'pending' || savedFilter === 'approved' || savedFilter === 'completed') {
+      } else if (savedFilter === 'all' || savedFilter === 'pending' || savedFilter === 'approved' || savedFilter === 'completed' || savedFilter === 'rejected') {
         setActiveFilter(savedFilter)
       } else {
         setActiveFilter('pending')
@@ -257,6 +258,16 @@ export default function DiscountRequestsPanel({ shopId, limit = 6 }: DiscountReq
             }`}
           >
             Tamamlanan ({completedCount})
+          </button>
+          <button
+            onClick={() => setActiveFilter('rejected')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${
+              activeFilter === 'rejected'
+                ? 'bg-red-600 text-white border-red-600'
+                : 'bg-white text-red-700 border-red-300 hover:bg-red-50'
+            }`}
+          >
+            Reddedilen ({rejectedCount})
           </button>
         </div>
       )}
