@@ -12,10 +12,13 @@ export default function AdminSidebar() {
     { name: 'Kullanıcılar', href: '/admin/users', icon: '👥' },
     { name: 'Spot\'lar', href: '/admin/spots', icon: '📍' },
     { name: 'Mağazalar', href: '/admin/shops', icon: '🏪' },
-    { name: 'AdSense', href: '/admin/adsense', icon: '💰' },
+    { name: 'Mesajlaşma', href: '/admin/messaging', icon: '💬' },
+    { name: 'Sosyal İçerik', href: '/admin/social', icon: '📱' },
     { name: 'Ödemeler', href: '/admin/payments', icon: '💳' },
+    { name: 'Bildirimler', href: '/admin/notifications', icon: '🔔' },
+    { name: 'AdSense', href: '/admin/adsense', icon: '💰' },
+    { name: 'Sistem Logları', href: '/admin/logs', icon: '📋' },
     { name: 'Ayarlar', href: '/admin/settings', icon: '⚙️' },
-    { name: 'Loglar', href: '/admin/logs', icon: '📋' },
   ]
 
   return (
