@@ -116,7 +116,20 @@ export async function POST(
     const buyerId = user.id;
 
     // ==========================================
-    // 1. CHECK: Sufficient spot balance
+    // 1. ENSURE: User has spot wallet
+    // ==========================================
+    try {
+      await supabase.rpc('ensure_spot_wallet', { p_user_id: buyerId });
+    } catch (walletError) {
+      console.error('Wallet creation error:', walletError);
+      return NextResponse.json(
+        { error: 'Spot cüzdanı oluşturulamadı' },
+        { status: 500 }
+      );
+    }
+
+    // ==========================================
+    // 2. CHECK: Sufficient spot balance
     // ==========================================
     const { data: walletData, error: walletError } = await supabase
       .from('spot_wallets')
@@ -151,7 +164,7 @@ export async function POST(
     }
 
     // ==========================================
-    // 2. CHECK: Product exists and is active
+    // 3. CHECK: Product exists and is active
     // ==========================================
     const { data: product, error: productError } = await supabase
       .from('shop_inventory')
@@ -211,7 +224,7 @@ export async function POST(
     }
 
     // ==========================================
-    // 3. CREATE: Discount request with blocked spot
+    // 4. CREATE: Discount request (spots blocked by pending status)
     // ==========================================
     const { data: requestRow, error: insertError } = await supabase
       .from('shop_product_discount_requests')
@@ -228,7 +241,6 @@ export async function POST(
         currency: currency || 'TRY',
         exchange_rate: Number(exchangeRate) || 1,
         status: 'pending',
-        blocked_spots: 1, // 1 spot başarıyla bloke edildi
       })
       .select('id')
       .single();
@@ -245,7 +257,6 @@ export async function POST(
       {
         success: true,
         request_id: requestRow.id,
-        blocked_spots: 1,
         availableSpots: availableSpots - 1,
         message:
           'İndirim talebiniz mağazaya iletildi. 1 Spot blokelenmiştir.\n\nAlışveriş tamamlandığında ve mağaza onayladığında Spot transferi gerçekleşir.',
