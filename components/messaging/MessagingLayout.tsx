@@ -349,7 +349,7 @@ export default function MessagingLayout({
   return (
     <div className="relative flex h-[calc(100vh-200px)] bg-white rounded-xl shadow-lg overflow-hidden">
       {/* Sol sidebar - Thread listesi */}
-      <div className="w-full md:w-96 border-r border-gray-200 flex flex-col">
+      <div className="w-full md:w-2/5 lg:w-[500px] border-r border-gray-200 flex flex-col">
         <div className="p-4 border-b">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-bold text-gray-900">Mesajlar</h2>
