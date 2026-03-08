@@ -28,11 +28,13 @@ interface DiscountRequestRow {
 
 export default function DiscountRequestsPanel({ shopId, limit = 6 }: DiscountRequestsPanelProps) {
   const filterStorageKey = `discount-requests-filter-${shopId}`
+  const filterQueryParam = 'discountFilter'
   const [requests, setRequests] = useState<DiscountRequestRow[]>([])
   const [productTitles, setProductTitles] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [processingId, setProcessingId] = useState<string | null>(null)
   const [activeFilter, setActiveFilter] = useState<'all' | 'pending' | 'approved'>('all')
+  const [filterInitialized, setFilterInitialized] = useState(false)
 
   const pendingCount = useMemo(() => requests.filter((request) => request.status === 'pending').length, [requests])
   const approvedCount = useMemo(() => requests.filter((request) => request.status === 'approved').length, [requests])
@@ -47,24 +49,42 @@ export default function DiscountRequestsPanel({ shopId, limit = 6 }: DiscountReq
 
   useEffect(() => {
     try {
+      const url = new URL(window.location.href)
+      const urlFilter = url.searchParams.get(filterQueryParam)
       const savedFilter = localStorage.getItem(filterStorageKey)
-      if (savedFilter === 'all' || savedFilter === 'pending' || savedFilter === 'approved') {
+
+      if (urlFilter === 'all' || urlFilter === 'pending' || urlFilter === 'approved') {
+        setActiveFilter(urlFilter)
+      } else if (savedFilter === 'all' || savedFilter === 'pending' || savedFilter === 'approved') {
         setActiveFilter(savedFilter)
       } else {
         setActiveFilter('all')
       }
     } catch (error) {
       console.error('Filter restore failed:', error)
+    } finally {
+      setFilterInitialized(true)
     }
-  }, [filterStorageKey])
+  }, [filterStorageKey, filterQueryParam])
 
   useEffect(() => {
+    if (!filterInitialized) return
+
     try {
       localStorage.setItem(filterStorageKey, activeFilter)
+
+      const url = new URL(window.location.href)
+      if (activeFilter === 'all') {
+        url.searchParams.delete(filterQueryParam)
+      } else {
+        url.searchParams.set(filterQueryParam, activeFilter)
+      }
+
+      window.history.replaceState({}, '', url.toString())
     } catch (error) {
       console.error('Filter save failed:', error)
     }
-  }, [activeFilter, filterStorageKey])
+  }, [activeFilter, filterStorageKey, filterInitialized, filterQueryParam])
 
   const fetchRequests = async () => {
     try {
