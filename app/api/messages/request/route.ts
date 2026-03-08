@@ -36,6 +36,14 @@ function resolveThreadType(value?: string): ThreadType {
   return 'general'
 }
 
+function getThreadTypeCandidates(threadType: ThreadType): ThreadType[] {
+  if (threadType === 'reward') {
+    return ['reward', 'help']
+  }
+
+  return [threadType]
+}
+
 function checkInMemoryRateLimit(userId: string) {
   const now = Date.now()
   const current = inMemoryRateLimit.get(userId)
@@ -89,7 +97,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const receiverId = String(body?.receiverId || '').trim()
     const content = String(body?.content || '').trim()
-    const threadType = resolveThreadType(body?.threadType)
+    const requestedThreadType = resolveThreadType(body?.threadType)
+    const threadTypeCandidates = getThreadTypeCandidates(requestedThreadType)
+    let activeThreadType = threadTypeCandidates[0]
     const senderId = user.id
 
     if (!receiverId || !content) {
@@ -142,7 +152,7 @@ export async function POST(request: NextRequest) {
       .or(
         `and(participant1_id.eq.${senderId},participant2_id.eq.${receiverId}),and(participant1_id.eq.${receiverId},participant2_id.eq.${senderId})`
       )
-      .eq('thread_type', threadType)
+      .in('thread_type', threadTypeCandidates)
       .eq('status', 'active')
       .order('last_message_at', { ascending: false })
       .limit(1)
@@ -220,24 +230,46 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    const { data: thread, error: threadError } = await supabase
-      .from('message_threads')
-      .insert({
-        participant1_id: senderId,
-        participant2_id: receiverId,
-        thread_type: threadType,
-        status: 'active',
-        request_status: 'pending',
-        request_initiator_id: senderId,
-        request_message: content,
-        last_message_preview: 'Mesajlaşma talebi gönderildi',
-        last_message_at: nowIso,
-      })
-      .select('id')
-      .single()
+    let thread: { id: string } | null = null
+    let threadError: any = null
 
-    if (threadError) {
-      throw threadError
+    for (const candidateType of threadTypeCandidates) {
+      const insertResult = await supabase
+        .from('message_threads')
+        .insert({
+          participant1_id: senderId,
+          participant2_id: receiverId,
+          thread_type: candidateType,
+          status: 'active',
+          request_status: 'pending',
+          request_initiator_id: senderId,
+          request_message: content,
+          last_message_preview: 'Mesajlaşma talebi gönderildi',
+          last_message_at: nowIso,
+        })
+        .select('id')
+        .single()
+
+      if (!insertResult.error && insertResult.data?.id) {
+        thread = insertResult.data
+        activeThreadType = candidateType
+        threadError = null
+        break
+      }
+
+      threadError = insertResult.error
+
+      const isThreadTypeConstraintError =
+        insertResult.error?.code === '23514' &&
+        String(insertResult.error?.message || '').includes('message_threads_thread_type_check')
+
+      if (!isThreadTypeConstraintError) {
+        break
+      }
+    }
+
+    if (threadError || !thread?.id) {
+      throw threadError || new Error('Thread oluşturulamadı')
     }
 
     await supabase.from('thread_participants').insert([
@@ -248,7 +280,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       threadId: thread.id,
       code: 'REQUEST_CREATED',
-      message: 'Mesajlaşma talebi gönderildi. Karşı taraf onaylayınca sohbet açılacak.',
+      message:
+        activeThreadType !== requestedThreadType
+          ? 'Mesajlaşma talebi gönderildi (uyumluluk modunda). Karşı taraf onaylayınca sohbet açılacak.'
+          : 'Mesajlaşma talebi gönderildi. Karşı taraf onaylayınca sohbet açılacak.',
     })
   } catch (error: any) {
     console.error('Message request endpoint error:', error)

@@ -98,11 +98,13 @@ export default function MessagingLayout({
 
   const focusExistingThread = useCallback(async (receiverId: string, threadType: string): Promise<boolean> => {
     try {
+      const threadTypeCandidates = threadType === 'reward' ? ['reward', 'help'] : [threadType]
+
       const { data, error } = await supabase
         .from('active_conversations')
         .select('id, request_status, request_initiator_id')
         .or(`participant1_id.eq.${userId},participant2_id.eq.${userId}`)
-        .eq('thread_type', threadType)
+        .in('thread_type', threadTypeCandidates)
         .or(
           `and(participant1_id.eq.${userId},participant2_id.eq.${receiverId}),and(participant1_id.eq.${receiverId},participant2_id.eq.${userId})`
         )
