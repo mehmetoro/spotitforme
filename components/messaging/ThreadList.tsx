@@ -1,7 +1,7 @@
 // components/messaging/ThreadList.tsx - DÜZELTİLMİŞ
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { MessageSquare, User, Clock, Trash2, CheckCircle } from 'lucide-react'
 
@@ -43,6 +43,9 @@ interface ThreadListProps {
   userId: string
 }
 
+type RequestFilter = 'all' | 'incoming' | 'outgoing'
+type ThreadTypeFilter = 'all' | 'general' | 'social' | 'shop' | 'spot' | 'help' | 'reward' | 'trade'
+
 export default function ThreadList({
   threads,
   selectedThread,
@@ -54,28 +57,47 @@ export default function ThreadList({
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const [activeFilter, setActiveFilter] = useState<'all' | 'incoming' | 'outgoing'>('all')
 
-  const resolveFilter = (value: string | null): 'all' | 'incoming' | 'outgoing' => {
+  const resolveFilter = (value: string | null): RequestFilter => {
     if (value === 'incoming' || value === 'outgoing') return value
     return 'all'
   }
 
-  useEffect(() => {
-    const queryFilter = resolveFilter(searchParams.get('filter'))
-    if (queryFilter !== activeFilter) {
-      setActiveFilter(queryFilter)
+  const resolveTypeFilter = (value: string | null): ThreadTypeFilter => {
+    if (
+      value === 'general' ||
+      value === 'social' ||
+      value === 'shop' ||
+      value === 'spot' ||
+      value === 'help' ||
+      value === 'reward' ||
+      value === 'trade'
+    ) {
+      return value
     }
-  }, [searchParams, activeFilter])
+    return 'all'
+  }
 
-  const setFilterAndSyncUrl = (nextFilter: 'all' | 'incoming' | 'outgoing') => {
-    setActiveFilter(nextFilter)
+  const activeFilter = resolveFilter(searchParams.get('filter'))
+  const activeTypeFilter = resolveTypeFilter(searchParams.get('type'))
+
+  const setFiltersAndSyncUrl = (
+    nextFilter: RequestFilter = activeFilter,
+    nextType: ThreadTypeFilter = activeTypeFilter
+  ) => {
 
     const params = new URLSearchParams(searchParams.toString())
+
     if (nextFilter === 'all') {
       params.delete('filter')
     } else {
       params.set('filter', nextFilter)
+    }
+
+    if (nextType === 'all') {
+      params.delete('type')
+    } else {
+      params.set('type', nextType)
     }
 
     const query = params.toString()
@@ -84,8 +106,10 @@ export default function ThreadList({
   }
 
   const filteredThreads = useMemo(() => {
+    let nextThreads = threads
+
     if (activeFilter === 'incoming') {
-      return threads.filter(
+      nextThreads = nextThreads.filter(
         (thread) =>
           thread.request_status === 'pending' &&
           !!thread.request_initiator_id &&
@@ -94,15 +118,19 @@ export default function ThreadList({
     }
 
     if (activeFilter === 'outgoing') {
-      return threads.filter(
+      nextThreads = nextThreads.filter(
         (thread) =>
           thread.request_status === 'pending' &&
           thread.request_initiator_id === userId
       )
     }
 
-    return threads
-  }, [threads, activeFilter, userId])
+    if (activeTypeFilter !== 'all') {
+      nextThreads = nextThreads.filter((thread) => thread.thread_type === activeTypeFilter)
+    }
+
+    return nextThreads
+  }, [threads, activeFilter, activeTypeFilter, userId])
 
   const getThreadTypeLabel = (threadType?: string) => {
     switch (threadType) {
@@ -219,7 +247,7 @@ export default function ThreadList({
     <div className="flex-1 overflow-y-auto">
       <div className="px-3 py-2 border-b border-gray-100 flex items-center gap-2 overflow-x-auto">
         <button
-          onClick={() => setFilterAndSyncUrl('all')}
+          onClick={() => setFiltersAndSyncUrl('all', activeTypeFilter)}
           className={`text-xs px-3 py-1 rounded-full whitespace-nowrap ${
             activeFilter === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
           }`}
@@ -227,7 +255,7 @@ export default function ThreadList({
           Tümü
         </button>
         <button
-          onClick={() => setFilterAndSyncUrl('incoming')}
+          onClick={() => setFiltersAndSyncUrl('incoming', activeTypeFilter)}
           className={`text-xs px-3 py-1 rounded-full whitespace-nowrap ${
             activeFilter === 'incoming' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
           }`}
@@ -235,12 +263,79 @@ export default function ThreadList({
           Bana Gelen Talep
         </button>
         <button
-          onClick={() => setFilterAndSyncUrl('outgoing')}
+          onClick={() => setFiltersAndSyncUrl('outgoing', activeTypeFilter)}
           className={`text-xs px-3 py-1 rounded-full whitespace-nowrap ${
             activeFilter === 'outgoing' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
           }`}
         >
           Gönderdiğim Talep
+        </button>
+      </div>
+
+      <div className="px-3 py-2 border-b border-gray-100 flex items-center gap-2 overflow-x-auto">
+        <button
+          onClick={() => setFiltersAndSyncUrl(activeFilter, 'all')}
+          className={`text-xs px-3 py-1 rounded-full whitespace-nowrap ${
+            activeTypeFilter === 'all' ? 'bg-slate-700 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          }`}
+        >
+          Tüm Türler
+        </button>
+        <button
+          onClick={() => setFiltersAndSyncUrl(activeFilter, 'shop')}
+          className={`text-xs px-3 py-1 rounded-full whitespace-nowrap ${
+            activeTypeFilter === 'shop' ? 'bg-slate-700 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          }`}
+        >
+          shop
+        </button>
+        <button
+          onClick={() => setFiltersAndSyncUrl(activeFilter, 'spot')}
+          className={`text-xs px-3 py-1 rounded-full whitespace-nowrap ${
+            activeTypeFilter === 'spot' ? 'bg-slate-700 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          }`}
+        >
+          spot
+        </button>
+        <button
+          onClick={() => setFiltersAndSyncUrl(activeFilter, 'help')}
+          className={`text-xs px-3 py-1 rounded-full whitespace-nowrap ${
+            activeTypeFilter === 'help' ? 'bg-slate-700 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          }`}
+        >
+          yardım
+        </button>
+        <button
+          onClick={() => setFiltersAndSyncUrl(activeFilter, 'social')}
+          className={`text-xs px-3 py-1 rounded-full whitespace-nowrap ${
+            activeTypeFilter === 'social' ? 'bg-slate-700 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          }`}
+        >
+          sosyal
+        </button>
+        <button
+          onClick={() => setFiltersAndSyncUrl(activeFilter, 'reward')}
+          className={`text-xs px-3 py-1 rounded-full whitespace-nowrap ${
+            activeTypeFilter === 'reward' ? 'bg-slate-700 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          }`}
+        >
+          ödül
+        </button>
+        <button
+          onClick={() => setFiltersAndSyncUrl(activeFilter, 'general')}
+          className={`text-xs px-3 py-1 rounded-full whitespace-nowrap ${
+            activeTypeFilter === 'general' ? 'bg-slate-700 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          }`}
+        >
+          genel
+        </button>
+        <button
+          onClick={() => setFiltersAndSyncUrl(activeFilter, 'trade')}
+          className={`text-xs px-3 py-1 rounded-full whitespace-nowrap ${
+            activeTypeFilter === 'trade' ? 'bg-slate-700 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          }`}
+        >
+          ticaret
         </button>
       </div>
 
