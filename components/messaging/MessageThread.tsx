@@ -113,25 +113,73 @@ export default function MessageThread({ threadId, userId, onBack }: MessageThrea
         ? threadData.participant2_id
         : threadData.participant1_id
 
-      const { data: profileData, error: profileError } = await supabase
-        .from('user_profiles')
-        .select('id, full_name, name, username, avatar_url, avatar, last_seen')
-        .eq('id', otherParticipantId)
-        .maybeSingle()
+      let profileData: any = null
+      let profileError: any = null
 
-      if (profileError) {
+      const profileSelectCandidates = [
+        'id, full_name, name, username, avatar_url, avatar, last_seen',
+        'id, full_name, name, avatar_url, avatar, last_seen',
+        'id, full_name, name, avatar, last_seen',
+        'id, full_name, name, last_seen',
+      ]
+
+      for (const selectFields of profileSelectCandidates) {
+        const { data, error } = await supabase
+          .from('user_profiles')
+          .select(selectFields)
+          .eq('id', otherParticipantId)
+          .maybeSingle()
+
+        if (!error) {
+          profileData = data
+          profileError = null
+          break
+        }
+
+        profileError = error
+      }
+
+      if (profileError && !profileData) {
         console.warn('Katılımcı profili yüklenemedi:', profileError)
       }
+
+      let conversationData: any = null
+      const conversationSelectCandidates = [
+        'id, participant1_id, participant2_id, other_user_name, other_user_avatar, participant1_name, participant2_name',
+        'id, participant1_id, participant2_id, other_user_name, participant1_name, participant2_name',
+      ]
+
+      for (const selectFields of conversationSelectCandidates) {
+        const { data, error } = await supabase
+          .from('active_conversations')
+          .select(selectFields)
+          .eq('id', threadId)
+          .maybeSingle()
+
+        if (!error) {
+          conversationData = data
+          break
+        }
+      }
+
+      const fallbackConversationName =
+        conversationData?.other_user_name ||
+        (conversationData?.participant1_id === userId
+          ? conversationData?.participant2_name
+          : conversationData?.participant1_name) ||
+        ''
 
       const participantName =
         (profileData as any)?.username ||
         (profileData as any)?.full_name ||
         (profileData as any)?.name ||
+        fallbackConversationName ||
         `Kullanıcı-${String(otherParticipantId).slice(0, 8)}`
 
       const participantAvatar =
         (profileData as any)?.avatar_url ||
         (profileData as any)?.avatar ||
+        conversationData?.other_user_avatar ||
         ''
 
       const participantLastSeen = (profileData as any)?.last_seen || undefined
