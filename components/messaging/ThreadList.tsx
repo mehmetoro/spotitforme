@@ -7,6 +7,9 @@ interface Thread {
   id: string
   participant1_id: string
   participant2_id: string
+  request_status?: 'pending' | 'accepted' | 'rejected'
+  request_initiator_id?: string | null
+  request_message?: string | null
   last_message_at: string
   last_message_preview?: string
   unread_count_p1: number
@@ -62,6 +65,17 @@ export default function ThreadList({
   }
 
   const getMessagePreview = (thread: Thread) => {
+    if (thread.request_status === 'pending') {
+      if (thread.request_initiator_id === userId) {
+        return 'Mesajlaşma talebi gönderildi (onay bekleniyor)'
+      }
+      return `Mesajlaşma talebi: ${thread.request_message || 'İlk mesaj talebi'}`
+    }
+
+    if (thread.request_status === 'rejected') {
+      return 'Mesajlaşma talebi reddedildi'
+    }
+
     return thread.last_message_preview || 
            thread.last_message_content || 
            'Mesaj yok'
@@ -134,9 +148,21 @@ export default function ThreadList({
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
-                        <h4 className="font-medium text-gray-900 truncate">
-                          {getOtherParticipantName(thread)}
-                        </h4>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <h4 className="font-medium text-gray-900 truncate">
+                            {getOtherParticipantName(thread)}
+                          </h4>
+                          {thread.request_status === 'pending' && (
+                            <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-medium">
+                              talep
+                            </span>
+                          )}
+                          {thread.request_status === 'rejected' && (
+                            <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium">
+                              reddedildi
+                            </span>
+                          )}
+                        </div>
                         <span className="text-xs text-gray-500">
                           {formatTime(thread.last_message_at)}
                         </span>

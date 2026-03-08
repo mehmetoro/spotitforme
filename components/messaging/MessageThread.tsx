@@ -15,6 +15,16 @@ interface Message {
   type?: string
 }
 
+interface ThreadMeta {
+  id: string
+  participant1_id: string
+  participant2_id: string
+  request_status?: 'pending' | 'accepted' | 'rejected'
+  request_initiator_id?: string | null
+  request_message?: string | null
+  request_responded_at?: string | null
+}
+
 interface Participant {
   id: string
   name: string
@@ -33,8 +43,10 @@ export default function MessageThread({ threadId, userId, onBack }: MessageThrea
   const [messages, setMessages] = useState<Message[]>([])
   const [newMessage, setNewMessage] = useState('')
   const [participant, setParticipant] = useState<Participant | null>(null)
+  const [threadMeta, setThreadMeta] = useState<ThreadMeta | null>(null)
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
+  const [requestActionLoading, setRequestActionLoading] = useState(false)
   const [attachment, setAttachment] = useState<File | null>(null)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [showOptions, setShowOptions] = useState(false)
@@ -68,6 +80,16 @@ export default function MessageThread({ threadId, userId, onBack }: MessageThrea
         .single()
 
       if (threadError) throw threadError
+
+      setThreadMeta({
+        id: threadData.id,
+        participant1_id: threadData.participant1_id,
+        participant2_id: threadData.participant2_id,
+        request_status: threadData.request_status || 'accepted',
+        request_initiator_id: threadData.request_initiator_id,
+        request_message: threadData.request_message,
+        request_responded_at: threadData.request_responded_at,
+      })
 
       // 2. Hangi katılımcı biz değiliz?
       let otherParticipant = null
@@ -174,6 +196,16 @@ export default function MessageThread({ threadId, userId, onBack }: MessageThrea
   }
 
   const handleSendMessage = async () => {
+    if (threadMeta?.request_status === 'pending') {
+      alert('Bu sohbet için önce mesajlaşma talebinin kabul edilmesi gerekiyor.')
+      return
+    }
+
+    if (threadMeta?.request_status === 'rejected') {
+      alert('Bu sohbet talebi reddedildi. Yeni bir talep başlatmalısınız.')
+      return
+    }
+
     if (!newMessage.trim() && !attachment) return
 
     setSending(true)
@@ -294,6 +326,54 @@ export default function MessageThread({ threadId, userId, onBack }: MessageThrea
     }
   }
 
+  const handleRequestDecision = async (decision: 'accept' | 'reject') => {
+    try {
+      setRequestActionLoading(true)
+
+      const nowIso = new Date().toISOString()
+      const newStatus = decision === 'accept' ? 'accepted' : 'rejected'
+
+      const { error: updateError } = await supabase
+        .from('message_threads')
+        .update({
+          request_status: newStatus,
+          request_responded_at: nowIso,
+          last_message_preview:
+            decision === 'accept'
+              ? 'Mesajlaşma talebi kabul edildi'
+              : 'Mesajlaşma talebi reddedildi',
+          updated_at: nowIso,
+        })
+        .eq('id', threadId)
+
+      if (updateError) throw updateError
+
+      if (decision === 'accept' && participant?.id) {
+        await supabase
+          .from('messages')
+          .insert({
+            thread_id: threadId,
+            sender_id: userId,
+            receiver_id: participant.id,
+            content: '✅ Mesajlaşma talebi kabul edildi. Sohbet başlayabilir.',
+            type: 'system',
+            is_read: false,
+          })
+      }
+
+      await fetchThreadData()
+    } catch (error) {
+      console.error('Request decision failed:', error)
+      alert('Talep yanıtlanamadı. Lütfen tekrar deneyin.')
+    } finally {
+      setRequestActionLoading(false)
+    }
+  }
+
+  const isPendingRequest = threadMeta?.request_status === 'pending'
+  const isRejectedRequest = threadMeta?.request_status === 'rejected'
+  const isRequestInitiator = threadMeta?.request_initiator_id === userId
+
   if (loading) {
     return (
       <div className="flex flex-col h-full">
@@ -394,7 +474,41 @@ export default function MessageThread({ threadId, userId, onBack }: MessageThrea
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
-        {messages.length === 0 ? (
+        {isPendingRequest ? (
+          <div className="max-w-2xl mx-auto bg-amber-50 border border-amber-200 rounded-xl p-4">
+            <h4 className="font-semibold text-amber-900 mb-2">🛂 Mesajlaşma Talebi</h4>
+            <p className="text-sm text-amber-800 mb-3">
+              {threadMeta?.request_message || 'Mesajlaşma başlatmak için talep gönderildi.'}
+            </p>
+
+            {isRequestInitiator ? (
+              <p className="text-sm text-amber-700">
+                Talebiniz gönderildi. Karşı taraf kabul ettiğinde sohbet açılacak.
+              </p>
+            ) : (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleRequestDecision('accept')}
+                  disabled={requestActionLoading}
+                  className="px-3 py-2 rounded-lg text-sm font-medium bg-green-600 text-white hover:bg-green-700 disabled:opacity-60"
+                >
+                  Kabul Et
+                </button>
+                <button
+                  onClick={() => handleRequestDecision('reject')}
+                  disabled={requestActionLoading}
+                  className="px-3 py-2 rounded-lg text-sm font-medium bg-red-600 text-white hover:bg-red-700 disabled:opacity-60"
+                >
+                  Reddet
+                </button>
+              </div>
+            )}
+          </div>
+        ) : isRejectedRequest ? (
+          <div className="max-w-2xl mx-auto bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-800">
+            ❌ Bu mesajlaşma talebi reddedildi. Yeniden iletişim için yeni talep göndermeniz gerekir.
+          </div>
+        ) : messages.length === 0 ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center text-gray-500">
               <MessageSquare className="w-12 h-12 mx-auto mb-3 text-gray-300" />
@@ -516,6 +630,13 @@ export default function MessageThread({ threadId, userId, onBack }: MessageThrea
 
       {/* Input Area */}
       <div className="p-4 border-t bg-white">
+        {isPendingRequest || isRejectedRequest ? (
+          <div className="text-sm text-gray-600 bg-gray-50 border rounded-lg px-4 py-3">
+            {isPendingRequest
+              ? 'Mesaj kutusu, talep onaylanana kadar kilitlidir.'
+              : 'Mesaj kutusu kapalı. Yeni iletişim için yeni talep başlatın.'}
+          </div>
+        ) : (
         <div className="flex items-center space-x-2">
           <input
             ref={fileInputRef}
@@ -574,6 +695,7 @@ export default function MessageThread({ threadId, userId, onBack }: MessageThrea
             )}
           </button>
         </div>
+        )}
         
         {/* Security Notice */}
         <div className="mt-2 text-center">

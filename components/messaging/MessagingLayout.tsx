@@ -19,6 +19,9 @@ interface Thread {
   id: string
   participant1_id: string
   participant2_id: string
+  request_status?: 'pending' | 'accepted' | 'rejected'
+  request_initiator_id?: string | null
+  request_message?: string | null
   unread_count_p1: number
   unread_count_p2: number
   last_message_at: string
@@ -111,10 +114,11 @@ export default function MessagingLayout({ initialThreadId, userId }: MessagingLa
     try {
       // Önce iki kullanıcı arasında bu tipe ait aktif thread var mı kontrol et
       let threadId: string | null = null
+      const nowIso = new Date().toISOString()
 
       const { data: existingThread, error: existingThreadError } = await supabase
         .from('message_threads')
-        .select('id')
+        .select('id, participant1_id, participant2_id, request_status, request_initiator_id')
         .or(`and(participant1_id.eq.${userId},participant2_id.eq.${receiverId}),and(participant1_id.eq.${receiverId},participant2_id.eq.${userId})`)
         .eq('thread_type', threadType)
         .eq('status', 'active')
@@ -126,15 +130,55 @@ export default function MessagingLayout({ initialThreadId, userId }: MessagingLa
 
       if (existingThread?.id) {
         threadId = existingThread.id
+
+        if (existingThread.request_status === 'pending') {
+          setSelectedThread(threadId)
+          setShowNewMessageModal(false)
+
+          if (existingThread.request_initiator_id === userId) {
+            alert('Bu kullanıcıya mesajlaşma talebi zaten gönderildi. Onay bekleniyor.')
+          } else {
+            alert('Bu kullanıcı size mesajlaşma talebi göndermiş. Önce talebi yanıtlayın.')
+          }
+          return
+        }
+
+        if (existingThread.request_status === 'rejected') {
+          const { error: reopenError } = await supabase
+            .from('message_threads')
+            .update({
+              request_status: 'pending',
+              request_initiator_id: userId,
+              request_message: content,
+              request_responded_at: null,
+              last_message_at: nowIso,
+              last_message_preview: 'Mesajlaşma talebi gönderildi',
+              updated_at: nowIso,
+            })
+            .eq('id', threadId)
+
+          if (reopenError) throw reopenError
+
+          setSelectedThread(threadId)
+          setShowNewMessageModal(false)
+          fetchThreads()
+          alert('Mesajlaşma talebi yeniden gönderildi.')
+          return
+        }
       } else {
-        // Yeni thread oluştur
+        // Yeni thread oluştur (ilk temas = talep)
         const { data: thread, error: threadError } = await supabase
           .from('message_threads')
           .insert({
             participant1_id: userId,
             participant2_id: receiverId,
             thread_type: threadType,
-            status: 'active'
+            status: 'active',
+            request_status: 'pending',
+            request_initiator_id: userId,
+            request_message: content,
+            last_message_preview: 'Mesajlaşma talebi gönderildi',
+            last_message_at: nowIso,
           })
           .select('id')
           .single()
@@ -149,9 +193,15 @@ export default function MessagingLayout({ initialThreadId, userId }: MessagingLa
             { thread_id: threadId, user_id: userId },
             { thread_id: threadId, user_id: receiverId }
           ])
+
+        setSelectedThread(threadId)
+        setShowNewMessageModal(false)
+        fetchThreads()
+        alert('Mesajlaşma talebi gönderildi. Karşı taraf onaylayınca sohbet açılacak.')
+        return
       }
 
-      // Mesajı gönder
+      // Sadece kabul edilmiş threadlerde mesaj gönder
       const { error: messageError } = await supabase
         .from('messages')
         .insert({

@@ -228,7 +228,7 @@ export default function NewMessageModal({
       await onSendMessage(selectedUser.id, message, selectedSpot ? 'spot' : 'general')
       
       // Başarılı - modal'ı kapat
-      alert('Mesaj gönderildi!')
+      alert('Mesajlaşma talebi gönderildi!')
       setSending(false)
       setSelectedUser(null)
       setMessage('')
@@ -273,8 +273,8 @@ export default function NewMessageModal({
               </h2>
               <p className="text-sm text-gray-500">
                 {step === 'select' 
-                  ? 'Bir kullanıcı seçin veya spot için mesaj gönderin' 
-                  : 'Mesajınızı yazın'}
+                  ? 'Bir kullanıcı seçin ve mesajlaşma talebi gönderin' 
+                  : 'Talep mesajınızı yazın'}
               </p>
             </div>
             <button
@@ -673,7 +673,7 @@ export default function NewMessageModal({
                     ) : (
                       <>
                         <Send className="w-4 h-4" />
-                        <span>Gönder</span>
+                        <span>Talep Gönder</span>
                       </>
                     )}
                   </button>
