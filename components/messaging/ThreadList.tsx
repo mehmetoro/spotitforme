@@ -1,9 +1,9 @@
 // components/messaging/ThreadList.tsx - DÜZELTİLMİŞ
 'use client'
 
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { MessageSquare, User, Clock, Trash2, CheckCircle } from 'lucide-react'
+import { MessageSquare, User, Clock, Trash2, CheckCircle, Search } from 'lucide-react'
 
 interface Thread {
   id: string
@@ -60,6 +60,7 @@ export default function ThreadList({
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const [searchQuery, setSearchQuery] = useState('')
 
   const resolveFilter = (value: string | null): RequestFilter => {
     if (value === 'incoming' || value === 'outgoing') return value
@@ -176,8 +177,23 @@ export default function ThreadList({
       nextThreads = nextThreads.filter((thread) => thread.thread_type === activeTypeFilter)
     }
 
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase()
+      nextThreads = nextThreads.filter((thread) => {
+        const participant1Name = thread.participant1_name?.toLowerCase() || ''
+        const participant2Name = thread.participant2_name?.toLowerCase() || ''
+        const otherUserName = thread.other_user_name?.toLowerCase() || ''
+        
+        return (
+          participant1Name.includes(query) ||
+          participant2Name.includes(query) ||
+          otherUserName.includes(query)
+        )
+      })
+    }
+
     return nextThreads
-  }, [threads, activeFilter, activeTypeFilter, userId])
+  }, [threads, activeFilter, activeTypeFilter, userId, searchQuery])
 
   const getThreadTypeLabel = (threadType?: string) => {
     switch (threadType) {
@@ -303,6 +319,27 @@ export default function ThreadList({
 
   return (
     <div className="flex-1 overflow-y-auto">
+      <div className="px-3 py-3 border-b border-gray-200 bg-white sticky top-0 z-10">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Katılımcı ara..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            >
+              ×
+            </button>
+          )}
+        </div>
+      </div>
+
       <div className="px-3 py-2 border-b border-gray-100 flex items-center gap-2 overflow-x-auto">
         <button
           onClick={() => setFiltersAndSyncUrl('all', activeTypeFilter)}
