@@ -41,6 +41,22 @@ export default function Header() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [mobileOpen])
 
+  // Mobil menü açıkken arka plan kaydırmasını kilitle
+  useEffect(() => {
+    if (!mobileOpen) return
+
+    const prevBodyOverflow = document.body.style.overflow
+    const prevHtmlOverflow = document.documentElement.style.overflow
+
+    document.body.style.overflow = 'hidden'
+    document.documentElement.style.overflow = 'hidden'
+
+    return () => {
+      document.body.style.overflow = prevBodyOverflow
+      document.documentElement.style.overflow = prevHtmlOverflow
+    }
+  }, [mobileOpen])
+
   return (
     <header
       ref={menuRef}
