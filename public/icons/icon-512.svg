@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#2563eb"/>
+      <stop offset="100%" style="stop-color:#1d4ed8"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+  <!-- Map pin icon -->
+  <circle cx="256" cy="200" r="60" fill="white" fill-opacity="0.95"/>
+  <ellipse cx="256" cy="330" rx="28" ry="14" fill="white" fill-opacity="0.4"/>
+  <path d="M256 260 L220 228 Q204 208 204 192 Q204 148 256 148 Q308 148 308 192 Q308 208 292 228 Z" fill="white"/>
+  <circle cx="256" cy="196" r="26" fill="#2563eb"/>
+  <!-- SpotIt text -->
+  <text x="50%" y="415" text-anchor="middle" fill="white" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="68" opacity="0.95">SpotIt</text>
+  <text x="50%" y="470" text-anchor="middle" fill="white" font-family="Arial, Helvetica, sans-serif" font-weight="500" font-size="32" opacity="0.7">ForMe</text>
+</svg>

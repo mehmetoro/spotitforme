@@ -1,4 +1,5 @@
-// app/layout.tsx - DÜZGÜN KONUMLANDIRMA
+// app/layout.tsx - PWA + DÜZGÜN KONUMLANDIRMA
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import Script from "next/script";
@@ -6,8 +7,37 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ResponsiveAd from "@/components/ResponsiveAd";
 import { ToastProvider } from "@/components/ui/ToastProvider";
+import PWAInstaller from "@/components/PWAInstaller";
 
 const inter = Inter({ subsets: ["latin"] });
+
+export const metadata: Metadata = {
+  title: "SpotItForMe – Toplulukla Ürün Bulma Platformu",
+  description:
+    "Nadir ürünleri toplulukla bul. Sighting paylaş, spot oluştur ve mağazaları keşfet.",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "SpotItForMe",
+  },
+  icons: {
+    icon: [
+      { url: "/icons/icon-192.svg", sizes: "192x192", type: "image/svg+xml" },
+      { url: "/icons/icon-512.svg", sizes: "512x512", type: "image/svg+xml" },
+    ],
+    apple: [
+      { url: "/icons/apple-icon.svg", sizes: "180x180", type: "image/svg+xml" },
+    ],
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#2563eb",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+};
 
 export default function RootLayout({
   children,
@@ -19,7 +49,6 @@ export default function RootLayout({
   return (
     <html lang="tr">
       <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
         {adsenseClientId && (
           <Script
             async
@@ -30,40 +59,31 @@ export default function RootLayout({
         )}
       </head>
       <body className={inter.className}>
+        <PWAInstaller />
         <ToastProvider>
-          {/* REKLAM CONTAINER - Sabit yükseklik */}
-          <div className="bg-gray-50">
-            <div className="container mx-auto px-2 md:px-4">
-              <div className="relative">
-                {/* Reklam - Sabit ölçüler */}
-                <div className="py-2">
-                  <ResponsiveAd 
-                    placement="banner" 
-                    className="h-16 md:h-20" 
-                  />
-                </div>
-                
-                {/* Header - Reklamın ALTINDA */}
-                <div className="relative z-10">
-                  <Header />
-                </div>
-              </div>
+          {/* Header - sticky, tam genişlik */}
+          <Header />
+
+          {/* Banner Reklam - Header altında */}
+          <div className="bg-gray-50 border-b border-gray-100">
+            <div className="container mx-auto px-2 md:px-4 py-2">
+              <ResponsiveAd placement="banner" className="h-16 md:h-20" />
             </div>
           </div>
-          
+
           <main className="min-h-screen bg-white">
             <div className="container mx-auto px-2 md:px-4 py-4 md:py-8">
               {children}
             </div>
           </main>
-          
-          {/* Footer Öncesi Reklam - Sabit alan */}
+
+          {/* Footer Öncesi Reklam */}
           <div className="bg-gray-50 border-t border-gray-200">
             <div className="container mx-auto px-2 md:px-4 py-6 md:py-8">
               <ResponsiveAd placement="inline" />
             </div>
           </div>
-          
+
           <Footer />
         </ToastProvider>
       </body>

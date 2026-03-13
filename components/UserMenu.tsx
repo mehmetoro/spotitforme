@@ -66,9 +66,10 @@ export default function UserMenu() {
       <>
         <button
           onClick={() => setShowAuthModal(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg transition duration-200"
+          className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-3 sm:px-6 rounded-lg transition duration-200 text-sm sm:text-base whitespace-nowrap"
         >
-          Giriş Yap / Kayıt Ol
+          <span className="sm:hidden">Giriş</span>
+          <span className="hidden sm:inline">Giriş Yap / Kayıt Ol</span>
         </button>
         
         <AuthModal

@@ -10,6 +10,64 @@ import CategoryGrid from '@/components/social/CategoryGrid'
 import { supabase } from '@/lib/supabase'
 import SuggestedUsers from '@/components/social/SuggestedUsers'
 
+const ISTANBUL_TIMEZONE = 'Europe/Istanbul'
+
+function getTimeZoneOffsetMs(date: Date, timeZone: string): number {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    hour12: false,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  }).formatToParts(date)
+
+  const map: Record<string, string> = {}
+  parts.forEach(({ type, value }) => {
+    map[type] = value
+  })
+
+  const asUtc = Date.UTC(
+    Number(map.year),
+    Number(map.month) - 1,
+    Number(map.day),
+    Number(map.hour),
+    Number(map.minute),
+    Number(map.second)
+  )
+
+  return asUtc - date.getTime()
+}
+
+function getStartOfTodayInTimezoneISO(timeZone: string): string {
+  const now = new Date()
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).formatToParts(now)
+
+  const map: Record<string, string> = {}
+  parts.forEach(({ type, value }) => {
+    map[type] = value
+  })
+
+  const utcMidnightGuess = Date.UTC(
+    Number(map.year),
+    Number(map.month) - 1,
+    Number(map.day),
+    0,
+    0,
+    0
+  )
+  const offset = getTimeZoneOffsetMs(new Date(utcMidnightGuess), timeZone)
+
+  return new Date(utcMidnightGuess - offset).toISOString()
+}
+
 // Takip Ettiklerim - Takip ettiğin kullanıcılar
 function FollowingList() {
   const [following, setFollowing] = useState<any[]>([])
@@ -199,28 +257,65 @@ export default function DiscoveryPage() {
     followersCount: 0,
     followingCount: 0
   })
+  const [todayStats, setTodayStats] = useState({
+    newPosts: 0,
+    newLikes: 0,
+    newUsers: 0,
+    foundItems: 0
+  })
   const [userProfile, setUserProfile] = useState<{ name: string | null; avatar_url: string | null } | null>(null)
   const [loadingStats, setLoadingStats] = useState(true)
+  const [loadingTodayStats, setLoadingTodayStats] = useState(true)
 
   // Kullanıcı istatistiklerini yükle
   useEffect(() => {
     const fetchUserStats = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser()
-        if (!user) return
+        if (!user) {
+          setLoadingStats(false)
+          return
+        }
 
-        // Kullanıcının kendi postlarını say
-        const { count: postsCount } = await supabase
-          .from('social_posts')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', user.id)
+        const [
+          postsResult,
+          followersResult,
+          followingResult,
+          profileResult
+        ] = await Promise.all([
+          supabase
+            .from('social_posts')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', user.id),
+          supabase
+            .from('social_follows')
+            .select('*', { count: 'exact', head: true })
+            .eq('following_id', user.id),
+          supabase
+            .from('social_follows')
+            .select('*', { count: 'exact', head: true })
+            .eq('follower_id', user.id),
+          supabase
+            .from('user_profiles')
+            .select('full_name, avatar_url')
+            .eq('id', user.id)
+            .single()
+        ])
 
-        // Kullanıcı profilini getir (isim, avatar)
-        const { data: profile, error: profileError } = await supabase
-          .from('user_profiles')
-          .select('full_name, avatar_url')
-          .eq('id', user.id)
-          .single() as any
+        const { count: postsCount, error: postsError } = postsResult
+        const { count: followersCount, error: followersError } = followersResult
+        const { count: followingCount, error: followingError } = followingResult
+        const { data: profile, error: profileError } = profileResult as any
+
+        if (postsError) {
+          console.warn('Paylaşım sayısı yüklemede hata:', postsError)
+        }
+        if (followersError) {
+          console.warn('Takipçi sayısı yüklemede hata:', followersError)
+        }
+        if (followingError) {
+          console.warn('Takip sayısı yüklemede hata:', followingError)
+        }
 
         if (profileError) {
           console.warn('Profil yüklemede hata:', profileError)
@@ -228,8 +323,8 @@ export default function DiscoveryPage() {
 
         setUserStats({
           postsCount: postsCount || 0,
-          followersCount: 0, // TODO: Takipçi sayısını hesapla
-          followingCount: 0 // TODO: Takip sayısını hesapla
+          followersCount: followersCount || 0,
+          followingCount: followingCount || 0
         })
         setUserProfile({ name: profile?.full_name || null, avatar_url: profile?.avatar_url || null })
       } catch (error) {
@@ -240,6 +335,115 @@ export default function DiscoveryPage() {
     }
 
     fetchUserStats()
+  }, [])
+
+  // Bugünün istatistiklerini yükle
+  useEffect(() => {
+    const fetchTodayStats = async (showLoading = false) => {
+      try {
+        if (showLoading) {
+          setLoadingTodayStats(true)
+        }
+
+        const startIso = getStartOfTodayInTimezoneISO(ISTANBUL_TIMEZONE)
+        const nowIso = new Date().toISOString()
+
+        const [postsResult, usersResult, foundResult] = await Promise.all([
+          supabase
+            .from('social_posts')
+            .select('*', { count: 'exact', head: true })
+            .gte('created_at', startIso)
+            .lt('created_at', nowIso),
+          supabase
+            .from('user_profiles')
+            .select('*', { count: 'exact', head: true })
+            .gte('created_at', startIso)
+            .lt('created_at', nowIso),
+          supabase
+            .from('social_posts')
+            .select('*', { count: 'exact', head: true })
+            .eq('post_type', 'found')
+            .gte('created_at', startIso)
+            .lt('created_at', nowIso)
+        ])
+
+        const { count: newPosts, error: postsError } = postsResult
+        const { count: newUsers, error: usersError } = usersResult
+        const { count: foundItems, error: foundError } = foundResult
+
+        if (postsError) {
+          console.warn('Günlük paylaşım istatistiği alınamadı:', postsError)
+        }
+        if (usersError) {
+          console.warn('Günlük kullanıcı istatistiği alınamadı:', usersError)
+        }
+        if (foundError) {
+          console.warn('Günlük bulunan ürün istatistiği alınamadı:', foundError)
+        }
+
+        // social_likes.created_at yoksa fallback olarak bugünün gönderilerine gelen beğenileri say
+        let newLikes = 0
+        const likesByDateResult = await supabase
+          .from('social_likes')
+          .select('*', { count: 'exact', head: true })
+          .gte('created_at', startIso)
+          .lt('created_at', nowIso)
+
+        if (!likesByDateResult.error) {
+          newLikes = likesByDateResult.count || 0
+        } else {
+          const { data: todayPosts, error: todayPostsError } = await supabase
+            .from('social_posts')
+            .select('id')
+            .gte('created_at', startIso)
+            .lt('created_at', nowIso)
+
+          if (!todayPostsError && todayPosts && todayPosts.length > 0) {
+            const postIds = todayPosts.map((post: any) => post.id)
+            const likesByPostResult = await supabase
+              .from('social_likes')
+              .select('*', { count: 'exact', head: true })
+              .in('post_id', postIds)
+
+            if (!likesByPostResult.error) {
+              newLikes = likesByPostResult.count || 0
+            }
+          }
+        }
+
+        setTodayStats({
+          newPosts: newPosts || 0,
+          newLikes,
+          newUsers: newUsers || 0,
+          foundItems: foundItems || 0
+        })
+      } catch (error) {
+        console.error('Bugünün istatistikleri yüklenemedi:', error)
+      } finally {
+        if (showLoading) {
+          setLoadingTodayStats(false)
+        }
+      }
+    }
+
+    fetchTodayStats(true)
+
+    const intervalId = window.setInterval(() => {
+      fetchTodayStats(false)
+    }, 60000)
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchTodayStats(false)
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      window.clearInterval(intervalId)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
   }, [])
 
   // Sekmeye göre başlık ve açıklamayı dinamik yap
@@ -452,6 +656,40 @@ export default function DiscoveryPage() {
                   </span>
                 </li>
               </ul>
+            </div>
+
+            {/* İstatistik Banner */}
+            <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-6 border border-purple-100">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="font-bold text-gray-900">📊 Bugünün İstatistikleri</h4>
+                <span className="text-2xl">📈</span>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <div className="text-2xl font-bold text-purple-600">
+                    {loadingTodayStats ? '-' : todayStats.newPosts}
+                  </div>
+                  <div className="text-xs text-gray-600">Yeni Paylaşım</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-pink-600">
+                    {loadingTodayStats ? '-' : todayStats.newLikes}
+                  </div>
+                  <div className="text-xs text-gray-600">Beğeni</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-blue-600">
+                    {loadingTodayStats ? '-' : todayStats.newUsers}
+                  </div>
+                  <div className="text-xs text-gray-600">Yeni Kullanıcı</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-green-600">
+                    {loadingTodayStats ? '-' : todayStats.foundItems}
+                  </div>
+                  <div className="text-xs text-gray-600">Bulunan Ürün</div>
+                </div>
+              </div>
             </div>
 
             {/* Sekmeye Göre Bilgi Kartı */}

@@ -1,23 +1,37 @@
-/* app/globals.css - Z-INDEX AYARLARI */
+/* app/globals.css - Z-INDEX + PWA AYARLARI */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --header-z-index: 100;
-  --ad-z-index: 50;
+  --header-z-index: 50;
+  --ad-z-index: 10;
   --modal-z-index: 1000;
+}
+
+/* ── Smooth scroll & body base ── */
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+  overflow-x: clip;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
 }
 
 /* Container Custom Class */
 .container-custom {
-  @apply max-w-7xl mx-auto px-2 md:px-4 lg:px-6;
+  @apply max-w-7xl mx-auto px-3 md:px-4 lg:px-6;
 }
 
-/* Header her zaman üstte */
+/* Header: sticky, tam genişlik */
 header {
-  z-index: var(--header-z-index) !important;
-  position: relative;
+  position: sticky;
+  top: 0;
+  z-index: var(--header-z-index);
 }
 
 /* Reklamlar header'ın altında */
@@ -35,4 +49,21 @@ header {
 .quick-sighting-button {
   z-index: 90;
   position: fixed;
+}
+
+/* ── PWA: gizli scrollbar safari/ios ── */
+@supports (-webkit-touch-callout: none) {
+  body {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* ── Mobile tap highlight kaldır ── */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ── btn-primary yardımcı sınıf ── */
+.btn-primary {
+  @apply bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2 rounded-xl transition-colors shadow-sm text-sm;
 }

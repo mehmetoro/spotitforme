@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="180" height="180" viewBox="0 0 180 180">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#2563eb"/>
+      <stop offset="100%" style="stop-color:#1d4ed8"/>
+    </linearGradient>
+  </defs>
+  <rect width="180" height="180" rx="40" fill="url(#bg)"/>
+  <circle cx="90" cy="72" r="22" fill="white" fill-opacity="0.95"/>
+  <ellipse cx="90" cy="118" rx="10" ry="5" fill="white" fill-opacity="0.4"/>
+  <path d="M90 94 L76 80 Q68 70 68 64 Q68 50 90 50 Q112 50 112 64 Q112 70 104 80 Z" fill="white"/>
+  <circle cx="90" cy="68" r="9" fill="#2563eb"/>
+  <text x="50%" y="152" text-anchor="middle" fill="white" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="24" opacity="0.9">SpotIt</text>
+</svg>
