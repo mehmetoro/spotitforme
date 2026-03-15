@@ -1,16 +1,25 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192">
   <defs>
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#2563eb"/>
-      <stop offset="100%" style="stop-color:#1d4ed8"/>
+      <stop offset="0%" stop-color="#1d4ed8"/>
+      <stop offset="55%" stop-color="#2563eb"/>
+      <stop offset="100%" stop-color="#0ea5e9"/>
     </linearGradient>
+    <radialGradient id="glow" cx="30%" cy="22%" r="70%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
   </defs>
-  <rect width="192" height="192" rx="36" fill="url(#bg)"/>
-  <!-- Map pin icon -->
-  <circle cx="96" cy="80" r="22" fill="white" fill-opacity="0.95"/>
-  <ellipse cx="96" cy="125" rx="10" ry="5" fill="white" fill-opacity="0.4"/>
-  <path d="M96 102 L84 88 Q78 80 78 74 Q78 58 96 58 Q114 58 114 74 Q114 80 108 88 Z" fill="white"/>
-  <circle cx="96" cy="77" r="9" fill="#2563eb"/>
-  <!-- S text -->
-  <text x="50%" y="158" text-anchor="middle" fill="white" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="28" opacity="0.9">SpotIt</text>
+
+  <rect width="192" height="192" rx="42" fill="url(#bg)"/>
+  <rect width="192" height="192" rx="42" fill="url(#glow)"/>
+
+  <circle cx="87" cy="85" r="43" fill="none" stroke="#ffffff" stroke-width="15"/>
+  <line x1="115" y1="114" x2="146" y2="145" stroke="#ffffff" stroke-width="15" stroke-linecap="round"/>
+
+  <path d="M87 64c-12.5 0-23 10.5-23 23 0 18 23 42 23 42s23-24 23-42c0-12.5-10.5-23-23-23z" fill="#38bdf8"/>
+  <circle cx="87" cy="87" r="8.5" fill="#ffffff"/>
+
+  <circle cx="137" cy="56" r="6" fill="#ffffff" fill-opacity="0.92"/>
+  <circle cx="149" cy="46" r="3" fill="#ffffff" fill-opacity="0.72"/>
 </svg>

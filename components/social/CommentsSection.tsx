@@ -215,7 +215,7 @@ export default function CommentsSection({
                 </div>
               </div>
 
-              <p className="text-gray-800 text-sm whitespace-pre-line">
+              <p className="text-gray-800 text-sm whitespace-pre-line break-words overflow-hidden">
                 {comment.content}
               </p>
             </div>

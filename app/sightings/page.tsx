@@ -2,7 +2,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import ResponsiveAd from '@/components/ResponsiveAd'
 
@@ -23,280 +23,408 @@ interface Sighting {
   spot: { title: string } | null
 }
 
+interface RareSighting {
+  id: string
+  user_id: string
+  description: string
+  category: string | null
+  price: number | null
+  has_photo: boolean
+  photo_url: string | null
+  location_name: string
+  address: string | null
+  latitude: number | null
+  longitude: number | null
+  city: string | null
+  district: string | null
+  points_earned: number
+  status: string
+  created_at: string
+  user: { full_name: string; avatar_url: string | null } | null
+}
+
+const CATEGORIES = [
+  { value: 'electronics', label: 'Elektronik' },
+  { value: 'fashion', label: 'Giyim & Aksesuar' },
+  { value: 'home', label: 'Ev & Bahçe' },
+  { value: 'collectible', label: 'Koleksiyon' },
+  { value: 'vehicle', label: 'Araç & Parça' },
+  { value: 'other', label: 'Diğer' },
+]
+
 export default function SightingsPage() {
+  const searchParams = useSearchParams()
+  const [activeTab, setActiveTab] = useState<'sightings' | 'rare'>('sightings')
+
+  // --- Spot Yardımları state ---
   const [sightings, setSightings] = useState<Sighting[]>([])
-  const [loading, setLoading] = useState(true)
-  const [filters, setFilters] = useState({
-    hasLocation: 'all', // all, with, without
+  const [sightingsLoading, setSightingsLoading] = useState(false)
+  const [sightingFilters, setSightingFilters] = useState({
+    hasLocation: 'all',
     hasPrice: 'all',
     category: '',
     searchText: '',
-    hashtag: ''
+    hashtag: '',
   })
 
-  useEffect(() => {
-    fetchSightings()
-  }, [])
+  // --- Nadir Görülenler state ---
+  const [rareSightings, setRareSightings] = useState<RareSighting[]>([])
+  const [rareLoading, setRareLoading] = useState(false)
+  const [rareFilters, setRareFilters] = useState({
+    hasLocation: 'all',
+    hasPrice: 'all',
+    category: '',
+    searchText: '',
+  })
 
+  const formatDate = (date: string) =>
+    new Date(date).toLocaleDateString('tr-TR')
+
+  // ---- Fetch sightings ----
   const fetchSightings = async () => {
     try {
-      setLoading(true)
+      setSightingsLoading(true)
       const params = new URLSearchParams()
-      if (filters.category) params.append('category', filters.category)
-      if (filters.hasLocation !== 'all') params.append('hasLocation', filters.hasLocation)
-      if (filters.hasPrice !== 'all') params.append('hasPrice', filters.hasPrice)
-      if (filters.searchText) params.append('search', filters.searchText)
-      if (filters.hashtag) params.append('hashtag', filters.hashtag)
+      if (sightingFilters.category) params.append('category', sightingFilters.category)
+      if (sightingFilters.hasLocation !== 'all') params.append('hasLocation', sightingFilters.hasLocation)
+      if (sightingFilters.hasPrice !== 'all') params.append('hasPrice', sightingFilters.hasPrice)
+      if (sightingFilters.searchText) params.append('search', sightingFilters.searchText)
+      if (sightingFilters.hashtag) params.append('hashtag', sightingFilters.hashtag)
 
-      const response = await fetch(`/api/sightings?${params.toString()}`)
-      if (!response.ok) throw new Error('Sightings fetch failed')
-      
-      const data = await response.json()
-      console.log('✅ Fetched sightings:', data.length)
-      
-      // Map data to Sighting type (handle arrays from relations)
-      const mappedData = data.map((item: any) => ({
-        ...item,
-        spotter: Array.isArray(item.spotter) ? item.spotter[0] : item.spotter,
-        spot: Array.isArray(item.spot) ? item.spot[0] : item.spot
-      }))
-
-      setSightings(mappedData)
-    } catch (error) {
-      console.error('Sightings fetch error:', error)
+      const res = await fetch(`/api/sightings?${params.toString()}`)
+      if (!res.ok) throw new Error('fetch failed')
+      const data = await res.json()
+      setSightings(
+        data.map((item: any) => ({
+          ...item,
+          spotter: Array.isArray(item.spotter) ? item.spotter[0] : item.spotter,
+          spot: Array.isArray(item.spot) ? item.spot[0] : item.spot,
+        }))
+      )
+    } catch (e) {
+      console.error('Sightings fetch error:', e)
     } finally {
-      setLoading(false)
+      setSightingsLoading(false)
     }
   }
 
-  const handleFilterChange = (key: string, value: any) => {
-    const newFilters = { ...filters, [key]: value }
-    setFilters(newFilters)
+  // ---- Fetch rare sightings ----
+  const fetchRareSightings = async () => {
+    try {
+      setRareLoading(true)
+      const params = new URLSearchParams()
+      if (rareFilters.category) params.append('category', rareFilters.category)
+      if (rareFilters.hasLocation !== 'all') params.append('hasLocation', rareFilters.hasLocation)
+      if (rareFilters.hasPrice !== 'all') params.append('hasPrice', rareFilters.hasPrice)
+      if (rareFilters.searchText) params.append('search', rareFilters.searchText)
+
+      const res = await fetch(`/api/quick-sightings?${params.toString()}`)
+      if (!res.ok) throw new Error('fetch failed')
+      const data = await res.json()
+      setRareSightings(data)
+    } catch (e) {
+      console.error('Rare sightings fetch error:', e)
+    } finally {
+      setRareLoading(false)
+    }
   }
 
-  // Filtreler değişince refetch et
   useEffect(() => {
     fetchSightings()
-  }, [filters])
+  }, [sightingFilters])
 
-  const getCategories = () => {
-    return ['Elektronik', 'Giyim', 'Ev Eşyaları', 'Spor', 'Kitap', 'Oyuncak', 'Diğer']
-  }
+  useEffect(() => {
+    fetchRareSightings()
+  }, [rareFilters])
 
-  const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString('tr-TR')
-  }
+  useEffect(() => {
+    const tab = searchParams.get('tab')
+    if (tab === 'rare') {
+      setActiveTab('rare')
+    } else if (tab === 'sightings') {
+      setActiveTab('sightings')
+    }
+  }, [searchParams])
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600"></div>
-      </div>
-    )
-  }
+  useEffect(() => {
+    if (activeTab === 'sightings' && sightings.length === 0) fetchSightings()
+    if (activeTab === 'rare' && rareSightings.length === 0) fetchRareSightings()
+  }, [activeTab])
 
   return (
     <>
-      <main className="container-custom py-8">
+      <main className="container-custom py-8 overflow-x-hidden">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">📍 Yardımlar</h1>
-          <p className="text-gray-600 mt-2">Kullanıcıların bulduğu ürünleri ve konumlarını gör</p>
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold text-gray-900">🤝 Yardımlar</h1>
+          <p className="text-gray-600 mt-1">Kullanıcıların bildirdiği ürünler ve konumlar</p>
         </div>
 
-        {/* Filters */}
-        <div className="bg-white rounded-xl shadow p-6 mb-6">
-          <h2 className="text-lg font-bold mb-4">🔍 Filtreler</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {/* Search */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Ara (Konum, Not, Ürün)
-              </label>
-              <input
-                type="text"
-                placeholder="Örn: Kadıköy, iPhone"
-                value={filters.searchText}
-                onChange={(e) => handleFilterChange('searchText', e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            {/* Category */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Kategori
-              </label>
-              <select
-                value={filters.category}
-                onChange={(e) => handleFilterChange('category', e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Tüm Kategoriler</option>
-                {getCategories().map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Has Location */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Konum
-              </label>
-              <select
-                value={filters.hasLocation}
-                onChange={(e) => handleFilterChange('hasLocation', e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="all">Tüm Yardımlar</option>
-                <option value="with">📍 Konum İçeren</option>
-                <option value="without">Konum İçermeyenler</option>
-              </select>
-            </div>
-
-            {/* Has Price */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Fiyat Bilgisi
-              </label>
-              <select
-                value={filters.hasPrice}
-                onChange={(e) => handleFilterChange('hasPrice', e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="all">Tüm Yardımlar</option>
-                <option value="with">💰 Fiyat İçeren</option>
-                <option value="without">Fiyat İçermeyenler</option>
-              </select>
-            </div>
-
-            {/* Hashtag */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Hashtag
-              </label>
-              <input
-                type="text"
-                placeholder="Örn: stokta (# işareti olmadan)"
-                value={filters.hashtag}
-                onChange={(e) => handleFilterChange('hashtag', e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-          </div>
+        {/* Tab Switcher */}
+        <div className="flex gap-2 mb-6 border-b border-gray-200 overflow-x-auto">
+          <button
+            onClick={() => setActiveTab('sightings')}
+            className={`flex items-center gap-2 px-5 py-3 font-semibold text-sm whitespace-nowrap border-b-2 transition-colors ${
+              activeTab === 'sightings'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            📍 Spot Yardımları
+          </button>
+          <button
+            onClick={() => setActiveTab('rare')}
+            className={`flex items-center gap-2 px-5 py-3 font-semibold text-sm whitespace-nowrap border-b-2 transition-colors ${
+              activeTab === 'rare'
+                ? 'border-purple-600 text-purple-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            💎 Nadir Görülenler
+          </button>
         </div>
 
-        {/* Results */}
-        <div className="mb-4">
-          <p className="text-sm text-gray-600">
-            {sightings.length} yardım bulundu
-          </p>
-        </div>
+        {/* ===================== SPOT YARDIMLAR TAB ===================== */}
+        {activeTab === 'sightings' && (
+          <>
+            {/* Filters */}
+            <div className="bg-white rounded-xl shadow p-5 mb-6">
+              <h2 className="text-base font-bold mb-3">🔍 Filtreler</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <input
+                  type="text"
+                  placeholder="Konum, not veya ürün ara..."
+                  value={sightingFilters.searchText}
+                  onChange={(e) => setSightingFilters({ ...sightingFilters, searchText: e.target.value })}
+                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                />
+                <select
+                  value={sightingFilters.category}
+                  onChange={(e) => setSightingFilters({ ...sightingFilters, category: e.target.value })}
+                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Tüm Kategoriler</option>
+                  {CATEGORIES.map((c) => (
+                    <option key={c.value} value={c.value}>{c.label}</option>
+                  ))}
+                </select>
+                <select
+                  value={sightingFilters.hasPrice}
+                  onChange={(e) => setSightingFilters({ ...sightingFilters, hasPrice: e.target.value })}
+                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="all">Fiyat: Tümü</option>
+                  <option value="with">💰 Fiyat İçeren</option>
+                  <option value="without">Fiyat Yok</option>
+                </select>
+                <input
+                  type="text"
+                  placeholder="Hashtag (# olmadan)"
+                  value={sightingFilters.hashtag}
+                  onChange={(e) => setSightingFilters({ ...sightingFilters, hashtag: e.target.value })}
+                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
 
-        {/* Promotion Banner */}
-        <div className="mb-8">
-          <ResponsiveAd placement="inline" />
-        </div>
+            <div className="mb-4">
+              <ResponsiveAd placement="inline" />
+            </div>
 
-        {/* Sightings Grid */}
-        {sightings.length === 0 ? (
-          <div className="bg-white rounded-xl shadow p-12 text-center">
-            <div className="text-4xl mb-4">🔍</div>
-            <h2 className="text-xl font-bold text-gray-900 mb-2">
-              Yardım bulunamadı
-            </h2>
-            <p className="text-gray-600">
-              Filtrelerinizi değiştirip tekrar deneyin
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {sightings.map((sighting) => (
-              <Link
-                key={sighting.id}
-                href={`/sightings/${sighting.id}`}
-                className="bg-white rounded-xl shadow hover:shadow-lg transition overflow-hidden"
-              >
-                {/* Image */}
-                <div className="h-48 bg-gray-200 overflow-hidden relative">
-                  {sighting.image_url ? (
-                    <img
-                      src={sighting.image_url}
-                      alt="Sighting"
-                      className="w-full h-full object-cover hover:scale-110 transition"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-400 text-3xl">
-                      📷
+            {sightingsLoading ? (
+              <div className="flex justify-center py-12">
+                <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-600" />
+              </div>
+            ) : sightings.length === 0 ? (
+              <div className="bg-white rounded-xl shadow p-12 text-center">
+                <div className="text-4xl mb-4">🔍</div>
+                <h2 className="text-lg font-bold text-gray-900 mb-1">Yardım bulunamadı</h2>
+                <p className="text-gray-500 text-sm">Filtrelerinizi değiştirip tekrar deneyin</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {sightings.map((s) => (
+                  <Link
+                    key={s.id}
+                    href={`/sightings/${s.id}`}
+                    className="bg-white rounded-xl shadow hover:shadow-lg transition overflow-hidden"
+                  >
+                    <div className="h-44 bg-gray-100 overflow-hidden relative">
+                      {s.image_url ? (
+                        <img src={s.image_url} alt="Sighting" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-300 text-4xl">📷</div>
+                      )}
+                      {s.latitude && s.longitude && (
+                        <span className="absolute top-2 right-2 bg-blue-600 text-white px-2 py-0.5 rounded-full text-xs font-bold">📍 GPS</span>
+                      )}
+                      {s.price && (
+                        <span className="absolute top-2 left-2 bg-green-600 text-white px-2 py-0.5 rounded-full text-sm font-bold">₺{s.price}</span>
+                      )}
                     </div>
-                  )}
-                  {sighting.latitude && sighting.longitude && (
-                    <div className="absolute top-2 right-2 bg-blue-600 text-white px-2 py-1 rounded-full text-xs font-bold">
-                      📍 GPS
-                    </div>
-                  )}
-                  {sighting.price && (
-                    <div className="absolute top-2 left-2 bg-green-600 text-white px-2 py-1 rounded-full text-sm font-bold">
-                      ₺{sighting.price}
-                    </div>
-                  )}
-                </div>
-
-                {/* Content */}
-                <div className="p-4">
-                  {/* Spot Title */}
-                  <h3 className="font-bold text-gray-900 truncate mb-2">
-                    {sighting.spot?.title || 'Bilinmeyen Ürün'}
-                  </h3>
-
-                  {/* Location */}
-                  <p className="text-sm text-gray-600 mb-2 line-clamp-2">
-                    📍 {sighting.location_description}
-                  </p>
-
-                  {/* Notes */}
-                  {sighting.notes && (
-                    <p className="text-sm text-gray-500 mb-3 line-clamp-2">
-                      {sighting.notes}
-                    </p>
-                  )}
-
-                  {/* Hashtags */}
-                  {sighting.hashtags && (
-                    <div className="mb-3">
-                      <div className="flex flex-wrap gap-1">
-                        {sighting.hashtags.split(' ').filter(h => h.startsWith('#')).slice(0, 3).map((tag, i) => (
-                          <span key={i} className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
-                            {tag}
-                          </span>
-                        ))}
+                    <div className="p-4">
+                      <h3 className="font-bold text-gray-900 truncate mb-1">{s.spot?.title || 'Bilinmeyen Ürün'}</h3>
+                      <p className="text-sm text-gray-600 line-clamp-2 mb-2">📍 {s.location_description}</p>
+                      {s.notes && <p className="text-sm text-gray-500 line-clamp-2 mb-2">{s.notes}</p>}
+                      {s.hashtags && (
+                        <div className="flex flex-wrap gap-1 mb-2">
+                          {s.hashtags.split(' ').filter((h) => h.startsWith('#')).slice(0, 3).map((tag, i) => (
+                            <span key={i} className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">{tag}</span>
+                          ))}
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                        <div className="flex items-center gap-2 min-w-0">
+                          {s.spotter?.avatar_url && (
+                            <img src={s.spotter.avatar_url} alt="" className="w-6 h-6 rounded-full shrink-0" />
+                          )}
+                          <span className="text-xs text-gray-600 truncate">{s.spotter?.full_name || 'Kullanıcı'}</span>
+                        </div>
+                        <span className="text-xs text-gray-400 shrink-0 ml-2">{formatDate(s.created_at)}</span>
                       </div>
                     </div>
-                  )}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </>
+        )}
 
-                  {/* Footer */}
-                  <div className="flex items-center justify-between pt-3 border-t border-gray-200">
-                    <div className="flex items-center space-x-2">
-                      {sighting.spotter?.avatar_url && (
-                        <img
-                          src={sighting.spotter.avatar_url}
-                          alt="Avatar"
-                          className="w-8 h-8 rounded-full"
-                        />
+        {/* ===================== NADİR GÖRÜLENLER TAB ===================== */}
+        {activeTab === 'rare' && (
+          <>
+            {/* Info Banner */}
+            <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-xl p-4 mb-6">
+              <div className="flex gap-3">
+                <span className="text-2xl shrink-0">💎</span>
+                <div>
+                  <p className="font-semibold text-purple-900">Nadir Ürün Bildirimleri</p>
+                  <p className="text-sm text-purple-700 mt-0.5">
+                    Kullanıcılar henüz spotu olmayan nadir ürünleri bir yerde gördüklerinde buraya bildiriyor.
+                    İstediğiniz ürünü bulursanız satıcıya ulaşmak için bir spot oluşturabilirsiniz.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Filters */}
+            <div className="bg-white rounded-xl shadow p-5 mb-6">
+              <h2 className="text-base font-bold mb-3">🔍 Filtreler</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <input
+                  type="text"
+                  placeholder="Ürün, konum veya şehir ara..."
+                  value={rareFilters.searchText}
+                  onChange={(e) => setRareFilters({ ...rareFilters, searchText: e.target.value })}
+                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
+                />
+                <select
+                  value={rareFilters.category}
+                  onChange={(e) => setRareFilters({ ...rareFilters, category: e.target.value })}
+                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="">Tüm Kategoriler</option>
+                  {CATEGORIES.map((c) => (
+                    <option key={c.value} value={c.value}>{c.label}</option>
+                  ))}
+                </select>
+                <select
+                  value={rareFilters.hasPrice}
+                  onChange={(e) => setRareFilters({ ...rareFilters, hasPrice: e.target.value })}
+                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="all">Fiyat: Tümü</option>
+                  <option value="with">💰 Fiyat Girilen</option>
+                  <option value="without">Fiyat Girilmemiş</option>
+                </select>
+                <select
+                  value={rareFilters.hasLocation}
+                  onChange={(e) => setRareFilters({ ...rareFilters, hasLocation: e.target.value })}
+                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="all">Konum: Tümü</option>
+                  <option value="with">📍 GPS Konumu Olan</option>
+                  <option value="without">GPS Yok</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <ResponsiveAd placement="inline" />
+            </div>
+
+            {rareLoading ? (
+              <div className="flex justify-center py-12">
+                <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-purple-600" />
+              </div>
+            ) : rareSightings.length === 0 ? (
+              <div className="bg-white rounded-xl shadow p-12 text-center">
+                <div className="text-4xl mb-4">💎</div>
+                <h2 className="text-lg font-bold text-gray-900 mb-1">Nadir görülen bulunamadı</h2>
+                <p className="text-gray-500 text-sm">
+                  Henüz bildirim yok. Ana sayfadaki "Nadir Gördüm" butonuyla siz de ekleyin!
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {rareSightings.map((s) => (
+                  <Link
+                    key={s.id}
+                    href={`/sightings/rare/${s.id}`}
+                    className="bg-white rounded-xl shadow hover:shadow-lg transition overflow-hidden group"
+                  >
+                    {/* Image / placeholder */}
+                    <div className="h-44 bg-gradient-to-br from-purple-50 to-indigo-100 overflow-hidden relative">
+                      {s.photo_url ? (
+                        <img src={s.photo_url} alt="Nadir görülen" className="w-full h-full object-cover group-hover:scale-105 transition" />
+                      ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center text-purple-300 gap-2">
+                          <span className="text-5xl">💎</span>
+                          <span className="text-xs text-purple-400">Fotoğraf yok</span>
+                        </div>
                       )}
-                      <span className="text-xs text-gray-600">
-                        {sighting.spotter?.full_name || 'Kullanıcı'}
+                      {/* Badges */}
+                      {s.price != null && (
+                        <span className="absolute top-2 left-2 bg-green-600 text-white px-2 py-0.5 rounded-full text-sm font-bold">
+                          ₺{s.price.toLocaleString('tr-TR')}
+                        </span>
+                      )}
+                      {s.latitude && s.longitude && (
+                        <span className="absolute top-2 right-2 bg-blue-600 text-white px-2 py-0.5 rounded-full text-xs font-bold">📍 GPS</span>
+                      )}
+                      {/* Nadir badge */}
+                      <span className="absolute bottom-2 right-2 bg-purple-700 text-white text-xs px-2 py-0.5 rounded-full font-semibold">
+                        NADİR
                       </span>
                     </div>
-                    <span className="text-xs text-gray-500">
-                      {formatDate(sighting.created_at)}
-                    </span>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
+
+                    <div className="p-4">
+                      {/* Category */}
+                      {s.category && (
+                        <span className="inline-block text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded mb-2">
+                          {CATEGORIES.find((c) => c.value === s.category)?.label ?? s.category}
+                        </span>
+                      )}
+                      {/* Description */}
+                      <h3 className="font-bold text-gray-900 line-clamp-2 mb-1 break-words">{s.description}</h3>
+                      {/* Location */}
+                      <p className="text-sm text-gray-600 truncate mb-1">📍 {s.location_name}{s.city ? `, ${s.city}` : ''}</p>
+                      {/* Footer */}
+                      <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                        <div className="flex items-center gap-2 min-w-0">
+                          {s.user?.avatar_url && (
+                            <img src={s.user.avatar_url} alt="" className="w-6 h-6 rounded-full shrink-0" />
+                          )}
+                          <span className="text-xs text-gray-600 truncate">{s.user?.full_name || 'Kullanıcı'}</span>
+                        </div>
+                        <span className="text-xs text-gray-400 shrink-0 ml-2">{formatDate(s.created_at)}</span>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </>
         )}
       </main>
     </>

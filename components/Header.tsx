@@ -3,32 +3,31 @@
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import {
-  Home,
-  HelpCircle,
-  Eye,
-  MapPin,
-  Building2,
-  ShoppingBag,
-  MessageCircle,
   Menu,
   X,
   Plus,
 } from 'lucide-react'
 import UserMenu from './UserMenu'
-
-const navItems = [
-  { href: '/',             icon: Home,          label: 'Ana Sayfa'  },
-  { href: '/sightings',    icon: HelpCircle,    label: 'Yardımlar'  },
-  { href: '/discovery',    icon: Eye,           label: 'Keşfet'     },
-  { href: '/spots',        icon: MapPin,        label: "Spot'lar"   },
-  { href: '/for-business', icon: Building2,     label: 'İşletmeler' },
-  { href: '/products',     icon: ShoppingBag,   label: 'Ürünler'    },
-  { href: '/messages',     icon: MessageCircle, label: 'Mesajlar'   },
-]
+import { navSections } from '@/components/navigation/navItems'
 
 export default function Header() {
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [drawerDragOffset, setDrawerDragOffset] = useState(0)
+  const [isDrawerDragging, setIsDrawerDragging] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+  const touchStartXRef = useRef<number | null>(null)
+  const touchStartYRef = useRef<number | null>(null)
+  const shareSection = navSections.find((section) => section.title === 'Paylasim')
+  const pinnedShareItems = shareSection?.items.filter((item) => item.isPinned) || []
+  const mobileSections = navSections
+    .map((section) => {
+      if (section.title !== 'Paylasim') return section
+      return {
+        ...section,
+        items: section.items.filter((item) => !item.isPinned),
+      }
+    })
+    .filter((section) => section.items.length > 0)
 
   // Dışarı tıklayınca menüyü kapat
   useEffect(() => {
@@ -46,16 +45,63 @@ export default function Header() {
     if (!mobileOpen) return
 
     const prevBodyOverflow = document.body.style.overflow
-    const prevHtmlOverflow = document.documentElement.style.overflow
+    const prevBodyPaddingRight = document.body.style.paddingRight
+
+    const isDesktop = window.innerWidth >= 1024
+    const scrollbarWidth = isDesktop
+      ? window.innerWidth - document.documentElement.clientWidth
+      : 0
 
     document.body.style.overflow = 'hidden'
-    document.documentElement.style.overflow = 'hidden'
+    if (scrollbarWidth > 0) {
+      document.body.style.paddingRight = `${scrollbarWidth}px`
+    }
 
     return () => {
       document.body.style.overflow = prevBodyOverflow
-      document.documentElement.style.overflow = prevHtmlOverflow
+      document.body.style.paddingRight = prevBodyPaddingRight
     }
   }, [mobileOpen])
+
+  const handleDrawerTouchStart = (e: React.TouchEvent<HTMLElement>) => {
+    const touch = e.touches[0]
+    touchStartXRef.current = touch.clientX
+    touchStartYRef.current = touch.clientY
+    setIsDrawerDragging(false)
+    setDrawerDragOffset(0)
+  }
+
+  const handleDrawerTouchMove = (e: React.TouchEvent<HTMLElement>) => {
+    if (!mobileOpen || touchStartXRef.current === null || touchStartYRef.current === null) return
+
+    const touch = e.touches[0]
+    const deltaX = touch.clientX - touchStartXRef.current
+    const deltaY = touch.clientY - touchStartYRef.current
+
+    if (Math.abs(deltaY) > Math.abs(deltaX)) return
+    if (deltaX >= 0) {
+      if (isDrawerDragging || drawerDragOffset !== 0) {
+        setIsDrawerDragging(false)
+        setDrawerDragOffset(0)
+      }
+      return
+    }
+
+    setIsDrawerDragging(true)
+    setDrawerDragOffset(deltaX)
+  }
+
+  const handleDrawerTouchEnd = () => {
+    const shouldClose = drawerDragOffset <= -80
+    touchStartXRef.current = null
+    touchStartYRef.current = null
+    setIsDrawerDragging(false)
+    setDrawerDragOffset(0)
+
+    if (shouldClose) {
+      setMobileOpen(false)
+    }
+  }
 
   return (
     <header
@@ -78,19 +124,11 @@ export default function Header() {
             </div>
           </Link>
 
-          {/* ── Desktop Nav (lg+) ── */}
-          <nav className="hidden lg:flex items-center gap-0.5">
-            {navItems.map(({ href, icon: Icon, label }) => (
-              <Link
-                key={href}
-                href={href}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-gray-600 hover:text-blue-600 hover:bg-blue-50 transition-colors text-sm font-medium whitespace-nowrap"
-              >
-                <Icon className="w-4 h-4 flex-shrink-0" />
-                <span>{label}</span>
-              </Link>
-            ))}
-          </nav>
+          <div className="hidden lg:flex flex-1 px-6">
+            <div className="rounded-full border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-500">
+              Menü solda. Paylasim, Kesif, Ticaret ve Hesap olarak grupladik.
+            </div>
+          </div>
 
           {/* ── Sağ Butonlar ── */}
           <div className="flex items-center gap-2 flex-shrink-0">
@@ -116,36 +154,104 @@ export default function Header() {
         </div>
       </div>
 
-      {/* ── Mobil Dropdown ── */}
-      {mobileOpen && (
-        <div className="lg:hidden border-t border-gray-100 bg-white shadow-lg">
-          <div className="container-custom py-3 space-y-3">
-            <div className="grid grid-cols-2 gap-1">
-              {navItems.map(({ href, icon: Icon, label }) => (
-                <Link
-                  key={href}
-                  href={href}
-                  className="flex items-center gap-2 px-3 py-3 rounded-xl text-gray-700 hover:text-blue-600 hover:bg-blue-50 transition-colors text-sm font-medium"
-                  onClick={() => setMobileOpen(false)}
-                >
-                  <Icon className="w-4 h-4 text-blue-500 flex-shrink-0" />
-                  {label}
-                </Link>
-              ))}
+      {/* ── Mobil Drawer ── */}
+      <div
+        aria-hidden={!mobileOpen}
+        className={`lg:hidden fixed inset-0 z-[70] transition-opacity duration-200 ${
+          mobileOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        }`}
+      >
+        <button
+          type="button"
+          aria-label="Menüyü kapat"
+          onClick={() => setMobileOpen(false)}
+          className="absolute inset-0 bg-black/35"
+        />
+
+        <aside
+          onTouchStart={handleDrawerTouchStart}
+          onTouchMove={handleDrawerTouchMove}
+          onTouchEnd={handleDrawerTouchEnd}
+          onTouchCancel={handleDrawerTouchEnd}
+          className={`absolute inset-y-0 left-0 w-[86%] max-w-sm bg-white shadow-2xl border-r border-gray-200 overflow-y-auto transform ease-out ${
+            isDrawerDragging ? 'transition-none' : 'transition-transform duration-300'
+          }`}
+          style={{
+            transform: mobileOpen
+              ? `translateX(${drawerDragOffset}px)`
+              : 'translateX(-100%)',
+          }}
+        >
+          <div className="sticky top-0 bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">Menü</p>
+              <p className="text-sm font-bold text-gray-900">Navigasyon</p>
             </div>
-            <div className="pt-2 border-t border-gray-100">
-              <Link
-                href="/create-spot"
-                className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-xl font-semibold text-sm transition-colors w-full shadow-sm"
-                onClick={() => setMobileOpen(false)}
-              >
-                <Plus className="w-4 h-4" />
-                Spot Oluştur
-              </Link>
-            </div>
+            <button
+              type="button"
+              onClick={() => setMobileOpen(false)}
+              className="p-2 rounded-lg text-gray-600 hover:bg-gray-100"
+              aria-label="Menüyü kapat"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
-        </div>
-      )}
+
+          <div className="p-3 space-y-3">
+            {pinnedShareItems.length > 0 && (
+              <div className="rounded-2xl border border-blue-100 bg-gradient-to-b from-blue-50 to-white p-2">
+                <p className="px-2 pb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-blue-500">
+                  Hızlı Paylaşım
+                </p>
+                <div className="space-y-1">
+                  {pinnedShareItems.map(({ href, icon: Icon, label, description }) => (
+                    <Link
+                      key={href}
+                      href={href}
+                      className="block rounded-xl px-3 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                      onClick={() => setMobileOpen(false)}
+                    >
+                      <div className="flex items-center gap-2 text-sm font-semibold">
+                        <Icon className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                        {label}
+                      </div>
+                      {description && (
+                        <p className="mt-1 pl-6 text-xs text-gray-500">{description}</p>
+                      )}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {mobileSections.map((section) => (
+              <div key={section.title} className="space-y-2">
+                <p className="px-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">
+                  {section.title}
+                </p>
+                <div className="grid grid-cols-2 gap-1">
+                  {section.items.map(({ href, icon: Icon, label, description }) => (
+                    <Link
+                      key={href}
+                      href={href}
+                      className="flex flex-col items-start gap-1 px-3 py-3 rounded-xl text-gray-700 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                      onClick={() => setMobileOpen(false)}
+                    >
+                      <div className="flex items-center gap-2 text-sm font-medium">
+                        <Icon className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                        {label}
+                      </div>
+                      {description && (
+                        <p className="text-xs text-gray-500">{description}</p>
+                      )}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </aside>
+      </div>
     </header>
   )
 }

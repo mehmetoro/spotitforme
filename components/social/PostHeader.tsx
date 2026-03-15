@@ -82,10 +82,10 @@ export default function PostHeader({ user: author, post, onFollow, onReport }: P
   }
 
   return (
-    <div className="px-6 py-4">
-      <div className="flex items-start justify-between">
+    <div className="px-6 py-4 overflow-x-hidden">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 min-w-0">
         {/* Sol taraf - Kullanıcı bilgileri */}
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-3 min-w-0 w-full">
           {/* Avatar */}
           <div className="relative">
             <div className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-blue-400 to-purple-500">
@@ -107,9 +107,9 @@ export default function PostHeader({ user: author, post, onFollow, onReport }: P
           </div>
 
           {/* Kullanıcı bilgileri */}
-          <div className="flex-1">
-            <div className="flex items-center space-x-2">
-              <h4 className="font-bold text-gray-900">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap min-w-0">
+              <h4 className="font-bold text-gray-900 truncate max-w-[170px] sm:max-w-none">
                 {author?.full_name || 'Kullanıcı'}
               </h4>
               
@@ -128,11 +128,11 @@ export default function PostHeader({ user: author, post, onFollow, onReport }: P
               )}
             </div>
             
-            <div className="flex items-center text-sm text-gray-500 space-x-3 mt-1">
+            <div className="flex flex-wrap items-center text-sm text-gray-500 gap-x-3 gap-y-1 mt-1 min-w-0">
               {post?.location && (
                 <div className="flex items-center">
                   <MapPin className="w-3 h-3 mr-1" />
-                  <span>{post.location}</span>
+                  <span className="truncate max-w-[170px] sm:max-w-[240px]">{post.location}</span>
                 </div>
               )}
               
@@ -145,17 +145,18 @@ export default function PostHeader({ user: author, post, onFollow, onReport }: P
         </div>
 
         {/* Sağ taraf - Menü ve takip butonu */}
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2 self-end sm:self-auto shrink-0">
           {/* Takip butonu */}
           <button
             onClick={handleFollow}
-            className={`px-4 py-2 rounded-full text-sm font-medium ${
+            className={`px-3 sm:px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap ${
               isFollowing
                 ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 : 'bg-blue-600 text-white hover:bg-blue-700'
             }`}
           >
-            {isFollowing ? 'Takip Ediliyor' : 'Takip Et'}
+            <span className="sm:hidden">{isFollowing ? 'Takipte' : 'Takip'}</span>
+            <span className="hidden sm:inline">{isFollowing ? 'Takip Ediliyor' : 'Takip Et'}</span>
           </button>
 
           {/* Daha fazla menüsü */}

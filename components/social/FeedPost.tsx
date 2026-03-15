@@ -148,30 +148,30 @@ export default function FeedPost({
       {/* İçerik (Açıklama) */}
       {content && (
         <div className="px-6 pt-4">
-          <p className="text-gray-800 whitespace-pre-line">
+          <p className="text-gray-800 whitespace-pre-line break-words overflow-hidden">
             {content}
-            
-            {/* Hashtag'ler */}
-            {hashtags.length > 0 && (
-              <div className="mt-2">
-                {hashtags.map((tag: string) => (
-                  <Link
-                    key={tag}
-                    href={`/discovery/tags/${tag.replace('#', '')}`}
-                    className="inline-block text-blue-600 hover:text-blue-800 mr-2 text-sm"
-                  >
-                    #{tag}
-                  </Link>
-                ))}
-              </div>
-            )}
           </p>
+
+          {/* Hashtag'ler */}
+          {hashtags.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-2 min-w-0">
+              {hashtags.map((tag: string) => (
+                <Link
+                  key={tag}
+                  href={`/discovery/tags/${tag.replace('#', '')}`}
+                  className="inline-flex max-w-full text-blue-600 hover:text-blue-800 text-sm break-all"
+                >
+                  #{tag}
+                </Link>
+              ))}
+            </div>
+          )}
           
           {/* Konum */}
           {post.location && (
             <div className="mt-2 flex items-center text-gray-600 text-sm">
               <span className="mr-1">📍</span>
-              {post.location}
+              <span className="truncate">{post.location}</span>
             </div>
           )}
         </div>

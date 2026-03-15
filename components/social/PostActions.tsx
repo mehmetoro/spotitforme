@@ -51,30 +51,30 @@ export default function PostActions({
   }
 
   return (
-    <div className="px-6 py-3 border-t border-gray-100">
-      <div className="flex items-center justify-between">
+    <div className="px-6 py-3 border-t border-gray-100 overflow-x-hidden">
+      <div className="flex items-center justify-between gap-2 min-w-0">
         {/* Sol taraf - Beğeni ve yorum */}
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center gap-2 min-w-0">
           {/* Beğeni butonu ve reactions */}
           <div className="relative">
             <button
               onClick={(e) => { e.stopPropagation(); onLike(e) }}
               onMouseEnter={() => setShowReactions(true)}
               onMouseLeave={() => setTimeout(() => setShowReactions(false), 500)}
-              className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition ${
+              className={`flex items-center space-x-2 px-2 sm:px-3 py-2 rounded-lg transition whitespace-nowrap ${
                 isLiked 
                   ? 'bg-red-50 text-red-600' 
                   : 'hover:bg-gray-100 text-gray-700'
               }`}
             >
               <span className="text-xl">{isLiked ? '❤️' : '🤍'}</span>
-              <span className="font-medium">Beğen</span>
+              <span className="font-medium hidden sm:inline">Beğen</span>
             </button>
 
             {/* Reactions popup */}
             {showReactions && (
               <div 
-                className="absolute bottom-full left-0 mb-2 bg-white rounded-xl shadow-2xl border p-2 flex space-x-1 z-50"
+                className="absolute bottom-full left-0 mb-2 bg-white rounded-xl shadow-2xl border p-2 flex space-x-1 z-50 max-w-[calc(100vw-2rem)]"
                 onMouseEnter={() => setShowReactions(true)}
                 onMouseLeave={() => setShowReactions(false)}
               >
@@ -95,10 +95,10 @@ export default function PostActions({
           {/* Yorum butonu */}
           <button
             onClick={(e) => { e.stopPropagation(); onComment() }}
-            className="flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700"
+            className="flex items-center space-x-2 px-2 sm:px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700 whitespace-nowrap"
           >
             <span className="text-xl">💬</span>
-            <span className="font-medium">Yorum</span>
+            <span className="font-medium hidden sm:inline">Yorum</span>
           </button>
         </div>
 

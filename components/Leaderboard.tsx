@@ -74,19 +74,20 @@ export default function Leaderboard() {
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-lg p-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="bg-white rounded-xl shadow-lg p-6 overflow-hidden">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 min-w-0">
         <div>
           <h2 className="text-xl font-bold text-gray-900">🏆 Lider Tablosu</h2>
           <p className="text-gray-600">En aktif bulucular</p>
         </div>
         
-        <div className="flex space-x-2">
+        <div className="w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
+          <div className="flex flex-nowrap sm:flex-wrap gap-2 min-w-max sm:min-w-0">
           {['daily', 'weekly', 'all'].map((range) => (
             <button
               key={range}
               onClick={() => setTimeRange(range as any)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium ${
+              className={`shrink-0 px-3 sm:px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap ${
                 timeRange === range
                   ? 'bg-blue-600 text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -95,6 +96,7 @@ export default function Leaderboard() {
               {range === 'daily' ? 'Günlük' : range === 'weekly' ? 'Haftalık' : 'Tüm Zamanlar'}
             </button>
           ))}
+          </div>
         </div>
       </div>
 
@@ -118,7 +120,7 @@ export default function Leaderboard() {
             return (
               <div 
                 key={user.user_id}
-                className={`flex items-center space-x-4 p-3 rounded-lg ${
+                className={`flex items-center gap-3 p-3 rounded-lg min-w-0 ${
                   index < 3 ? 'bg-gradient-to-r from-yellow-50 to-yellow-100 border border-yellow-200' : 'hover:bg-gray-50'
                 }`}
               >
@@ -135,7 +137,7 @@ export default function Leaderboard() {
                 </div>
 
                 {/* Avatar ve İsim */}
-                <div className="flex-1 flex items-center space-x-3">
+                <div className="flex-1 flex items-center gap-3 min-w-0">
                   <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-200">
                     {user.avatar_url ? (
                       <img src={user.avatar_url} alt={user.name} className="w-full h-full object-cover" />
@@ -146,15 +148,15 @@ export default function Leaderboard() {
                     )}
                   </div>
                   
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="font-bold text-gray-900">{user.name}</h4>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <h4 className="font-bold text-gray-900 truncate">{user.name}</h4>
                         <p className="text-sm" style={{ color: userLevel?.color }}>
                           {userLevel?.name}
                         </p>
                       </div>
-                      <div className="text-right">
+                      <div className="text-right shrink-0">
                         <div className="font-bold text-gray-900">{user.total_points} puan</div>
                         <div className="text-xs text-gray-500">
                           {user.total_sightings} yardım

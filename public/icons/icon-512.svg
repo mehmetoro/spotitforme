@@ -1,17 +1,25 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
   <defs>
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#2563eb"/>
-      <stop offset="100%" style="stop-color:#1d4ed8"/>
+      <stop offset="0%" stop-color="#1d4ed8"/>
+      <stop offset="55%" stop-color="#2563eb"/>
+      <stop offset="100%" stop-color="#0ea5e9"/>
     </linearGradient>
+    <radialGradient id="glow" cx="30%" cy="22%" r="70%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
   </defs>
-  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
-  <!-- Map pin icon -->
-  <circle cx="256" cy="200" r="60" fill="white" fill-opacity="0.95"/>
-  <ellipse cx="256" cy="330" rx="28" ry="14" fill="white" fill-opacity="0.4"/>
-  <path d="M256 260 L220 228 Q204 208 204 192 Q204 148 256 148 Q308 148 308 192 Q308 208 292 228 Z" fill="white"/>
-  <circle cx="256" cy="196" r="26" fill="#2563eb"/>
-  <!-- SpotIt text -->
-  <text x="50%" y="415" text-anchor="middle" fill="white" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="68" opacity="0.95">SpotIt</text>
-  <text x="50%" y="470" text-anchor="middle" fill="white" font-family="Arial, Helvetica, sans-serif" font-weight="500" font-size="32" opacity="0.7">ForMe</text>
+
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <rect width="512" height="512" rx="112" fill="url(#glow)"/>
+
+  <circle cx="232" cy="226" r="114" fill="none" stroke="#ffffff" stroke-width="40"/>
+  <line x1="308" y1="304" x2="390" y2="386" stroke="#ffffff" stroke-width="40" stroke-linecap="round"/>
+
+  <path d="M232 170c-33 0-60 27-60 60 0 47 60 110 60 110s60-63 60-110c0-33-27-60-60-60z" fill="#38bdf8"/>
+  <circle cx="232" cy="230" r="23" fill="#ffffff"/>
+
+  <circle cx="366" cy="152" r="16" fill="#ffffff" fill-opacity="0.92"/>
+  <circle cx="394" cy="126" r="8" fill="#ffffff" fill-opacity="0.7"/>
 </svg>

@@ -98,35 +98,35 @@ export default function SuggestedUsers() {
   }
 
   return (
-    <div className="bg-white rounded-xl shadow p-6">
+    <div className="bg-white rounded-xl shadow p-6 overflow-hidden">
       <h3 className="font-bold text-gray-900 mb-4">👥 Önerilen Kullanıcılar</h3>
       {users.length === 0 ? (
         <p className="text-gray-500 text-center py-4 text-sm">Henüz önerilmiş kullanıcı yok</p>
       ) : (
         <div className="space-y-4">
           {users.map((user) => (
-            <div key={user.id} className="flex items-center justify-between">
+            <div key={user.id} className="flex items-center justify-between gap-2 min-w-0">
               <div 
-                className="flex items-center space-x-3 cursor-pointer hover:opacity-70 transition"
+                className="flex items-center space-x-3 cursor-pointer hover:opacity-70 transition flex-1 min-w-0"
                 onClick={() => router.push(`/profile/${user.id}`)}
               >
                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-bold">
                   {user.full_name?.[0] || 'K'}
                 </div>
-                <div>
-                  <div className="font-medium">{user.full_name || 'Kullanıcı'}</div>
+                <div className="min-w-0">
+                  <div className="font-medium truncate">{user.full_name || 'Kullanıcı'}</div>
                 </div>
               </div>
               
               <button
                 onClick={() => handleFollow(user.id, user.isFollowing)}
-                className={`px-3 py-1 text-sm rounded-lg transition ${
+                className={`px-3 py-1 text-sm rounded-lg transition whitespace-nowrap shrink-0 ${
                   user.isFollowing
                     ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     : 'bg-blue-600 text-white hover:bg-blue-700'
                 }`}
               >
-                {user.isFollowing ? 'Takip Ediliyor' : 'Takip Et'}
+                {user.isFollowing ? 'Takipte' : 'Takip Et'}
               </button>
             </div>
           ))}

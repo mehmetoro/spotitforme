@@ -126,15 +126,15 @@ function FollowingList() {
   }
 
   return (
-    <div className="bg-white rounded-xl shadow p-6">
+    <div className="bg-white rounded-xl shadow p-6 overflow-hidden">
       <h3 className="font-bold text-gray-900 mb-4">👥 Takip Ettiklerim</h3>
       {following.length === 0 ? (
         <p className="text-gray-500 text-center py-4 text-sm">Henüz kimseyi takip etmiyorsun</p>
       ) : (
         <div className="space-y-3 max-h-96 overflow-y-auto">
           {following.map((user) => (
-            <div key={user.id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded transition">
-              <div className="flex items-center space-x-3 flex-1">
+              <div key={user.id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded transition gap-2 min-w-0">
+                <div className="flex items-center space-x-3 flex-1 min-w-0">
                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-bold text-sm">
                   {user.avatar_url ? (
                     <img src={user.avatar_url} alt={user.full_name} className="w-full h-full object-cover rounded-full" />
@@ -148,7 +148,7 @@ function FollowingList() {
               </div>
               <button
                 onClick={() => handleUnfollow(user.id)}
-                className="px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs rounded transition whitespace-nowrap ml-2"
+                  className="px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs rounded transition whitespace-nowrap ml-2 shrink-0"
               >
                 ✕
               </button>
@@ -212,7 +212,7 @@ function TrendingHashtags() {
   }, [])
 
   return (
-    <div className="bg-white rounded-xl shadow p-6">
+    <div className="bg-white rounded-xl shadow p-6 overflow-hidden">
       <h3 className="font-bold text-gray-900 mb-4">🔥 Popüler Hashtag'ler</h3>
       <div className="space-y-2">
         {loading ? (
@@ -232,10 +232,10 @@ function TrendingHashtags() {
             <button
               key={tag.name}
               onClick={() => router.push(`/discovery?search=${encodeURIComponent(tag.name)}`)}
-              className="w-full flex justify-between items-center p-2 hover:bg-gray-50 rounded transition"
+              className="w-full flex justify-between items-center gap-2 p-2 hover:bg-gray-50 rounded transition min-w-0"
             >
-              <span className="text-blue-600 font-medium">{tag.name}</span>
-              <span className="text-sm text-gray-500">{tag.count} paylaşım</span>
+              <span className="text-blue-600 font-medium truncate">{tag.name}</span>
+              <span className="text-sm text-gray-500 whitespace-nowrap shrink-0">{tag.count} paylaşım</span>
             </button>
           ))
         )}
@@ -249,6 +249,7 @@ export default function DiscoveryPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const searchFromUrl = searchParams.get('search') || ''
+  const composeFromUrl = searchParams.get('compose')
   
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [activeFilter, setActiveFilter] = useState<FilterType>('for-you')
@@ -266,6 +267,12 @@ export default function DiscoveryPage() {
   const [userProfile, setUserProfile] = useState<{ name: string | null; avatar_url: string | null } | null>(null)
   const [loadingStats, setLoadingStats] = useState(true)
   const [loadingTodayStats, setLoadingTodayStats] = useState(true)
+
+  useEffect(() => {
+    if (composeFromUrl === '1' || composeFromUrl === 'true') {
+      setShowCreateModal(true)
+    }
+  }, [composeFromUrl])
 
   // Kullanıcı istatistiklerini yükle
   useEffect(() => {
@@ -504,7 +511,7 @@ export default function DiscoveryPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 overflow-x-hidden">
       {/* Create Post Modal */}
       <CreatePostModal
         isOpen={showCreateModal}
@@ -531,9 +538,9 @@ export default function DiscoveryPage() {
           />
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-8">
+        <div className="grid lg:grid-cols-3 gap-8 min-w-0">
           {/* Sol Taraf - Ana Feed (2/3 genişlik) */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-6 min-w-0">
             {/* Hızlı Paylaşım Kartı */}
             <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-6 text-white shadow-lg">
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -564,10 +571,10 @@ export default function DiscoveryPage() {
           </div>
 
           {/* Sağ Taraf - Sidebar (1/3 genişlik) */}
-          <div className="space-y-6">
+          <div className="space-y-6 min-w-0">
             {/* Hızlı Profil Kartı */}
-            <div className="bg-white rounded-xl shadow-lg p-6">
-              <div className="flex items-center space-x-4">
+            <div className="bg-white rounded-xl shadow-lg p-6 overflow-hidden">
+              <div className="flex items-center space-x-4 min-w-0">
                 <div className="w-16 h-16 rounded-full overflow-hidden bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white text-2xl font-bold">
                   {userProfile?.avatar_url ? (
                     <img src={userProfile.avatar_url} alt={userProfile.name || 'Profil'} className="w-full h-full object-cover" />
@@ -575,8 +582,8 @@ export default function DiscoveryPage() {
                     userProfile?.name ? userProfile.name[0] : 'S'
                   )}
                 </div>
-                <div>
-                  <h3 className="font-bold text-gray-900">{userProfile?.name || 'Profilin'}</h3>
+                <div className="min-w-0">
+                  <h3 className="font-bold text-gray-900 truncate">{userProfile?.name || 'Profilin'}</h3>
                   <p className="text-sm text-gray-600">Keşfet, paylaş, puan kazan</p>
                 </div>
               </div>

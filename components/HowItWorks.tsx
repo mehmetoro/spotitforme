@@ -35,7 +35,7 @@ export default function HowItWorks() {
   ]
 
   return (
-    <section className="py-20 bg-white">
+    <section className="py-20 bg-white overflow-x-hidden">
       <div className="container-custom">
         <div className="text-center mb-16">
           <div className="inline-block px-4 py-2 bg-blue-100 text-blue-700 rounded-full text-sm font-medium mb-4">

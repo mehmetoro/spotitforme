@@ -428,7 +428,7 @@ export default function Feed({ initialUserId, type, category, initialSearch }: F
   }
 
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="max-w-2xl mx-auto w-full min-w-0">
       {/* Stories Bar */}
       <StoriesBar />
 
@@ -453,7 +453,7 @@ export default function Feed({ initialUserId, type, category, initialSearch }: F
       )}
 
       {/* Feed Posts */}
-      <div className="space-y-6 mt-6">
+      <div className="space-y-6 mt-6 min-w-0">
         {posts
           .filter((post) => {
             // Arama filtresi

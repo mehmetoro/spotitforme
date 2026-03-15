@@ -40,7 +40,8 @@ export default function CreatePostButton({ variant = 'default' }: { variant?: 'd
     <>
       <button
         onClick={() => setShowModal(true)}
-        className="fixed bottom-6 right-6 z-40 bg-gradient-to-r from-blue-500 to-purple-600 text-white p-4 rounded-full shadow-2xl hover:shadow-3xl transition-all hover:scale-110"
+        aria-label="Yeni paylaşım oluştur"
+        className="fixed bottom-4 right-4 md:bottom-6 md:right-6 z-40 bg-gradient-to-r from-blue-500 to-purple-600 text-white p-3 md:p-4 rounded-full shadow-xl transition-all duration-200 md:hover:scale-105 active:scale-95"
       >
         <div className="flex items-center space-x-2">
           <span className="text-2xl">✏️</span>

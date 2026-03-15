@@ -6,6 +6,7 @@ import Script from "next/script";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ResponsiveAd from "@/components/ResponsiveAd";
+import AppSidebar from "@/components/AppSidebar";
 import { ToastProvider } from "@/components/ui/ToastProvider";
 import PWAInstaller from "@/components/PWAInstaller";
 
@@ -66,20 +67,27 @@ export default function RootLayout({
 
           {/* Banner Reklam - Header altında */}
           <div className="bg-gray-50 border-b border-gray-100">
-            <div className="container mx-auto px-2 md:px-4 py-2">
+            <div className="container-custom py-2">
               <ResponsiveAd placement="banner" className="h-16 md:h-20" />
             </div>
           </div>
 
           <main className="min-h-screen bg-white">
-            <div className="container mx-auto px-2 md:px-4 py-4 md:py-8">
-              {children}
+            <div className="container-custom py-4 md:py-8 lg:flex lg:items-start lg:gap-6">
+              <div className="hidden lg:block lg:w-64 lg:shrink-0">
+                <div className="lg:sticky lg:top-24">
+                  <AppSidebar />
+                </div>
+              </div>
+              <div className="min-w-0 flex-1">
+                {children}
+              </div>
             </div>
           </main>
 
           {/* Footer Öncesi Reklam */}
           <div className="bg-gray-50 border-t border-gray-200">
-            <div className="container mx-auto px-2 md:px-4 py-6 md:py-8">
+            <div className="container-custom py-6 md:py-8">
               <ResponsiveAd placement="inline" />
             </div>
           </div>

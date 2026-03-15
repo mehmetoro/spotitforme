@@ -55,8 +55,8 @@ export default function Hero() {
           <div className="max-w-3xl mx-auto mb-12">
             <form onSubmit={handleSearch} className="relative">
               <div className="relative bg-white rounded-2xl shadow-2xl p-2 border border-gray-200">
-                <div className="flex items-center">
-                  <div className="flex-grow relative">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-0">
+                  <div className="flex-grow min-w-0 relative">
                     <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
                       🔍
                     </div>
@@ -65,12 +65,12 @@ export default function Hero() {
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       placeholder="Ne aramıştınız? Örnek: 'vintage Nikon kamera lensi', 'eski Arçelik çay makinesi parçası'"
-                      className="w-full pl-12 pr-4 py-4 text-lg border-0 focus:ring-0 focus:outline-none rounded-l-2xl"
+                      className="w-full pl-12 pr-4 py-3.5 sm:py-4 text-base sm:text-lg border-0 focus:ring-0 focus:outline-none rounded-xl sm:rounded-l-2xl sm:rounded-r-none"
                     />
                   </div>
                   <button
                     type="submit"
-                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-4 px-8 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg"
+                    className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3.5 sm:py-4 px-6 sm:px-8 rounded-xl transition-all duration-300 sm:transform sm:hover:scale-105 shadow-lg"
                   >
                     Ara
                   </button>

@@ -1,11 +1,12 @@
 // SpotItForMe Service Worker
-const CACHE_NAME = 'spotitforme-v1';
+const CACHE_NAME = 'spotitforme-v3';
 
 const PRECACHE_URLS = [
-  '/',
   '/manifest.json',
   '/icons/icon-192.svg',
   '/icons/icon-512.svg',
+  '/icons/icon-maskable.svg',
+  '/icons/apple-icon.svg',
 ];
 
 // Install: precache static assets
@@ -28,7 +29,13 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch: network-first for API/auth, cache-first for static assets
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
+// Fetch: keep app shell fresh, only cache stable public assets
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
@@ -42,10 +49,27 @@ self.addEventListener('fetch', (event) => {
   // Skip API routes — always network
   if (url.pathname.startsWith('/api/')) return;
 
-  // Cache-first for static assets (images, fonts, icons)
+  // Never cache Next build assets here; browser cache handles hashed files.
+  // Caching them in SW can mix old bundles with new HTML and trigger hydration errors.
+  if (url.pathname.startsWith('/_next/')) return;
+
+  // HTML navigations: network first, cached fallback only if offline
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          return response;
+        })
+        .catch(() => caches.match(request))
+    );
+    return;
+  }
+
+  // Cache-first only for stable public assets
   if (
     url.pathname.startsWith('/icons/') ||
-    url.pathname.startsWith('/_next/static/') ||
     url.pathname.match(/\.(svg|png|ico|woff2?|css)$/)
   ) {
     event.respondWith(
@@ -60,15 +84,4 @@ self.addEventListener('fetch', (event) => {
     );
     return;
   }
-
-  // Network-first for HTML pages with offline fallback
-  event.respondWith(
-    fetch(request)
-      .then((response) => {
-        const clone = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-        return response;
-      })
-      .catch(() => caches.match(request))
-  );
 });
