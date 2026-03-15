@@ -10,13 +10,20 @@ import {
 import UserMenu from './UserMenu'
 import { navSections } from '@/components/navigation/navItems'
 
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
+
 export default function Header() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [drawerDragOffset, setDrawerDragOffset] = useState(0)
   const [isDrawerDragging, setIsDrawerDragging] = useState(false)
+  const [drawerOpenSwipeOffset, setDrawerOpenSwipeOffset] = useState(0)
+  const [isDrawerOpeningSwipe, setIsDrawerOpeningSwipe] = useState(false)
+  const [viewportWidth, setViewportWidth] = useState(390)
   const menuRef = useRef<HTMLDivElement>(null)
   const touchStartXRef = useRef<number | null>(null)
   const touchStartYRef = useRef<number | null>(null)
+  const edgeTouchStartXRef = useRef<number | null>(null)
+  const edgeTouchStartYRef = useRef<number | null>(null)
   const shareSection = navSections.find((section) => section.title === 'Paylasim')
   const pinnedShareItems = shareSection?.items.filter((item) => item.isPinned) || []
   const mobileSections = navSections
@@ -28,6 +35,15 @@ export default function Header() {
       }
     })
     .filter((section) => section.items.length > 0)
+
+  useEffect(() => {
+    const updateViewportWidth = () => setViewportWidth(window.innerWidth)
+
+    updateViewportWidth()
+    window.addEventListener('resize', updateViewportWidth)
+
+    return () => window.removeEventListener('resize', updateViewportWidth)
+  }, [])
 
   // Dışarı tıklayınca menüyü kapat
   useEffect(() => {
@@ -63,6 +79,64 @@ export default function Header() {
     }
   }, [mobileOpen])
 
+  const drawerWidthEstimate = Math.min(viewportWidth * 0.86, 384)
+  const edgeSwipeZoneWidth = clamp(Math.round(viewportWidth * 0.055), 18, 30)
+  const openThreshold = clamp(Math.round(drawerWidthEstimate * 0.24), 56, 104)
+  const closeThreshold = clamp(Math.round(drawerWidthEstimate * 0.22), 56, 108)
+  const maxOverlayOpacity = viewportWidth < 390 ? 0.26 : viewportWidth < 768 ? 0.34 : 0.38
+
+  const handleEdgeTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (mobileOpen) return
+
+    const touch = e.touches[0]
+    edgeTouchStartXRef.current = touch.clientX
+    edgeTouchStartYRef.current = touch.clientY
+    setIsDrawerOpeningSwipe(false)
+    setDrawerOpenSwipeOffset(0)
+  }
+
+  const handleEdgeTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (mobileOpen || edgeTouchStartXRef.current === null || edgeTouchStartYRef.current === null) return
+
+    const touch = e.touches[0]
+    const deltaX = touch.clientX - edgeTouchStartXRef.current
+    const deltaY = touch.clientY - edgeTouchStartYRef.current
+
+    if (Math.abs(deltaY) > Math.abs(deltaX)) return
+    if (deltaX <= 0) {
+      if (isDrawerOpeningSwipe || drawerOpenSwipeOffset !== 0) {
+        setIsDrawerOpeningSwipe(false)
+        setDrawerOpenSwipeOffset(0)
+      }
+      return
+    }
+
+    setIsDrawerOpeningSwipe(true)
+    setDrawerOpenSwipeOffset(Math.min(deltaX, drawerWidthEstimate))
+  }
+
+  const handleEdgeTouchEnd = () => {
+    const shouldOpen = drawerOpenSwipeOffset >= openThreshold
+
+    edgeTouchStartXRef.current = null
+    edgeTouchStartYRef.current = null
+    setIsDrawerOpeningSwipe(false)
+    setDrawerOpenSwipeOffset(0)
+
+    if (shouldOpen) {
+      setMobileOpen(true)
+    }
+  }
+
+  const drawerVisible = mobileOpen || isDrawerOpeningSwipe
+  const openSwipeProgress = Math.min(drawerOpenSwipeOffset / drawerWidthEstimate, 1)
+  const overlayOpacity = mobileOpen ? maxOverlayOpacity : openSwipeProgress * maxOverlayOpacity
+  const drawerTransform = mobileOpen
+    ? `translateX(${drawerDragOffset}px)`
+    : isDrawerOpeningSwipe
+      ? `translateX(calc(-100% + ${drawerOpenSwipeOffset}px))`
+      : 'translateX(-100%)'
+
   const handleDrawerTouchStart = (e: React.TouchEvent<HTMLElement>) => {
     const touch = e.touches[0]
     touchStartXRef.current = touch.clientX
@@ -92,7 +166,7 @@ export default function Header() {
   }
 
   const handleDrawerTouchEnd = () => {
-    const shouldClose = drawerDragOffset <= -80
+    const shouldClose = drawerDragOffset <= -closeThreshold
     touchStartXRef.current = null
     touchStartYRef.current = null
     setIsDrawerDragging(false)
@@ -154,12 +228,23 @@ export default function Header() {
         </div>
       </div>
 
+      <div
+        className={`lg:hidden fixed inset-y-0 left-0 z-[65] ${mobileOpen ? 'pointer-events-none' : 'pointer-events-auto'}`}
+        onTouchStart={handleEdgeTouchStart}
+        onTouchMove={handleEdgeTouchMove}
+        onTouchEnd={handleEdgeTouchEnd}
+        onTouchCancel={handleEdgeTouchEnd}
+        style={{ width: edgeSwipeZoneWidth }}
+        aria-hidden="true"
+      />
+
       {/* ── Mobil Drawer ── */}
       <div
-        aria-hidden={!mobileOpen}
+        aria-hidden={!drawerVisible}
         className={`lg:hidden fixed inset-0 z-[70] transition-opacity duration-200 ${
-          mobileOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+          drawerVisible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
+        style={{ opacity: drawerVisible ? overlayOpacity : 0 }}
       >
         <button
           type="button"
@@ -174,12 +259,10 @@ export default function Header() {
           onTouchEnd={handleDrawerTouchEnd}
           onTouchCancel={handleDrawerTouchEnd}
           className={`absolute inset-y-0 left-0 w-[86%] max-w-sm bg-white shadow-2xl border-r border-gray-200 overflow-y-auto transform ease-out ${
-            isDrawerDragging ? 'transition-none' : 'transition-transform duration-300'
+            isDrawerDragging || isDrawerOpeningSwipe ? 'transition-none' : 'transition-transform duration-300'
           }`}
           style={{
-            transform: mobileOpen
-              ? `translateX(${drawerDragOffset}px)`
-              : 'translateX(-100%)',
+            transform: drawerTransform,
           }}
         >
           <div className="sticky top-0 bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between">
