@@ -1,5 +1,6 @@
 // SpotItForMe Service Worker
-const CACHE_NAME = 'spotitforme-v6';
+// CACHE_VERSION güncellendi: 17 Mart 2026 - yeni ikonlar için
+const CACHE_NAME = 'spotitforme-v7';
 
 const PRECACHE_URLS = [
   '/manifest.json',
