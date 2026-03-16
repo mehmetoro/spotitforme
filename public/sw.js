@@ -1,10 +1,13 @@
 // SpotItForMe Service Worker
-const CACHE_NAME = 'spotitforme-v5';
+const CACHE_NAME = 'spotitforme-v6';
 
 const PRECACHE_URLS = [
   '/manifest.json',
   '/spotitforme-log.png',
-  '/spotitforme_icon.png',
+  '/apple-touch-icon.png',
+  '/icons/icon-192.png',
+  '/icons/icon-512.png',
+  '/icons/icon-maskable-512.png',
 ];
 
 // Install: precache static assets
