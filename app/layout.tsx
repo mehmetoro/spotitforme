@@ -16,7 +16,7 @@ export const metadata: Metadata = {
   title: "SpotItForMe – Toplulukla Ürün Bulma Platformu",
   description:
     "Nadir ürünleri toplulukla bul. Sighting paylaş, spot oluştur ve mağazaları keşfet.",
-  manifest: "/manifest.json",
+  manifest: "/manifest.json?v=2",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
