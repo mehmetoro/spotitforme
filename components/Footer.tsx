@@ -1,5 +1,6 @@
 // components/Footer.tsx - GÜNCELLENMİŞ
 import Link from 'next/link'
+import BrandMark from './BrandMark'
 
 export default function Footer() {
   const currentYear = new Date().getFullYear()
@@ -10,11 +11,12 @@ export default function Footer() {
         <div className="grid md:grid-cols-5 gap-8 mb-8">
           {/* Logo & Description */}
           <div className="md:col-span-2">
-            <div className="flex items-center mb-4">
-              <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center mr-3">
-                <span className="text-white font-bold text-xl">S</span>
+            <div className="mb-4">
+              <BrandMark className="h-11 w-[176px]" />
+              <div>
+                <h2 className="text-2xl font-bold tracking-[-0.04em]">SpotItForMe</h2>
+                <p className="text-[11px] uppercase tracking-[0.26em] text-amber-400">Nadir izi</p>
               </div>
-              <h2 className="text-2xl font-bold">SpotItForMe</h2>
             </div>
             <p className="text-gray-400 mb-6">
               Topluluk gücüyle kayıp ürünleri bulma platformu. 

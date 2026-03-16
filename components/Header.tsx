@@ -7,6 +7,7 @@ import {
   X,
   Plus,
 } from 'lucide-react'
+import BrandMark from './BrandMark'
 import UserMenu from './UserMenu'
 import { navSections } from '@/components/navigation/navItems'
 
@@ -83,7 +84,7 @@ export default function Header() {
   const edgeSwipeZoneWidth = clamp(Math.round(viewportWidth * 0.055), 18, 30)
   const openThreshold = clamp(Math.round(drawerWidthEstimate * 0.24), 56, 104)
   const closeThreshold = clamp(Math.round(drawerWidthEstimate * 0.22), 56, 108)
-  const maxOverlayOpacity = viewportWidth < 390 ? 0.26 : viewportWidth < 768 ? 0.34 : 0.38
+  const maxOverlayOpacity = viewportWidth < 390 ? 0.42 : viewportWidth < 768 ? 0.5 : 0.56
 
   const handleEdgeTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
     if (mobileOpen) return
@@ -186,16 +187,8 @@ export default function Header() {
         <div className="flex items-center justify-between h-16 min-w-0">
 
           {/* ── Logo ── */}
-          <Link href="/" className="flex items-center gap-2 group flex-shrink-0">
-            <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center group-hover:bg-blue-700 transition-colors">
-              <span className="text-white font-extrabold text-lg leading-none">S</span>
-            </div>
-            <div className="hidden sm:block leading-tight">
-              <span className="text-lg font-extrabold text-gray-900 group-hover:text-blue-600 transition-colors block">
-                SpotItForMe
-              </span>
-              <span className="text-[11px] text-gray-400">Toplulukla bul</span>
-            </div>
+          <Link href="/" className="flex items-center gap-3 group flex-shrink-0">
+            <BrandMark className="h-10 w-[154px] transition-transform duration-300 group-hover:scale-[1.02]" />
           </Link>
 
           <div className="hidden lg:flex flex-1 px-6">
@@ -244,13 +237,13 @@ export default function Header() {
         className={`lg:hidden fixed inset-0 z-[70] transition-opacity duration-200 ${
           drawerVisible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
-        style={{ opacity: drawerVisible ? overlayOpacity : 0 }}
       >
         <button
           type="button"
           aria-label="Menüyü kapat"
           onClick={() => setMobileOpen(false)}
-          className="absolute inset-0 bg-black/35"
+          className="absolute inset-0"
+          style={{ backgroundColor: `rgba(2, 6, 23, ${drawerVisible ? overlayOpacity : 0})` }}
         />
 
         <aside
