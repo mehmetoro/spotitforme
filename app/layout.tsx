@@ -31,12 +31,7 @@ export const metadata: Metadata = {
       { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
     ],
   },
-    manifest: "/manifest.json?v=2",
-    appleWebApp: {
-      capable: true,
-      statusBarStyle: "default",
-      title: "SpotItForMe",
-    },
+
 };
 
 export const viewport: Viewport = {
