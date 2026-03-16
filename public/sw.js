@@ -9,6 +9,12 @@ const PRECACHE_URLS = [
   '/icons/icon-192.png',
   '/icons/icon-512.png',
   '/icons/icon-maskable-512.png',
+  '/manifest.json?v=2',
+  '/spotitforme-log.png?v=2',
+  '/apple-touch-icon.png?v=2',
+  '/icons/icon-192.png?v=2',
+  '/icons/icon-512.png?v=2',
+  '/icons/icon-maskable-512.png?v=2',
 ];
 
 // Install: precache static assets
