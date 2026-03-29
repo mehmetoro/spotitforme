@@ -1,5 +1,25 @@
+"use client";
+// Kullanıcıya özel renk üretici (user_id'den hash)
+function getUserColors(userId: string) {
+  // Basit bir hash fonksiyonu
+  let hash = 0;
+  for (let i = 0; i < userId.length; i++) {
+    hash = userId.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  // Renk üret (HSL)
+  const h1 = Math.abs(hash) % 360;
+  const h2 = (h1 + 60) % 360;
+  const h3 = (h1 + 180) % 360;
+  return [
+    `hsl(${h1}, 90%, 60%)`,
+    `hsl(${h2}, 85%, 55%)`,
+    `hsl(${h3}, 80%, 65%)`,
+    `hsl(${(h1+120)%360}, 95%, 70%)`
+  ];
+}
+
+
 // components/Leaderboard.tsx
-'use client'
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
@@ -146,9 +166,38 @@ export default function Leaderboard() {
                     {user.avatar_url ? (
                       <img src={user.avatar_url} alt={user.name} className="w-full h-full object-cover" />
                     ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-bold text-2xl">
-                        {user.name?.[0] || 'K'}
-                      </div>
+                      (() => {
+                        const colors = getUserColors(user.user_id || user.id || 'default');
+                        return (
+                          <svg viewBox="0 0 64 64" className="w-full h-full rounded-full">
+                            <defs>
+                              <radialGradient id={`g${user.user_id}`} cx="50%" cy="50%" r="80%">
+                                <stop offset="0%" stopColor={colors[0]} />
+                                <stop offset="30%" stopColor={colors[1]} />
+                                <stop offset="60%" stopColor={colors[2]} />
+                                <stop offset="100%" stopColor={colors[3]} />
+                              </radialGradient>
+                              <linearGradient id={`l${user.user_id}`} x1="0" y1="0" x2="1" y2="1">
+                                <stop offset="0%" stopColor="#fff" stopOpacity="0.5" />
+                                <stop offset="100%" stopColor="#fff" stopOpacity="0" />
+                              </linearGradient>
+                            </defs>
+                            {/* Arka plan renkli küre */}
+                            <circle cx="32" cy="32" r="32" fill={`url(#g${user.user_id})`} />
+                            {/* Gözün beyazı */}
+                            <ellipse cx="32" cy="36" rx="16" ry="12" fill="#fff" fillOpacity="0.85" />
+                            {/* Göz bebeği */}
+                            <circle cx="32" cy="36" r="6.5" fill="#222" fillOpacity="0.85" />
+                            {/* Parlak yansıma */}
+                            <ellipse cx="29" cy="33" rx="2.2" ry="1.2" fill="#fff" fillOpacity="0.7" />
+                            {/* Dalgalı ışık efekti */}
+                            <path d="M10,40 Q32,55 54,40 T54,24 Q32,9 10,24 T10,40 Z" fill={`url(#l${user.user_id})`} opacity="0.5" />
+                            <ellipse cx="32" cy="24" rx="12" ry="6" fill="#fff" fillOpacity="0.10" />
+                            <ellipse cx="20" cy="28" rx="6" ry="3" fill="#fff" fillOpacity="0.12" />
+                            <ellipse cx="44" cy="36" rx="8" ry="4" fill="#fff" fillOpacity="0.09" />
+                          </svg>
+                        );
+                      })()
                     )}
                   </div>
                   <h4 className="font-bold text-gray-900 text-lg sm:text-xl break-words text-center sm:text-left w-full">{user.name}</h4>
