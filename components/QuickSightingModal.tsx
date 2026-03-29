@@ -235,6 +235,8 @@ export default function QuickSightingModal({
           post_type: 'rare_sight',
           content: `"${formData.description}" gördüm!`,
           location: locationData.name,
+          city: locationData.city || null,
+          district: locationData.district || null,
           image_urls: photoUrl ? [photoUrl] : [],
           hashtags: ['#nadirgördüm', '#spotitforme']
         })

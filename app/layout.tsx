@@ -43,13 +43,15 @@ export const viewport: Viewport = {
   maximumScale: 5,
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+
+
+import { headers } from 'next/headers';
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   const adsenseClientId = process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID;
-  
+  // Admin route kontrolü için özel header kullan
+  const isAdminRoute = headers().get('x-admin-route') === '1';
+
   return (
     <html lang="tr">
       <head>
@@ -65,37 +67,36 @@ export default function RootLayout({
       <body className={inter.className}>
         <PWAInstaller />
         <ToastProvider>
-          {/* Header - sticky, tam genişlik */}
-          <Header />
-
-          {/* Banner Reklam - Header altında */}
-          <div className="bg-gray-50 border-b border-gray-100">
-            <div className="container-custom py-2">
-              <ResponsiveAd placement="banner" className="h-16 md:h-20" />
+          {!isAdminRoute && <Header />}
+          {!isAdminRoute && (
+            <div className="bg-gray-50 border-b border-gray-100">
+              <div className="container-custom py-2">
+                <ResponsiveAd placement="banner" className="h-16 md:h-20" />
+              </div>
             </div>
-          </div>
-
+          )}
           <main className="min-h-screen bg-white">
             <div className="container-custom py-4 md:py-8 lg:flex lg:items-start lg:gap-6">
-              <div className="hidden lg:block lg:w-64 lg:shrink-0">
-                <div className="lg:sticky lg:top-24">
-                  <AppSidebar />
+              {!isAdminRoute && (
+                <div className="hidden lg:block lg:w-64 lg:shrink-0">
+                  <div className="lg:sticky lg:top-24">
+                    <AppSidebar />
+                  </div>
                 </div>
-              </div>
+              )}
               <div className="min-w-0 flex-1">
                 {children}
               </div>
             </div>
           </main>
-
-          {/* Footer Öncesi Reklam */}
-          <div className="bg-gray-50 border-t border-gray-200">
-            <div className="container-custom py-6 md:py-8">
-              <ResponsiveAd placement="inline" />
+          {!isAdminRoute && (
+            <div className="bg-gray-50 border-t border-gray-200">
+              <div className="container-custom py-6 md:py-8">
+                <ResponsiveAd placement="inline" />
+              </div>
             </div>
-          </div>
-
-          <Footer />
+          )}
+          {!isAdminRoute && <Footer />}
         </ToastProvider>
       </body>
     </html>

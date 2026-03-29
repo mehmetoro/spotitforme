@@ -48,6 +48,7 @@ export interface Shop {
   product_limit: number
   subscription_type: 'free' | 'pro' | 'business' | 'enterprise'
   created_at: string
+  category?: string | null // Mağaza kategorisi (opsiyonel, eski kayıtlarda olmayabilir)
 }
 
 export interface SpotWallet {

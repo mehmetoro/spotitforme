@@ -3,6 +3,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { ADMIN_USER_ID } from '@/lib/admin';
 import { MessageSquare, User, Clock, Trash2, CheckCircle, Search } from 'lucide-react'
 
 interface Thread {
@@ -146,10 +147,13 @@ export default function ThreadList({
       params.set('filter', nextFilter)
     }
 
+
     if (nextType === 'all') {
       params.delete('type')
+      localStorage.setItem(TYPE_STORAGE_KEY, 'all')
     } else {
       params.set('type', nextType)
+      localStorage.setItem(TYPE_STORAGE_KEY, nextType)
     }
 
     const query = params.toString()
@@ -297,10 +301,10 @@ export default function ThreadList({
   }
   
   const getOtherParticipantName = (thread: Thread) => {
-    if (thread.participant1_id === userId) {
-      return thread.participant2_name || thread.other_user_name || `Kullanıcı-${thread.participant2_id?.substring(0, 8) || 'unknown'}`
-    }
-    return thread.participant1_name || thread.other_user_name || `Kullanıcı-${thread.participant1_id?.substring(0, 8) || 'unknown'}`
+    // Her zaman sadece full_name göster
+    const otherId = thread.participant1_id === userId ? thread.participant2_id : thread.participant1_id;
+    const otherName = thread.participant1_id === userId ? thread.participant2_name : thread.participant1_name;
+    return otherName || 'Kullanıcı';
   }
 
   const getUnreadCount = (thread: Thread) => {

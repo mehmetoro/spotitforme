@@ -89,6 +89,7 @@ export default function MessagingLayout({
 
   const fetchThreads = useCallback(async () => {
     try {
+      // Hem kullanıcılar arası hem de adminle olan thread'leri çek
       const { data, error } = await supabase
         .from('active_conversations')
         .select('*')
@@ -99,7 +100,7 @@ export default function MessagingLayout({
 
       setThreads(data || [])
       
-      // Okunmamış mesaj sayısını hesapla - DÜZELTİLDİ
+      // Okunmamış mesaj sayısını hesapla
       const totalUnread = (data || []).reduce((sum: number, thread: Thread) => {
         if (thread.participant1_id === userId) {
           return sum + (thread.unread_count_p1 || 0)
@@ -107,7 +108,6 @@ export default function MessagingLayout({
           return sum + (thread.unread_count_p2 || 0)
         }
       }, 0)
-      
       setUnreadCount(totalUnread)
     } catch (error) {
       console.error('Threads yüklenemedi:', error)
@@ -143,11 +143,21 @@ export default function MessagingLayout({
 
       if (data?.id) {
         setSelectedThread(data.id)
-
+        // URL'ye thread parametresi ekle
+        if (typeof window !== 'undefined') {
+          const params = new URLSearchParams(window.location.search)
+          params.set('thread', data.id)
+          // receiver/type/draft parametrelerini temizle
+          params.delete('receiver')
+          params.delete('type')
+          params.delete('draft')
+          params.delete('filter')
+          const nextUrl = params.toString() ? `${window.location.pathname}?${params}` : window.location.pathname
+          window.history.replaceState({}, '', nextUrl)
+        }
         if (data.request_status === 'pending' && data.request_initiator_id === userId) {
           toast.info('Bu kullanıcıya gönderdiğiniz talep hâlâ onay bekliyor.', 6000)
         }
-
         return true
       }
 
@@ -244,6 +254,18 @@ export default function MessagingLayout({
       // Thread yüklendikten SONRA seç
       if (result?.threadId) {
         setSelectedThread(result.threadId)
+        // URL'ye thread parametresi ekle
+        if (typeof window !== 'undefined') {
+          const params = new URLSearchParams(window.location.search)
+          params.set('thread', result.threadId)
+          // receiver/type/draft parametrelerini temizle
+          params.delete('receiver')
+          params.delete('type')
+          params.delete('draft')
+          params.delete('filter')
+          const nextUrl = params.toString() ? `${window.location.pathname}?${params}` : window.location.pathname
+          window.history.replaceState({}, '', nextUrl)
+        }
       }
 
       // Başarı mesajını daha uzun süre göster (6 saniye)
@@ -408,11 +430,25 @@ export default function MessagingLayout({
       {/* Sağ taraf - Mesajlaşma ekranı - Mobilde sadece mesaj seçiliyken görünür */}
       <div className={`flex-1 flex-col ${selectedThread ? 'flex' : 'hidden md:flex'}`}>
         {selectedThread ? (
-          <MessageThread
-            threadId={selectedThread}
-            userId={userId}
-            onBack={() => setSelectedThread(null)}
-          />
+          threads.find(t => t.id === selectedThread) ? (
+            <MessageThread
+              threadId={selectedThread}
+              userId={userId}
+              onBack={() => setSelectedThread(null)}
+            />
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+              <div className="text-4xl mb-4">❌</div>
+              <h3 className="text-lg font-medium text-red-700 mb-2">Bu konuşmaya erişiminiz yok veya konuşma bulunamadı.</h3>
+              <p className="text-gray-600">Erişim izniniz olmayan veya silinmiş bir konuşmayı açmaya çalışıyor olabilirsiniz.</p>
+              <button
+                onClick={() => setSelectedThread(null)}
+                className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Konuşma Listesine Dön
+              </button>
+            </div>
+          )
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
             <div className="text-4xl mb-4">💬</div>

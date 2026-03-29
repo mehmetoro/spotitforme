@@ -46,7 +46,7 @@ export const navSections: NavSection[] = [
       {
         href: '/discovery?compose=1',
         icon: MessageCircle,
-        label: 'Sosyal Paylaş',
+        label: 'Nadir Paylaş',
         matchPath: '/discovery',
         description: 'Topluluga gorsel ve hikaye paylas',
       },

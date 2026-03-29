@@ -147,12 +147,30 @@ export default function LocationSelector({
   }
 
   const handleLocationSelect = (locationData: SelectedLocation) => {
+    // city boşsa address'ten şehir bul
+    let city = locationData.city || ''
+    if (!city && locationData.address) {
+      // Adres virgülle ayrılmış, Türkiye'den önceki son şehir adını al
+      const parts = locationData.address.split(',').map(s => s.trim())
+      // Türkiye'den önceki ilk şehir adını bul
+      for (let i = parts.length - 1; i >= 0; i--) {
+        const part = parts[i]
+        if (
+          part &&
+          part !== 'Türkiye' &&
+          !/^(\d{5,}|Marmara Bölgesi|Ege Bölgesi|Akdeniz Bölgesi|Karadeniz Bölgesi|İç Anadolu Bölgesi|Doğu Anadolu Bölgesi|Güneydoğu Anadolu Bölgesi)$/i.test(part)
+        ) {
+          city = part
+          break
+        }
+      }
+    }
     onLocationSelect({
       name: locationData.name,
       address: locationData.address || locationData.name,
       latitude: locationData.latitude,
       longitude: locationData.longitude,
-      city: locationData.city || '',
+      city,
       district: locationData.district || ''
     })
   }

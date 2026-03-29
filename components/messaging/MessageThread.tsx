@@ -2,6 +2,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { ADMIN_USER_ID } from '@/lib/admin';
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/hooks/useToast'
 import { Send, Paperclip, Image as ImageIcon, X, ArrowLeft, MoreVertical, Info, Trash2, MessageSquare } from 'lucide-react'
@@ -117,10 +118,9 @@ export default function MessageThread({ threadId, userId, onBack }: MessageThrea
       let profileError: any = null
 
       const profileSelectCandidates = [
-        'id, full_name, name, username, avatar_url, avatar, last_seen',
-        'id, full_name, name, avatar_url, avatar, last_seen',
-        'id, full_name, name, avatar, last_seen',
-        'id, full_name, name, last_seen',
+        'id, full_name, username, avatar_url',
+        'id, full_name, username',
+        'id, full_name',
       ]
 
       for (const selectFields of profileSelectCandidates) {
@@ -169,12 +169,9 @@ export default function MessageThread({ threadId, userId, onBack }: MessageThrea
           : conversationData?.participant1_name) ||
         ''
 
-      const participantName =
-        (profileData as any)?.username ||
-        (profileData as any)?.full_name ||
-        (profileData as any)?.name ||
-        fallbackConversationName ||
-        `Kullanıcı-${String(otherParticipantId).slice(0, 8)}`
+      // Her zaman sadece full_name göster
+      console.log("profileData:", profileData);
+      let participantName = profileData?.full_name || 'Kullanıcı';
 
       const participantAvatar =
         (profileData as any)?.avatar_url ||

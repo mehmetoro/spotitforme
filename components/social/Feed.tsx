@@ -16,10 +16,11 @@ interface FeedProps {
   initialUserId?: string
   type?: FilterType
   category?: string // Kategori filtresi için
+  city?: string // Şehir filtresi için
   initialSearch?: string // Arama sorgusu için
 }
 
-export default function Feed({ initialUserId, type, category, initialSearch }: FeedProps) {
+export default function Feed({ initialUserId, type, category, city, initialSearch }: FeedProps) {
   const [posts, setPosts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [hasMore, setHasMore] = useState(true)
@@ -140,9 +141,15 @@ export default function Feed({ initialUserId, type, category, initialSearch }: F
           break
       }
 
+
       // Kategori filtresi varsa uygula
       if (category && category !== 'all') {
         query = query.eq('category', category)
+      }
+
+      // Şehir filtresi varsa uygula (artık normalize edilerek kaydediliyor, doğrudan eşleşme yeterli)
+      if (city && city !== 'all') {
+        query = query.eq('city', city);
       }
 
       // Sayfalama
@@ -281,7 +288,8 @@ export default function Feed({ initialUserId, type, category, initialSearch }: F
     } finally {
       setLoading(false)
     }
-  }, [activeFilter, initialUserId, category])
+    // Şehir filtresi uygula kodu kaldırıldı, bu filtre fetchPosts fonksiyonu içinde zaten uygulanıyor
+  }, [activeFilter, initialUserId, category, city])
 
   // Infinite scroll
   useEffect(() => {
@@ -298,7 +306,7 @@ export default function Feed({ initialUserId, type, category, initialSearch }: F
     setPosts([])
     setHasMore(true)
     fetchPosts(0, true)
-  }, [activeFilter, category, fetchPosts])
+  }, [activeFilter, category, city, fetchPosts])
 
   // Parent filtre gönderiyorsa senkron tut
   useEffect(() => {

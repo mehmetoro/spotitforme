@@ -37,7 +37,8 @@ export default function DailyChallenges() {
 
   const fetchChallenges = async () => {
     try {
-      const [{ data: challengesData }, { data: user }] = await Promise.all([
+      console.log('DailyChallenges: fetchChallenges başladı')
+      const [{ data: challengesData, error: challengesError }, { data: user }] = await Promise.all([
         supabase
           .from('daily_challenges')
           .select('*')
@@ -46,11 +47,15 @@ export default function DailyChallenges() {
         supabase.auth.getUser()
       ])
 
+      console.log('DailyChallenges: challengesData', challengesData)
+      console.log('DailyChallenges: challengesError', challengesError)
       if (user.user) {
-        const { data: progressData } = await supabase
+        const { data: progressData, error: progressError } = await supabase
           .from('user_challenge_progress')
           .select('*')
           .eq('user_id', user.user.id)
+        console.log('DailyChallenges: progressData', progressData)
+        console.log('DailyChallenges: progressError', progressError)
 
         const progressMap: Record<string, number> = {}
         

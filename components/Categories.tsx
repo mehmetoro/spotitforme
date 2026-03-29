@@ -1,22 +1,68 @@
-interface Category {
-  id: number
-  name: string
-  count: number
-  icon: string
-  color: string
-}
+"use client";
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
+
+const CATEGORY_LIST = [
+  { key: 'elektronik', label: 'Elektronik', icon: '📱', color: 'bg-blue-100 text-blue-800' },
+  { key: 'giyim', label: 'Giyim & Aksesuar', icon: '👕', color: 'bg-green-100 text-green-800' },
+  { key: 'ev', label: 'Ev & Dekorasyon', icon: '🏠', color: 'bg-yellow-100 text-yellow-800' },
+  { key: 'koleksiyon', label: 'Koleksiyon', icon: '🎨', color: 'bg-purple-100 text-purple-800' },
+  { key: 'kitap', label: 'Kitap & Müzik', icon: '📚', color: 'bg-red-100 text-red-800' },
+  { key: 'oyuncak', label: 'Oyuncak & Oyun', icon: '🎮', color: 'bg-indigo-100 text-indigo-800' },
+  { key: 'spor', label: 'Spor & Outdoor', icon: '⚽', color: 'bg-pink-100 text-pink-800' },
+  { key: 'arac', label: 'Araç & Parça', icon: '🚗', color: 'bg-gray-100 text-gray-800' },
+];
+
+const CITY_LIST = [
+  'İstanbul', 'Ankara', 'İzmir', 'Bursa', 'Antalya', 'Adana', 'Konya', 'Trabzon', 'Yalova'
+];
 
 export default function Categories() {
-  const categories: Category[] = [
-    { id: 1, name: 'Elektronik', count: 156, icon: '📱', color: 'bg-blue-100 text-blue-800' },
-    { id: 2, name: 'Giyim & Aksesuar', count: 89, icon: '👕', color: 'bg-green-100 text-green-800' },
-    { id: 3, name: 'Ev & Bahçe', count: 123, icon: '🏠', color: 'bg-yellow-100 text-yellow-800' },
-    { id: 4, name: 'Koleksiyon', count: 67, icon: '🎨', color: 'bg-purple-100 text-purple-800' },
-    { id: 5, name: 'Kitap & Müzik', count: 45, icon: '📚', color: 'bg-red-100 text-red-800' },
-    { id: 6, name: 'Oyuncak & Oyun', count: 78, icon: '🎮', color: 'bg-indigo-100 text-indigo-800' },
-    { id: 7, name: 'Spor & Outdoor', count: 34, icon: '⚽', color: 'bg-pink-100 text-pink-800' },
-    { id: 8, name: 'Araç & Parça', count: 56, icon: '🚗', color: 'bg-gray-100 text-gray-800' },
-  ]
+  const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({});
+  const [cityCounts, setCityCounts] = useState<Record<string, number>>({});
+  const router = useRouter();
+
+  useEffect(() => {
+    // Kategorilere göre aktif paylaşım sayısı (social_posts tablosu)
+    (async () => {
+      const counts: Record<string, number> = {};
+      for (const category of CATEGORY_LIST) {
+        const { count } = await supabase
+          .from('social_posts')
+          .select('id', { count: 'exact', head: true })
+          .eq('category', category.key);
+        counts[category.key] = count || 0;
+      }
+      setCategoryCounts(counts);
+    })();
+
+    // Şehirlere göre paylaşım sayısı (social_posts tablosu)
+    (async () => {
+      const counts: Record<string, number> = {};
+      const { data, error } = await supabase
+        .from('social_posts')
+        .select('city');
+      if (error) {
+        setCityCounts({});
+        return;
+      }
+      const normalize = (s: string) => (s || '').trim().toLocaleLowerCase('tr-TR');
+      // Tüm şehirleri normalize edip say
+      const cityCountMap: Record<string, number> = {};
+      (data || []).forEach(row => {
+        const city = normalize(row.city);
+        if (city) cityCountMap[city] = (cityCountMap[city] || 0) + 1;
+      });
+      // CITY_LIST'i normalize ederek eşleştir
+      for (const city of CITY_LIST) {
+        const norm = normalize(city);
+        // Hem orijinal hem de normalize edilmiş haliyle kontrol et
+        counts[city] = cityCountMap[norm] || cityCountMap[city] || 0;
+      }
+      setCityCounts(counts);
+    })();
+  }, []);
 
   return (
     <section className="py-16 bg-white">
@@ -31,16 +77,17 @@ export default function Categories() {
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {categories.map((category) => (
+          {CATEGORY_LIST.map((category, i) => (
             <div
-              key={category.id}
+              key={category.key}
               className="border border-gray-200 rounded-xl p-6 text-center hover:border-blue-300 hover:shadow-md transition duration-200 cursor-pointer"
+              onClick={() => router.push(`/discovery?category=${encodeURIComponent(category.key)}`)}
             >
               <div className={`w-16 h-16 ${category.color.split(' ')[0]} rounded-full flex items-center justify-center text-2xl mx-auto mb-4`}>
                 {category.icon}
               </div>
-              <h3 className="font-bold text-gray-900 mb-1">{category.name}</h3>
-              <p className="text-gray-500 text-sm">{category.count} aktif spot</p>
+              <h3 className="font-bold text-gray-900 mb-1">{category.label}</h3>
+              <p className="text-gray-500 text-sm">{categoryCounts[category.key] || 0} paylaşım</p>
             </div>
           ))}
         </div>
@@ -51,20 +98,19 @@ export default function Categories() {
             Şehirlere Göre Ara
           </h3>
           <div className="flex flex-wrap justify-center gap-3">
-            {['İstanbul', 'Ankara', 'İzmir', 'Bursa', 'Antalya', 'Adana', 'Konya', 'Trabzon'].map((city) => (
+            {CITY_LIST.map((city) => (
               <button
                 key={city}
                 className="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-full font-medium transition duration-200"
+                onClick={() => router.push(`/discovery?city=${encodeURIComponent(city)}`)}
               >
-                {city}
+                {city} <span className="ml-2 text-xs text-gray-500">({cityCounts[city] || 0})</span>
               </button>
             ))}
-            <button className="px-6 py-3 text-blue-600 hover:text-blue-800 font-medium">
-              + Tüm Şehirler
-            </button>
+            <button className="px-6 py-3 text-blue-600 hover:text-blue-800 font-medium" onClick={() => router.push('/discovery')}>+ Tüm Şehirler</button>
           </div>
         </div>
       </div>
     </section>
-  )
+  );
 }

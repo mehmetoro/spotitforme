@@ -250,7 +250,9 @@ export default function DiscoveryPage() {
   const searchParams = useSearchParams()
   const searchFromUrl = searchParams.get('search') || ''
   const composeFromUrl = searchParams.get('compose')
-  
+  const categoryFromUrl = searchParams.get('category') || ''
+  const cityFromUrl = searchParams.get('city') || ''
+
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [activeFilter, setActiveFilter] = useState<FilterType>('for-you')
   const [userStats, setUserStats] = useState({
@@ -566,7 +568,12 @@ export default function DiscoveryPage() {
             {activeFilter === 'category' ? (
               <CategoryGrid />
             ) : (
-              <Feed type={activeFilter} initialSearch={searchFromUrl} />
+              <Feed
+                type={activeFilter}
+                initialSearch={searchFromUrl}
+                category={categoryFromUrl}
+                city={cityFromUrl}
+              />
             )}
           </div>
 

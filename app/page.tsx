@@ -43,7 +43,6 @@ export default function HomePage() {
 
           <div className="space-y-6">
             <Leaderboard />
-            <DailyChallenges />
             
             {/* Sidebar reklamı - SADECE desktop */}
             <div className="hidden lg:block">

@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
+import { ADMIN_USER_ID } from '@/lib/admin'
 import { X, Search, User, AlertCircle, Send, Image as ImageIcon, MapPin } from 'lucide-react'
 
 interface UserProfile {
@@ -147,11 +148,23 @@ export default function NewMessageModal({
         reputation_score: user.reputation_score || 0
       }))
 
-      setUsers(formattedUsers)
-      setFilteredUsers(formattedUsers)
+      let usersList = formattedUsers
+      // Eğer admin user yoksa ve initialReceiverId admin ise, admini ekle
+      if (initialReceiverId === ADMIN_USER_ID && !formattedUsers.find(u => u.id === ADMIN_USER_ID)) {
+        const adminProfile = {
+          id: ADMIN_USER_ID,
+          full_name: 'Admin',
+          avatar: '',
+          last_active: 'Çevrimiçi',
+          reputation_score: 9999
+        }
+        usersList = [adminProfile, ...formattedUsers]
+      }
+      setUsers(usersList)
+      setFilteredUsers(usersList)
 
       if (!prefillApplied && initialReceiverId) {
-        const preselected = formattedUsers.find((user) => user.id === initialReceiverId)
+        const preselected = usersList.find((user) => user.id === initialReceiverId)
         if (preselected) {
           setSelectedUser(preselected)
           setStep('compose')

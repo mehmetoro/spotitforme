@@ -129,10 +129,10 @@ export default function PostHeader({ user: author, post, onFollow, onReport }: P
             </div>
             
             <div className="flex flex-wrap items-center text-sm text-gray-500 gap-x-3 gap-y-1 mt-1 min-w-0">
-              {post?.location && (
+              {post?.city && (
                 <div className="flex items-center">
                   <MapPin className="w-3 h-3 mr-1" />
-                  <span className="truncate max-w-[170px] sm:max-w-[240px]">{post.location}</span>
+                  <span className="truncate max-w-[170px] sm:max-w-[240px]">{post.city}</span>
                 </div>
               )}
               

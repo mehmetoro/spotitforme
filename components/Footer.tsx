@@ -40,29 +40,29 @@ export default function Footer() {
             <h3 className="text-lg font-bold mb-4">Spot & Keşfet</h3>
             <ul className="space-y-3">
               <li>
-                <Link href="/spots" className="text-gray-400 hover:text-white">
-                  Tüm Spot'lar
-                </Link>
+                  <Link href="/spots" className="text-gray-400 hover:text-white">
+                    Tüm Spot'lar
+                  </Link>
               </li>
               <li>
-                <Link href="/create-spot" className="text-gray-400 hover:text-white">
-                  Spot Oluştur
-                </Link>
+                  <Link href="/create-spot" className="text-gray-400 hover:text-white">
+                    Spot Oluştur
+                  </Link>
               </li>
               <li>
-                <Link href="/discovery" className="text-gray-400 hover:text-white">
-                  Keşfet
-                </Link>
+                  <Link href="/nadir" className="text-gray-400 hover:text-white">
+                    Keşfet (Nadir)
+                  </Link>
               </li>
               <li>
-                <Link href="/leaderboard" className="text-gray-400 hover:text-white">
-                  Lider Tablosu
-                </Link>
+                  <Link href="/leaderboard" className="text-gray-400 hover:text-white">
+                    Lider Tablosu
+                  </Link>
               </li>
               <li>
-                <Link href="/challenges" className="text-gray-400 hover:text-white">
-                  Günlük Hedefler
-                </Link>
+                  <Link href="/daily-goals" className="text-gray-400 hover:text-white">
+                    Günlük Hedefler
+                  </Link>
               </li>
             </ul>
           </div>
@@ -72,7 +72,7 @@ export default function Footer() {
             <h3 className="text-lg font-bold mb-4">Mağazalar</h3>
             <ul className="space-y-3">
               <li>
-                <Link href="/shops" className="text-gray-400 hover:text-white">
+                <Link href="/shops-discovery" className="text-gray-400 hover:text-white">
                   Mağazaları Keşfet
                 </Link>
               </li>
@@ -82,12 +82,12 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/shop-dashboard" className="text-gray-400 hover:text-white">
+                <Link href="/shop-panel" className="text-gray-400 hover:text-white">
                   Mağaza Paneli
                 </Link>
               </li>
               <li>
-                <Link href="/premium" className="text-gray-400 hover:text-white">
+                <Link href="/premium-packages" className="text-gray-400 hover:text-white">
                   Premium Paketler
                 </Link>
               </li>
@@ -114,7 +114,7 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/privacy" className="text-gray-400 hover:text-white">
+                <Link href="/privacy-policy" className="text-gray-400 hover:text-white">
                   Gizlilik Politikası
                 </Link>
               </li>

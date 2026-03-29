@@ -3,6 +3,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
+import LocationSelector from '../LocationSelector'
 
 interface CreatePostModalProps {
   isOpen: boolean
@@ -11,6 +12,7 @@ interface CreatePostModalProps {
   initialType?: 'rare_sight' | 'spot' | 'found' | 'product'
   parentSpotId?: string
 }
+
 
 // Kategoriler
 const CATEGORIES = [
@@ -28,6 +30,7 @@ const CATEGORIES = [
   { id: 'diger', name: 'Diğer', icon: '🔍' }
 ]
 
+
 export default function CreatePostModal({ 
   isOpen, 
   onClose, 
@@ -37,7 +40,12 @@ export default function CreatePostModal({
 }: CreatePostModalProps) {
   const [loading, setLoading] = useState(false)
   const [content, setContent] = useState('')
+  const CITY_LIST = [
+    'İstanbul', 'Ankara', 'İzmir', 'Bursa', 'Antalya', 'Adana', 'Konya', 'Trabzon'
+  ];
   const [location, setLocation] = useState('')
+  const [city, setCity] = useState('')
+  const [locationData, setLocationData] = useState<any>(null)
   const [category, setCategory] = useState<string>('') // Kategori
   const [hashtags, setHashtags] = useState<string[]>([])
   const [hashtagInput, setHashtagInput] = useState('')
@@ -48,6 +56,16 @@ export default function CreatePostModal({
   const [isPublicPost, setIsPublicPost] = useState(true) // yalnızca "found" tipi için geçerli
   const [hasIsPublicColumn, setHasIsPublicColumn] = useState<boolean>(true)
   const [uploadedImageUrls, setUploadedImageUrls] = useState<string[]>([])
+  // Konum seçildiğinde şehir bilgisini otomatik doldur
+  const handleLocationSelect = (loc: any) => {
+    setLocation(loc.address || loc.name || '')
+    // city, town, county sırasıyla kontrol et
+    let cityValue = loc.city || loc.town || loc.county || ''
+    // normalize: küçük harf, trimli
+    cityValue = (cityValue || '').trim().toLocaleLowerCase('tr-TR')
+    setCity(cityValue)
+    setLocationData(loc)
+  }
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -98,16 +116,29 @@ export default function CreatePostModal({
   }
 
   const handleSubmit = async () => {
+
     setLoading(true)
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Giriş yapmalısınız')
 
-      console.log('1. Kullanıcı:', user.id)
-      console.log('2. İçerik:', content)
-      console.log('3. Fotoğraflar:', images.length)
-      console.log('4. Hashtagler:', hashtags)
-      console.log('5. Konum:', location)
+      // user_profiles tablosunda user.id var mı kontrol et, yoksa ekle
+      const { data: profile, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('id')
+        .eq('id', user.id)
+        .maybeSingle();
+      if (!profile) {
+        // Kullanıcı profilini ekle (minimum id ile)
+        const { error: insertProfileError } = await supabase.from('user_profiles').insert({ id: user.id }).single();
+        if (insertProfileError) {
+          console.error('user_profiles insert hatası:', insertProfileError, 'user.id:', user.id);
+        } else {
+          console.log('user_profiles insert başarılı, user.id:', user.id);
+        }
+      } else {
+        console.log('user_profiles zaten var, user.id:', user.id);
+      }
 
       // 1. Resimleri yükle
       let imageUrls: string[] = []
@@ -144,10 +175,14 @@ export default function CreatePostModal({
       }
 
       // Opsiyonel alanları ekle
+
       if (location && location.trim() !== '') {
         postData.location = location
       }
-
+      if (city && city.trim() !== '') {
+        // normalize: küçük harf, trimli
+        postData.city = city.trim().toLocaleLowerCase('tr-TR')
+      }
       if (category && category.trim() !== '') {
         postData.category = category
       }
@@ -162,8 +197,10 @@ export default function CreatePostModal({
         .single()
 
       if (postError) {
-        console.error('Post hatası:', postError)
+        console.error('social_posts insert hatası:', postError, 'user_id:', postData.user_id);
         throw postError
+      } else {
+        console.log('social_posts insert başarılı, user_id:', postData.user_id);
       }
 
       // 3b. spot bulunan postunu bildirim gönder (sadece 'found' tipi ve parent_spot_id varsa)
@@ -203,6 +240,8 @@ export default function CreatePostModal({
       setPostType('rare_sight')
       setRewardAmount('')
       setIsPublicPost(true)
+      setCity('')
+      setLocationData(null)
       
       // 6. Parent'i bilgilendir ve kapat
       onPostCreated()
@@ -244,7 +283,7 @@ export default function CreatePostModal({
         {/* Header */}
         <div className="sticky top-0 bg-white border-b p-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-gray-900">Yeni Paylaşım</h2>
+            <h2 className="text-2xl font-bold text-gray-900">Nadir Paylaş</h2>
             <button
               onClick={onClose}
               className="text-gray-500 hover:text-gray-700 text-2xl"
@@ -256,58 +295,7 @@ export default function CreatePostModal({
 
         {/* Content */}
         <div className="p-6 space-y-6">
-          {/* Paylaşım Türü */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Paylaşım Türü
-            </label>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={() => setPostType('rare_sight')}
-                className={`p-4 rounded-xl border-2 text-center ${
-                  postType === 'rare_sight'
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <div className="text-2xl mb-2">👁️</div>
-                <div className="font-medium">Nadir Gördüm</div>
-              </button>
-              <button
-                onClick={() => setPostType('spot')}
-                className={`p-4 rounded-xl border-2 text-center ${
-                  postType === 'spot'
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <div className="text-2xl mb-2">📍</div>
-                <div className="font-medium">Spot</div>
-              </button>
-              <button
-                onClick={() => setPostType('found')}
-                className={`p-4 rounded-xl border-2 text-center ${
-                  postType === 'found'
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <div className="text-2xl mb-2">🔍</div>
-                <div className="font-medium">Ben Gördüm</div>
-              </button>
-              <button
-                onClick={() => setPostType('product')}
-                className={`p-4 rounded-xl border-2 text-center ${
-                  postType === 'product'
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <div className="text-2xl mb-2">🛍️</div>
-                <div className="font-medium">Ürün</div>
-              </button>
-            </div>
-          </div>
+          {/* Paylaşım Türü kaldırıldı, sadece discovery için tekli form */}
 
           {/* Fotoğraf Yükleme */}
           <div>
@@ -350,6 +338,11 @@ export default function CreatePostModal({
               </button>
             </div>
           </div>
+
+
+
+
+          {/* Konum Seçimi kaldırıldı, sadece şehir zorunlu */}
 
           {/* Açıklama */}
           <div>
@@ -410,19 +403,19 @@ export default function CreatePostModal({
             )}
           </div>
 
-          {/* Konum */}
+
+          {/* Konum Seçici (şehir otomatik) */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Konum
-            </label>
-            <input
-              type="text"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              placeholder="İstanbul, Kadıköy"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+            <LocationSelector
+              onLocationSelect={handleLocationSelect}
+              initialLocation={location}
+              required={true}
             />
+            {city && (
+              <div className="text-xs text-gray-500 mt-1">Şehir: <b>{city}</b></div>
+            )}
           </div>
+
 
           {/* Kategori */}
           <div>
@@ -448,26 +441,8 @@ export default function CreatePostModal({
             </div>
           </div>
 
-          {/* Spot için ödül */}
-          {postType === 'spot' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Ödül (₺)
-              </label>
-              <input
-                type="number"
-                value={rewardAmount === '' ? '' : rewardAmount}
-                onChange={(e) => setRewardAmount(Number(e.target.value))}
-                placeholder="Örn: 100"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                min={0}
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Eğer aranan ürün için bir ödül koyduysanız buraya girebilirsiniz.
-                Ödül ödemesi platform dışında yapılmalıdır.
-              </p>
-            </div>
-          )}
+
+          {/* Spot için ödül alanı kaldırıldı */}
 
           {/* Ben Gördüm için gizlilik */}
           {postType === 'found' && (

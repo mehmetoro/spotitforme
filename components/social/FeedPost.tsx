@@ -167,11 +167,11 @@ export default function FeedPost({
             </div>
           )}
           
-          {/* Konum */}
-          {post.location && (
+          {/* Konum (sadece şehir) */}
+          {post.city && (
             <div className="mt-2 flex items-center text-gray-600 text-sm">
               <span className="mr-1">📍</span>
-              <span className="truncate">{post.location}</span>
+              <span className="truncate">{post.city}</span>
             </div>
           )}
         </div>

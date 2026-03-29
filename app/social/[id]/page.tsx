@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import FeedPost from '@/components/social/FeedPost'
+// useLocalState kaldırıldı, zaten useState var
+import { DynamicAdvancedMap } from './DynamicAdvancedMap'
 
 interface PostPageProps {
   params: { id: string }
@@ -16,6 +18,7 @@ export default function PostPage({ params }: PostPageProps) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [showMap, setShowMap] = useState(false)
 
   useEffect(() => {
     const fetch = async () => {
@@ -196,6 +199,7 @@ export default function PostPage({ params }: PostPageProps) {
     )
   }
 
+
   return (
     <div className="max-w-2xl mx-auto py-8">
       <div className="mb-4">
@@ -217,15 +221,46 @@ export default function PostPage({ params }: PostPageProps) {
         </div>
       )}
       {post && (
-        <FeedPost
-          post={post}
-          onLike={handleLike}
-          onSave={handleSave}
-          onComment={() => {}}
-          onShare={() => {}}
-          showFull={true}
-          initialShowComments={true}
-        />
+        <>
+          <FeedPost
+            post={post}
+            onLike={handleLike}
+            onSave={handleSave}
+            onComment={() => {}}
+            onShare={() => {}}
+            showFull={true}
+            initialShowComments={true}
+          />
+          {(post.latitude || post.longitude || post.location || post.city) && (
+            <div className="mt-6 flex justify-center">
+              <button
+                onClick={() => setShowMap(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-lg shadow"
+              >
+                📍 Haritada Gör
+              </button>
+            </div>
+          )}
+          {showMap && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
+              <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-6 relative">
+                <button
+                  onClick={() => setShowMap(false)}
+                  className="absolute top-3 right-3 text-2xl text-gray-500 hover:text-gray-700"
+                >
+                  ×
+                </button>
+                <DynamicAdvancedMap
+                  latitude={post.latitude}
+                  longitude={post.longitude}
+                  location={post.city || post.location || ''}
+                  address={post.location || ''}
+                  accuracy={post.accuracy || 100}
+                />
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   )
