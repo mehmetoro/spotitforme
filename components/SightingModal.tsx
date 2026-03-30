@@ -6,6 +6,8 @@ import { supabase } from '@/lib/supabase'
 interface SightingModalProps {
   spotId: string;
   spotTitle: string;
+  onClose: () => void;
+  onSuccess: () => void;
 }
 export default function SightingModal({ spotId, spotTitle, onClose, onSuccess }: SightingModalProps) {
   const [loading, setLoading] = useState(false);
