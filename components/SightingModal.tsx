@@ -4,14 +4,11 @@ import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 
 interface SightingModalProps {
-  spotId: string
-  spotTitle: string
-  onClose: () => void
-  onSuccess: () => void
+  spotId: string;
+  spotTitle: string;
 }
-
 export default function SightingModal({ spotId, spotTitle, onClose, onSuccess }: SightingModalProps) {
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     title: spotTitle || '',
     location_description: '',
@@ -22,148 +19,115 @@ export default function SightingModal({ spotId, spotTitle, onClose, onSuccess }:
     hashtags: '',
     latitude: null as number | null,
     longitude: null as number | null
-  })
-  const [imageFile, setImageFile] = useState<File | null>(null)
-  const [imagePreview, setImagePreview] = useState<string | null>(null)
-  const [errorMessage, setErrorMessage] = useState('')
-  const [geoLoading, setGeoLoading] = useState(false)
+  });
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [geoLoading, setGeoLoading] = useState(false);
 
   // RESİM SEÇİMİ
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    // Boyut kontrolü (5MB)
+    const file = e.target.files?.[0];
+    if (!file) return;
     if (file.size > 5 * 1024 * 1024) {
-      setErrorMessage('Resim boyutu 5MB\'dan küçük olmalıdır')
-      return
+      setErrorMessage('Resim boyutu 5MB\'dan küçük olmalıdır');
+      return;
     }
-
-    // Tip kontrolü
     if (!file.type.startsWith('image/')) {
-      setErrorMessage('Sadece resim dosyaları yüklenebilir')
-      return
+      setErrorMessage('Sadece resim dosyaları yüklenebilir');
+      return;
     }
-
-    setImageFile(file)
-    setErrorMessage('')
-    
-    // Önizleme oluştur
-    const reader = new FileReader()
+    setImageFile(file);
+    setErrorMessage('');
+    const reader = new FileReader();
     reader.onloadend = () => {
-      setImagePreview(reader.result as string)
-    }
-    reader.readAsDataURL(file)
-  }
+      setImagePreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
 
   // RESİM KALDIRMA
   const handleRemoveImage = () => {
-    setImageFile(null)
-    setImagePreview(null)
-    setFormData({ ...formData, image_url: '' })
-  }
+    setImageFile(null);
+    setImagePreview(null);
+    setFormData({ ...formData, image_url: '' });
+  };
 
   // KONUM AL (GEOLOCATION)
   const handleGetLocation = () => {
     if (!navigator.geolocation) {
-      setErrorMessage('Tarayıcın konum bilgisini desteklemiyor')
-      return
+      setErrorMessage('Tarayıcın konum bilgisini desteklemiyor');
+      return;
     }
-
-    setGeoLoading(true)
-    setErrorMessage('')
-
+    setGeoLoading(true);
+    setErrorMessage('');
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        const { latitude, longitude } = position.coords
-        setFormData(prev => ({
-          ...prev,
-          latitude,
-          longitude
-        }))
-        setGeoLoading(false)
-        // Google Maps adresini çek (opsiyonel)
-        fetch(
-          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
-        )
+        const { latitude, longitude } = position.coords;
+        setFormData(prev => ({ ...prev, latitude, longitude }));
+        setGeoLoading(false);
+        fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`)
           .then(r => r.json())
           .then(data => {
             if (data.address) {
-              const addr = `${data.address.city || ''} ${data.address.district || ''} ${data.address.road || ''}`.trim()
+              const addr = `${data.address.city || ''} ${data.address.district || ''} ${data.address.road || ''}`.trim();
               if (addr) {
-                setFormData(prev => ({
-                  ...prev,
-                  location_description: addr
-                }))
+                setFormData(prev => ({ ...prev, location_description: addr }));
               }
             }
           })
-          .catch(() => console.log('Adres taraması başarısız'))
+          .catch(() => console.log('Adres taraması başarısız'));
       },
       (error) => {
-        setGeoLoading(false)
-        console.error('Geolocation error:', error)
-        setErrorMessage('Konum alınamadı: ' + error.message)
+        setGeoLoading(false);
+        console.error('Geolocation error:', error);
+        setErrorMessage('Konum alınamadı: ' + error.message);
       }
-    )
-  }
+    );
+  };
 
   // FORM GÖNDERİMİ
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
+    e.preventDefault();
     if (!formData.title.trim()) {
-      setErrorMessage('Lütfen ürün adını girin')
-      return
+      setErrorMessage('Lütfen ürün adını girin');
+      return;
     }
     if (!formData.location_description.trim()) {
-      setErrorMessage('Lütfen nerede gördüğünüzü belirtin')
-      return
+      setErrorMessage('Lütfen nerede gördüğünüzü belirtin');
+      return;
     }
-
-    setLoading(true)
-    setErrorMessage('')
-
+    setLoading(true);
+    setErrorMessage('');
     try {
-      // Kullanıcı kontrolü
-      const { data: { user } } = await supabase.auth.getUser()
+      const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        setErrorMessage('Bu işlem için giriş yapmalısınız')
-        setLoading(false)
-        return
+        setErrorMessage('Bu işlem için giriş yapmalısınız');
+        setLoading(false);
+        return;
       }
-
-      let uploadedImageUrl = formData.image_url
-
-      // RESİM YÜKLEME (varsa)
+      let uploadedImageUrl = formData.image_url;
       if (imageFile) {
-        const fileExt = imageFile.name.split('.').pop()
-        const fileName = `${spotId}-${user.id}-${Date.now()}.${fileExt}`
-        const filePath = `sighting-images/${fileName}`
-
-        const { error: uploadError, data: uploadData } = await supabase.storage
+        const fileExt = imageFile.name.split('.').pop();
+        const fileName = `${spotId}-${user.id}-${Date.now()}.${fileExt}`;
+        const filePath = `sighting-images/${fileName}`;
+        const { error: uploadError } = await supabase.storage
           .from('spot-images')
           .upload(filePath, imageFile, {
             cacheControl: '3600',
             upsert: false
-          })
-
+          });
         if (uploadError) {
-          console.error('Resim yükleme hatası:', uploadError)
-          setErrorMessage('Resim yüklenirken hata oluştu')
-          setLoading(false)
-          return
+          console.error('Resim yükleme hatası:', uploadError);
+          setErrorMessage('Resim yüklenirken hata oluştu');
+          setLoading(false);
+          return;
         }
-
-        // Public URL al
         const { data: { publicUrl } } = supabase.storage
           .from('spot-images')
-          .getPublicUrl(filePath)
-
-        uploadedImageUrl = publicUrl
+          .getPublicUrl(filePath);
+        uploadedImageUrl = publicUrl;
       }
-
-      // SIGHTING OLUŞTUR
       const sightingData = {
         spot_id: spotId,
         spotter_id: user.id,
@@ -176,42 +140,23 @@ export default function SightingModal({ spotId, spotTitle, onClose, onSuccess }:
         hashtags: formData.hashtags.trim() || null,
         latitude: formData.latitude || null,
         longitude: formData.longitude || null
-      }
-
-      console.log('📝 Sighting Data:', sightingData)
-      console.log('🔐 User ID:', user.id)
-      console.log('📍 Spot ID:', spotId)
-
+      };
       const { data: insertedData, error: insertError } = await supabase
         .from('sightings')
         .insert(sightingData)
-        .select()
-
+        .select();
       if (insertError) {
-        console.error('❌ Sighting kayıt hatası (DETAYLI):', {
-          message: insertError.message,
-          details: insertError.details,
-          hint: insertError.hint,
-          code: insertError.code
-        })
-        setErrorMessage(`Bildirim kaydedilirken hata oluştu: ${insertError.message}`)
-        setLoading(false)
-        return
+        setErrorMessage(`Bildirim kaydedilirken hata oluştu: ${insertError.message}`);
+        setLoading(false);
+        return;
       }
-
-      console.log('✅ Sighting başarıyla kaydedildi:', insertedData)
-      
-      const sightingId = insertedData[0]?.id
-
-      // SPOT SAHİBİNE BİLDİRİM GÖNDER
+      const sightingId = insertedData[0]?.id;
       try {
-        // Spot sahibini bul
         const { data: spotData } = await supabase
           .from('spots')
           .select('user_id')
           .eq('id', spotId)
-          .single()
-
+          .single();
         if (spotData && spotData.user_id !== user.id) {
           const response = await fetch('/api/notifications', {
             method: 'POST',
@@ -227,49 +172,43 @@ export default function SightingModal({ spotId, spotTitle, onClose, onSuccess }:
               spotPrice: formData.price,
               spotNotes: formData.notes
             })
-          })
-
+          });
           if (!response.ok) {
-            const payload = await response.json().catch(() => ({}))
-            console.warn('⚠️ Notification API hatası:', payload)
-          } else {
-            console.log('✅ Spot sahibine bildirim ve email tetiklendi')
+            const payload = await response.json().catch(() => ({}));
+            console.warn('⚠️ Notification API hatası:', payload);
           }
-        } else {
-          console.log('ℹ️ Kendi spotunuza yardım ettiniz, bu durumda bildirim/email gönderilmiyor')
         }
       } catch (notifError) {
-        console.warn('⚠️ Bildirim gönderilemedi (devam ediliyor):', notifError)
         // Bildirim hatası olsa bile devam et
       }
-
-      // BAŞARI!
-      onSuccess()
+      onSuccess();
     } catch (error) {
-      console.error('Beklenmeyen hata:', error)
-      setErrorMessage('Bir hata oluştu, lütfen tekrar deneyin')
+      setErrorMessage('Bir hata oluştu, lütfen tekrar deneyin');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
-        {/* BAŞLIK */}
-        <div className="bg-gradient-to-r from-green-500 to-green-600 text-white p-6 rounded-t-2xl">
-          <div className="flex justify-between items-start">
-            <div>
-              <h2 className="text-2xl font-bold mb-2">Ben Gördüm! 🎉</h2>
-              <p className="text-green-50 text-sm">{spotTitle}</p>
-            </div>
-            <button
-              onClick={onClose}
-              className="text-white hover:bg-white/20 rounded-full w-8 h-8 flex items-center justify-center"
-            >
-              ×
-            </button>
-          </div>
+  };
 
+  return (
+    <form onSubmit={handleSubmit}>
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+          {/* BAŞLIK */}
+          <div className="bg-gradient-to-r from-green-500 to-green-600 text-white p-6 rounded-t-2xl">
+            <div className="flex justify-between items-start">
+              <div>
+                <h2 className="text-2xl font-bold mb-2">Ben Gördüm! 🎉</h2>
+                <p className="text-green-50 text-sm">{spotTitle}</p>
+              </div>
+              <button
+                onClick={onClose}
+                className="text-white hover:bg-white/20 rounded-full w-8 h-8 flex items-center justify-center"
+                type="button"
+              >
+                ×
+              </button>
+            </div>
+          </div>
           {/* KATEGORİ (opsiyonel) */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -290,7 +229,6 @@ export default function SightingModal({ spotId, spotTitle, onClose, onSuccess }:
               <option value="Diğer">Diğer</option>
             </select>
           </div>
-
           {/* HASHTAG'LER (opsiyonel) */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -305,7 +243,6 @@ export default function SightingModal({ spotId, spotTitle, onClose, onSuccess }:
             />
             <p className="text-xs text-gray-500 mt-1">Boşlukla ayrılmış hashtag'ler</p>
           </div>
-
           {/* NOTLAR (opsiyonel) */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -319,13 +256,11 @@ export default function SightingModal({ spotId, spotTitle, onClose, onSuccess }:
               rows={3}
             />
           </div>
-
           {/* RESİM YÜKLEME (opsiyonel) */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Fotoğraf (Opsiyonel)
             </label>
-            
             {imagePreview ? (
               <div className="relative">
                 <img
@@ -357,7 +292,6 @@ export default function SightingModal({ spotId, spotTitle, onClose, onSuccess }:
               </label>
             )}
           </div>
-
           {/* BUTONLAR */}
           <div className="flex space-x-3 pt-4">
             <button
@@ -376,8 +310,8 @@ export default function SightingModal({ spotId, spotTitle, onClose, onSuccess }:
               {loading ? 'Kaydediliyor...' : 'Kaydet'}
             </button>
           </div>
-        </form>
+        </div>
       </div>
-    </div>
-  )
+    </form>
+  );
 }

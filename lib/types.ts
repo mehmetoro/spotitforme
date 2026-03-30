@@ -18,6 +18,7 @@ export interface Sighting {
   id: string
   spot_id: string
   spotter_id: string
+  title: string
   image_url: string | null
   location_description: string
   price: number | null
