@@ -33,56 +33,45 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search')
     const hashtag = searchParams.get('hashtag')
 
-    // Fetch sightings without relations
-    const { data, error } = await supabase
+    // Supabase query ile filtreleri uygula
+    let query = supabase
       .from('sightings')
       .select('*')
       .order('created_at', { ascending: false })
       .limit(100)
 
+    if (category) {
+      query = query.eq('category', category)
+    }
+    if (hasLocation === 'with') {
+      query = query.not('latitude', 'is', null).not('longitude', 'is', null)
+    } else if (hasLocation === 'without') {
+      query = query.or('latitude.is.null,longitude.is.null')
+    }
+    if (hasPrice === 'with') {
+      query = query.not('price', 'is', null)
+    } else if (hasPrice === 'without') {
+      query = query.is('price', null)
+    }
+    if (search) {
+      // Çoklu alan araması için or kullan
+      const like = `%${search}%`
+      query = query.or(`title.ilike.${like},location_description.ilike.${like},notes.ilike.${like},hashtags.ilike.${like}`)
+    }
+    if (hashtag) {
+      const tag = `%#${hashtag.toLowerCase()}%`
+      query = query.ilike('hashtags', tag)
+    }
+
+    const { data, error } = await query
     if (error) {
       console.error('Sightings API error:', error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    let filtered = data || []
-
-    // Apply filters
-    if (hasLocation === 'with') {
-      filtered = filtered.filter((s: any) => s.latitude && s.longitude)
-    } else if (hasLocation === 'without') {
-      filtered = filtered.filter((s: any) => !s.latitude || !s.longitude)
-    }
-
-    if (hasPrice === 'with') {
-      filtered = filtered.filter((s: any) => s.price)
-    } else if (hasPrice === 'without') {
-      filtered = filtered.filter((s: any) => !s.price)
-    }
-
-    if (category) {
-      filtered = filtered.filter((s: any) => s.category === category)
-    }
-
-    if (search) {
-      const text = search.toLowerCase();
-      filtered = filtered.filter((s: any) =>
-        s.title?.toLowerCase().includes(text) ||
-        s.location_description?.toLowerCase().includes(text) ||
-        s.notes?.toLowerCase().includes(text) ||
-        s.hashtags?.toLowerCase().includes(text)
-      );
-    }
-
-    if (hashtag) {
-      filtered = filtered.filter((s: any) =>
-        s.hashtags?.toLowerCase().includes(`#${hashtag.toLowerCase()}`)
-      )
-    }
-
-    // Fetch spotter and spot data separately if needed
-    const spotter_ids = Array.from(new Set(filtered.map((s: any) => s.spotter_id).filter((id: any) => id)))
-    const spot_ids = Array.from(new Set(filtered.map((s: any) => s.spot_id).filter((id: any) => id)))
+    // Spotter ve spot verilerini zenginleştirme (opsiyonel, eski kodu koruyorum)
+    const spotter_ids = Array.from(new Set((data || []).map((s: any) => s.spotter_id).filter((id: any) => id)))
+    const spot_ids = Array.from(new Set((data || []).map((s: any) => s.spot_id).filter((id: any) => id)))
 
     let spotters: any[] = []
     let spots: any[] = []
@@ -106,13 +95,12 @@ export async function GET(request: NextRequest) {
     const spotter_map: Record<string, any> = (spotters || []).reduce((acc: any, s: any) => ({ ...acc, [s.id]: s }), {})
     const spot_map: Record<string, any> = (spots || []).reduce((acc: any, s: any) => ({ ...acc, [s.id]: s }), {})
 
-    let enriched = filtered.map((s: any) => ({
+    let enriched = (data || []).map((s: any) => ({
       ...s,
       spotter: spotter_map[s.spotter_id] || null,
       spot: spot_map[s.spot_id] || null
-    }));
+    }))
 
-    // Sadece sightings tablosunun kendi alanlarında arama yapılır (title dahil)
     return NextResponse.json(enriched)
   } catch (err: any) {
     console.error('Sightings API error:', err)
