@@ -10,7 +10,7 @@ export default function Hero() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     if (searchQuery.trim()) {
-      router.push(`/spots?search=${encodeURIComponent(searchQuery)}`)
+      router.push(`/sightings?search=${encodeURIComponent(searchQuery)}&tab=sightings`)
     }
   }
 

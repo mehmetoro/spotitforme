@@ -55,13 +55,19 @@ export async function GET(request: NextRequest) {
     }
 
     if (search) {
-      const text = search.toLowerCase()
+      const text = search.toLowerCase();
       filtered = filtered.filter((s: any) =>
         s.description?.toLowerCase().includes(text) ||
         s.location_name?.toLowerCase().includes(text) ||
         s.address?.toLowerCase().includes(text) ||
-        s.city?.toLowerCase().includes(text)
-      )
+        s.city?.toLowerCase().includes(text) ||
+        s.district?.toLowerCase().includes(text) ||
+        s.hashtags?.toLowerCase().includes(text) ||
+        s.price?.toString().toLowerCase().includes(text) ||
+        s.points_earned?.toString().toLowerCase().includes(text) ||
+        s.user_id?.toLowerCase().includes(text) ||
+        s.status?.toLowerCase().includes(text)
+      );
     }
 
     // Fetch user profiles

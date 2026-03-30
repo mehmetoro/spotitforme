@@ -13,7 +13,7 @@ interface Category {
   count?: number
 }
 
-const CATEGORIES: Category[] = [
+export const CATEGORIES: Category[] = [
   {
     id: 'elektronik',
     name: 'Elektronik',

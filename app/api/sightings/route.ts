@@ -65,11 +65,13 @@ export async function GET(request: NextRequest) {
     }
 
     if (search) {
-      const text = search.toLowerCase()
+      const text = search.toLowerCase();
       filtered = filtered.filter((s: any) =>
+        s.title?.toLowerCase().includes(text) ||
         s.location_description?.toLowerCase().includes(text) ||
-        s.notes?.toLowerCase().includes(text)
-      )
+        s.notes?.toLowerCase().includes(text) ||
+        s.hashtags?.toLowerCase().includes(text)
+      );
     }
 
     if (hashtag) {
@@ -104,12 +106,13 @@ export async function GET(request: NextRequest) {
     const spotter_map: Record<string, any> = (spotters || []).reduce((acc: any, s: any) => ({ ...acc, [s.id]: s }), {})
     const spot_map: Record<string, any> = (spots || []).reduce((acc: any, s: any) => ({ ...acc, [s.id]: s }), {})
 
-    const enriched = filtered.map((s: any) => ({
+    let enriched = filtered.map((s: any) => ({
       ...s,
       spotter: spotter_map[s.spotter_id] || null,
       spot: spot_map[s.spot_id] || null
-    }))
+    }));
 
+    // Sadece sightings tablosunun kendi alanlarında arama yapılır (title dahil)
     return NextResponse.json(enriched)
   } catch (err: any) {
     console.error('Sightings API error:', err)

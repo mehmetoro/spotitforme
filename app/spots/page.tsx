@@ -46,7 +46,7 @@ export default function SpotsPage({
 
         {/* Arama çubuğu */}
         <div className="mb-6">
-          <form action="/spots" method="GET" className="relative">
+          <form action="/search-results" method="GET" className="relative">
             <div className="flex">
               <input
                 type="text"

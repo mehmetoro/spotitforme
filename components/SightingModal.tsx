@@ -13,6 +13,7 @@ interface SightingModalProps {
 export default function SightingModal({ spotId, spotTitle, onClose, onSuccess }: SightingModalProps) {
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
+    title: spotTitle || '',
     location_description: '',
     price: '',
     notes: '',
@@ -111,6 +112,10 @@ export default function SightingModal({ spotId, spotTitle, onClose, onSuccess }:
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
+    if (!formData.title.trim()) {
+      setErrorMessage('Lütfen ürün adını girin')
+      return
+    }
     if (!formData.location_description.trim()) {
       setErrorMessage('Lütfen nerede gördüğünüzü belirtin')
       return
@@ -162,6 +167,7 @@ export default function SightingModal({ spotId, spotTitle, onClose, onSuccess }:
       const sightingData = {
         spot_id: spotId,
         spotter_id: user.id,
+        title: formData.title.trim(),
         location_description: formData.location_description.trim(),
         price: formData.price ? parseFloat(formData.price) : null,
         notes: formData.notes.trim() || null,
@@ -246,7 +252,6 @@ export default function SightingModal({ spotId, spotTitle, onClose, onSuccess }:
       setLoading(false)
     }
   }
-
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
@@ -260,66 +265,9 @@ export default function SightingModal({ spotId, spotTitle, onClose, onSuccess }:
             <button
               onClick={onClose}
               className="text-white hover:bg-white/20 rounded-full w-8 h-8 flex items-center justify-center"
-              type="button"
             >
-              ✕
+              ×
             </button>
-          </div>
-        </div>
-
-        {/* FORM */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
-          {/* HATA MESAJI */}
-          {errorMessage && (
-            <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">
-              {errorMessage}
-            </div>
-          )}
-
-          {/* KONUM (zorunlu) */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Nerede gördünüz? <span className="text-red-500">*</span>
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={formData.location_description}
-                onChange={(e) => setFormData({ ...formData, location_description: e.target.value })}
-                placeholder="Örn: Kadıköy Carrefour, Üst raf sağda"
-                className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                required
-              />
-              <button
-                type="button"
-                onClick={handleGetLocation}
-                disabled={geoLoading}
-                className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium whitespace-nowrap"
-              >
-                {geoLoading ? '...GPS' : '📍 GPS'}
-              </button>
-            </div>
-            {formData.latitude && formData.longitude && (
-              <p className="text-xs text-green-600 mt-2">
-                ✅ Konum kaydedildi ({formData.latitude.toFixed(4)}, {formData.longitude.toFixed(4)})
-              </p>
-            )}
-          </div>
-
-          {/* FİYAT (opsiyonel) */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Fiyat (₺)
-            </label>
-            <input
-              type="number"
-              step="0.01"
-              min="0"
-              value={formData.price}
-              onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-              placeholder="Örn: 150.00"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-            />
           </div>
 
           {/* KATEGORİ (opsiyonel) */}
