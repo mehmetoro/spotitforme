@@ -325,7 +325,7 @@ export default function SightingsPage() {
                     )}
                   </div>
                   <div className="p-4">
-                    <h3 className="font-bold text-gray-900 truncate mb-1">{s.spot?.title || 'Bilinmeyen Ürün'}</h3>
+                    <h3 className="font-bold text-gray-900 truncate mb-1">{s.title || 'Bilinmeyen Ürün'}</h3>
                     <p className="text-sm text-gray-600 line-clamp-2 mb-2">📍 {s.location_description}</p>
                     {s.notes && <p className="text-sm text-gray-500 line-clamp-2 mb-2">{s.notes}</p>}
                     {s.hashtags && (
