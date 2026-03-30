@@ -9,6 +9,7 @@ import ResponsiveAd from '@/components/ResponsiveAd'
 interface Sighting {
   id: string
   spot_id: string
+  title: string
   spotter_id: string
   image_url: string | null
   location_description: string
