@@ -6,6 +6,7 @@ import { buildSeoImageFileName, suggestHashtagsFromText } from '@/lib/content-se
 import { supabase } from '@/lib/supabase'
 import Image from 'next/image'
 import LocationSelector from './LocationSelector'
+import AuthModal from './AuthModal'
 
 interface QuickSightingModalProps {
   isOpen: boolean
@@ -34,6 +35,7 @@ export default function QuickSightingModal({
   const [currentNoktaBalance, setCurrentNoktaBalance] = useState<number | null>(null)
   const [sourceType, setSourceType] = useState<'physical' | 'virtual'>('physical')
   const [previewLoading, setPreviewLoading] = useState(false)
+  const [showAuthModal, setShowAuthModal] = useState(false)
   
   const [formData, setFormData] = useState({
     title: '',
@@ -319,7 +321,7 @@ export default function QuickSightingModal({
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
-        router.push('/auth/login')
+        setShowAuthModal(true)
         return
       }
 
@@ -535,8 +537,9 @@ export default function QuickSightingModal({
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+    <>
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="sticky top-0 bg-white border-b p-6 z-10">
           <div className="flex items-center justify-between">
@@ -984,7 +987,18 @@ export default function QuickSightingModal({
             Bildiriminiz profil sayfanızda ve ana sayfada görünecek
           </p>
         </div>
+        </div>
       </div>
-    </div>
+
+      {showAuthModal && (
+        <AuthModal
+          isOpen={showAuthModal}
+          onClose={() => setShowAuthModal(false)}
+          onSuccess={() => {
+            setShowAuthModal(false)
+          }}
+        />
+      )}
+    </>
   )
 }
