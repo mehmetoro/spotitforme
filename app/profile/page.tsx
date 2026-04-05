@@ -53,6 +53,8 @@ interface NoktaConversionHistoryItem {
 interface UserHelpItem {
   id: string
   spot_id: string
+  title: string | null
+  link_preview_title: string | null
   location_description: string
   notes: string | null
   price: string | null
@@ -228,7 +230,7 @@ export default function ProfilePage() {
       // Kullanıcının spot yardımları
       const { data: helpsData } = await supabase
         .from('sightings')
-        .select('id, spot_id, location_description, notes, price, link_preview_currency, created_at')
+        .select('id, spot_id, title, link_preview_title, location_description, notes, price, link_preview_currency, created_at')
         .eq('spotter_id', userId)
         .order('created_at', { ascending: false })
 
