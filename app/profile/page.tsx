@@ -65,7 +65,9 @@ interface UserHelpItem {
 
 interface UserRareItem {
   id: string
+  title: string | null
   description: string
+  link_preview_title: string | null
   category: string | null
   location_name: string
   city: string | null
@@ -256,7 +258,7 @@ export default function ProfilePage() {
       // Kullanıcının nadir paylaşımları
       const { data: rareData } = await supabase
         .from('quick_sightings')
-        .select('id, description, category, location_name, city, price, points_earned, is_in_museum, created_at')
+        .select('id, title, description, link_preview_title, category, location_name, city, price, points_earned, is_in_museum, created_at')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
 
