@@ -8,7 +8,9 @@ import { supabase } from '@/lib/supabase'
 interface MuseumItem {
   id: string
   user_id: string
+  title: string | null
   description: string
+  link_preview_title: string | null
   photo_url: string | null
   location_name: string
   city: string | null
@@ -33,7 +35,7 @@ export default function MuseumPage() {
       try {
         const { data, error } = await supabase
           .from('quick_sightings')
-          .select('id, user_id, description, photo_url, location_name, city, category, price, created_at')
+          .select('id, user_id, title, description, link_preview_title, photo_url, location_name, city, category, price, created_at')
           .eq('status', 'active')
           .eq('is_in_museum', true)
           .order('created_at', { ascending: false })
