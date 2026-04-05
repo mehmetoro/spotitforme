@@ -68,6 +68,7 @@ export default function FeedPost({
   }
 
   const handleLikeClick = async (e?: React.MouseEvent) => {
+    e?.preventDefault()
     e?.stopPropagation()
     const newLikedState = !isLiked
     setIsLiked(newLikedState)
@@ -75,6 +76,7 @@ export default function FeedPost({
   }
 
   const handleSaveClick = async (e?: React.MouseEvent) => {
+    e?.preventDefault()
     e?.stopPropagation()
     const newSavedState = !isSaved
     setIsSaved(newSavedState)
@@ -277,7 +279,7 @@ export default function FeedPost({
       {postType === 'spot' && onFound && !showFull && post.user_id !== currentUserId && (
         <div className="px-6 py-2">
           <button
-            onClick={(e) => { e.stopPropagation(); onFound(post) }}
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onFound(post) }}
             className="w-full bg-green-500 text-white py-2 rounded-lg hover:bg-green-600"
           >
             🕵️ Bulundu

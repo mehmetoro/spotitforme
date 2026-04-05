@@ -58,7 +58,7 @@ export default function PostActions({
           {/* Beğeni butonu ve reactions */}
           <div className="relative">
             <button
-              onClick={(e) => { e.stopPropagation(); onLike(e) }}
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); onLike(e) }}
               onMouseEnter={() => setShowReactions(true)}
               onMouseLeave={() => setTimeout(() => setShowReactions(false), 500)}
               className={`flex items-center space-x-2 px-2 sm:px-3 py-2 rounded-lg transition whitespace-nowrap ${
@@ -94,7 +94,7 @@ export default function PostActions({
 
           {/* Yorum butonu */}
           <button
-            onClick={(e) => { e.stopPropagation(); onComment() }}
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onComment() }}
             className="flex items-center space-x-2 px-2 sm:px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700 whitespace-nowrap"
           >
             <span className="text-xl">💬</span>
@@ -106,7 +106,7 @@ export default function PostActions({
         <div className="flex items-center space-x-2">
           {/* Kaydet butonu */}
           <button
-            onClick={(e) => { e.stopPropagation(); onSave(e) }}
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onSave(e) }}
             className={`p-2 rounded-full ${
               isSaved 
                 ? 'bg-yellow-50 text-yellow-600' 
@@ -122,7 +122,7 @@ export default function PostActions({
           {/* Paylaş butonu ve menu */}
           <div className="relative">
             <button
-              onClick={(e) => { e.stopPropagation(); setShowShareMenu(!showShareMenu) }}
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowShareMenu(!showShareMenu) }}
               className="p-2 rounded-full hover:bg-gray-100 text-gray-700"
               title="Paylaş"
             >
