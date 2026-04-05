@@ -21,6 +21,7 @@ interface RareMetadataRecord {
   link_preview_image: string | null
   link_preview_description: string | null
   link_preview_brand: string | null
+  link_preview_availability: string | null
   source_domain: string | null
 }
 
