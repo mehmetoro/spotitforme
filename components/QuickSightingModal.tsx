@@ -319,7 +319,7 @@ export default function QuickSightingModal({
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
-        router.push('/login?redirect=/')
+        router.push('/auth/login')
         return
       }
 
