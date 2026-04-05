@@ -1,13 +1,18 @@
 'use client'
 
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 import QuickSightingModal from '@/components/QuickSightingModal'
 
 export default function ShareRarePage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [modalOpen, setModalOpen] = useState(true)
+  const sharedUrl = searchParams.get('url') || ''
+  const sharedTitle = searchParams.get('title') || ''
+  const sharedText = searchParams.get('text') || ''
+  const sharedDescription = [sharedTitle, sharedText].filter(Boolean).join(' - ')
 
   const handleCloseModal = () => {
     setModalOpen(false)
@@ -16,13 +21,24 @@ export default function ShareRarePage() {
 
   return (
     <main className="container-custom py-8">
-      <QuickSightingModal isOpen={modalOpen} onClose={handleCloseModal} />
+      <QuickSightingModal
+        isOpen={modalOpen}
+        onClose={handleCloseModal}
+        initialSourceType={sharedUrl ? 'virtual' : 'physical'}
+        initialProductUrl={sharedUrl}
+        initialDescription={sharedDescription}
+      />
 
       <div className="max-w-2xl mx-auto rounded-2xl border border-purple-100 bg-white p-6 shadow-sm">
         <h1 className="text-2xl font-bold text-gray-900">Nadir Gördüm Paylaşımı</h1>
         <p className="mt-2 text-sm text-gray-600">
           Nadir paylaşım formu açıldı. Formu kapatırsanız Nadir Görülenler akışına dönersiniz.
         </p>
+        {sharedUrl && (
+          <p className="mt-2 text-xs text-emerald-700 break-all">
+            Paylaşılan link algılandı: {sharedUrl}
+          </p>
+        )}
 
         <div className="mt-6 flex flex-wrap gap-3">
           <button

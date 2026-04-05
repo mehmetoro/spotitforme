@@ -17,6 +17,7 @@ import ActiveSearches from '@/components/shop/ActiveSearches'
 import ShopSocialFeed from '@/components/shop/ShopSocialFeed'
 import ShopStatsPublic from '@/components/shop/ShopStatsPublic'
 import DiscountRequestsPanel from '@/components/shop/DiscountRequestsPanel'
+import { buildSpotPath } from '@/lib/sighting-slug'
 
 interface Shop {
   id: string
@@ -669,7 +670,7 @@ export default function ShopDashboardPage() {
                             <tr key={spot.id} className="hover:bg-gray-50">
                               <td className="py-3 px-4">
                                 <Link
-                                  href={`/spots/${spot.id}`}
+                                  href={buildSpotPath(spot.id, spot.title)}
                                   className="font-medium text-blue-600 hover:text-blue-800"
                                 >
                                   {spot.title.length > 40 ? spot.title.substring(0, 40) + '...' : spot.title}

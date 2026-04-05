@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { buildRareSightingPath } from '@/lib/sighting-slug'
 import { supabase } from '@/lib/supabase'
 
 interface MuseumItem {
@@ -86,7 +87,7 @@ export default function MuseumPage() {
           {items.map((item) => (
             <Link
               key={item.id}
-              href={`/sightings/rare/${item.id}`}
+              href={buildRareSightingPath(item.id, item.title || item.link_preview_title || item.description)}
               className="bg-white rounded-xl shadow hover:shadow-lg transition overflow-hidden"
             >
               <div className="h-48 bg-gray-100 overflow-hidden">

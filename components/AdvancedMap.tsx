@@ -107,7 +107,7 @@ export default function AdvancedMap({
               <a
                 href={googleMapsUrl}
                 target="_blank"
-                rel="noopener noreferrer"
+                rel="nofollow ugc noopener noreferrer"
                 className="text-blue-600 hover:text-blue-800 flex items-center"
               >
                 <span className="mr-2">🗺️</span>

@@ -116,7 +116,7 @@ export default function AdUnit({ placement, className = '' }: AdUnitProps) {
           <a 
             href={adData.advertiser_url || '#'}
             target="_blank"
-            rel="noopener noreferrer"
+            rel="nofollow ugc noopener noreferrer"
             className="block"
           >
             <div className="border-2 border-dashed border-blue-300 bg-blue-50 p-4 rounded-lg">

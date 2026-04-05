@@ -32,6 +32,7 @@ export async function GET(request: NextRequest) {
     const hasLocation = searchParams.get('hasLocation')
     const search = searchParams.get('search')
     const hashtag = searchParams.get('hashtag')
+    const channel = searchParams.get('channel')
 
     // Supabase query ile filtreleri uygula
     let query = supabase
@@ -42,6 +43,9 @@ export async function GET(request: NextRequest) {
 
     if (category) {
       query = query.eq('category', category)
+    }
+    if (channel === 'physical' || channel === 'virtual') {
+      query = query.eq('source_channel', channel)
     }
     if (hasLocation === 'with') {
       query = query.not('latitude', 'is', null).not('longitude', 'is', null)
@@ -56,7 +60,7 @@ export async function GET(request: NextRequest) {
     if (search) {
       // Çoklu alan araması için or kullan
       const like = `%${search}%`
-      query = query.or(`title.ilike.${like},location_description.ilike.${like},notes.ilike.${like},hashtags.ilike.${like}`)
+      query = query.or(`title.ilike.${like},location_description.ilike.${like},notes.ilike.${like},hashtags.ilike.${like},product_url.ilike.${like},marketplace.ilike.${like},seller_name.ilike.${like},link_preview_title.ilike.${like},link_preview_description.ilike.${like},link_preview_brand.ilike.${like}`)
     }
     if (hashtag) {
       const tag = `%#${hashtag.toLowerCase()}%`

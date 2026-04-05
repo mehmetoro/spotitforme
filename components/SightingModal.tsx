@@ -1,6 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { buildSeoImageFileName, suggestHashtagsFromText } from '@/lib/content-seo'
 import { supabase } from '@/lib/supabase'
 
 interface SightingModalProps {
@@ -10,7 +12,9 @@ interface SightingModalProps {
   onSuccess: () => void;
 }
 export default function SightingModal({ spotId, spotTitle, onClose, onSuccess }: SightingModalProps) {
+  const router = useRouter()
   const [loading, setLoading] = useState(false);
+  const [helpType, setHelpType] = useState<'physical' | 'virtual'>('physical');
   const [formData, setFormData] = useState({
     title: spotTitle || '',
     location_description: '',
@@ -20,12 +24,65 @@ export default function SightingModal({ spotId, spotTitle, onClose, onSuccess }:
     category: '',
     hashtags: '',
     latitude: null as number | null,
-    longitude: null as number | null
+    longitude: null as number | null,
+    product_url: '',
+    marketplace: '',
+    seller_name: '',
+    link_preview_title: '',
+    link_preview_image: '',
+    link_preview_description: '',
+    link_preview_brand: '',
+    link_preview_availability: '',
+    link_preview_currency: 'TRY',
+    source_domain: '',
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [geoLoading, setGeoLoading] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const hashtagCount = formData.hashtags
+    .split(/\s+/)
+    .map((tag) => tag.trim())
+    .filter((tag) => tag.startsWith('#')).length;
+  const suggestedHashtags = suggestHashtagsFromText([
+    formData.title,
+    formData.notes,
+    formData.link_preview_description,
+    formData.category,
+    formData.location_description,
+  ]).filter((tag) => !formData.hashtags.includes(tag));
+
+  const commonCurrencies = ['TRY', 'USD', 'EUR', 'GBP', 'JPY', 'CNY', 'AED', 'SAR'];
+  const selectedCurrency = (formData.link_preview_currency || 'TRY').toUpperCase();
+  const currencyOptions = commonCurrencies.includes(selectedCurrency)
+    ? commonCurrencies
+    : [...commonCurrencies, selectedCurrency];
+
+  const getCurrencyPrefix = (currency: string | null | undefined) => {
+    const code = (currency || 'TRY').toUpperCase();
+    if (code === 'TRY') return '₺';
+    if (code === 'USD') return '$';
+    if (code === 'EUR') return '€';
+    if (code === 'GBP') return '£';
+    if (code === 'JPY') return '¥';
+    if (code === 'CNY') return '¥';
+    return `${code} `;
+  };
+
+  const buildCombinedDetail = (manualDetail: string, previewDetail: string) => {
+    const normalizedManual = manualDetail.trim();
+    const normalizedPreview = previewDetail.trim();
+
+    if (normalizedManual && normalizedPreview) {
+      if (normalizedManual.toLowerCase().includes(normalizedPreview.toLowerCase())) {
+        return normalizedManual;
+      }
+      return `${normalizedManual}\n\nUrun detayi: ${normalizedPreview}`;
+    }
+
+    return normalizedManual || normalizedPreview || '';
+  };
 
   // RESİM SEÇİMİ
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -53,6 +110,15 @@ export default function SightingModal({ spotId, spotTitle, onClose, onSuccess }:
     setImageFile(null);
     setImagePreview(null);
     setFormData({ ...formData, image_url: '' });
+  };
+
+  const addSuggestedHashtag = (tag: string) => {
+    const currentTags = formData.hashtags.trim();
+    if (currentTags.includes(tag)) return;
+    setFormData({
+      ...formData,
+      hashtags: currentTags ? `${currentTags} ${tag}` : tag,
+    });
   };
 
   // KONUM AL (GEOLOCATION)
@@ -88,6 +154,39 @@ export default function SightingModal({ spotId, spotTitle, onClose, onSuccess }:
     );
   };
 
+  const fetchLinkPreview = async () => {
+    if (!formData.product_url.trim()) return;
+    setPreviewLoading(true);
+    setErrorMessage('');
+    try {
+      const res = await fetch(`/api/link-preview?url=${encodeURIComponent(formData.product_url.trim())}`);
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error || 'Link okunamadı');
+      }
+      setFormData((prev) => ({
+        ...prev,
+        title: prev.title ? prev.title : (data.title || prev.title),
+        price: prev.price ? prev.price : (data.price || prev.price),
+        notes: prev.notes ? prev.notes : (data.description || prev.notes),
+        link_preview_title: data.title || prev.link_preview_title,
+        link_preview_image: data.image || prev.link_preview_image,
+        link_preview_description: data.description || prev.link_preview_description,
+        link_preview_brand: data.brand || prev.link_preview_brand,
+        link_preview_availability: data.availability || prev.link_preview_availability,
+        link_preview_currency: data.currency || prev.link_preview_currency,
+        marketplace: data.marketplace || prev.marketplace,
+        seller_name: data.seller || prev.seller_name,
+        product_url: data.url || prev.product_url,
+        source_domain: data.domain || prev.source_domain,
+      }));
+    } catch (error: any) {
+      setErrorMessage(error?.message || 'Link önizlemesi alınamadı');
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
   // FORM GÖNDERİMİ
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,8 +194,20 @@ export default function SightingModal({ spotId, spotTitle, onClose, onSuccess }:
       setErrorMessage('Lütfen ürün adını girin');
       return;
     }
-    if (!formData.location_description.trim()) {
+    if (formData.title.trim().length < 10) {
+      setErrorMessage('Başlık en az 10 karakter olmalı. Marka veya model bilgisi ekleyin.');
+      return;
+    }
+    if (helpType === 'physical' && !formData.location_description.trim()) {
       setErrorMessage('Lütfen nerede gördüğünüzü belirtin');
+      return;
+    }
+    if (helpType === 'virtual' && !formData.product_url.trim()) {
+      setErrorMessage('Sanal yardım için ürün linki zorunludur');
+      return;
+    }
+    if (hashtagCount === 0) {
+      setErrorMessage('En az bir hashtag ekleyin. Etiketler yardım sayfasının keşfedilmesini güçlendirir.');
       return;
     }
     setLoading(true);
@@ -110,9 +221,13 @@ export default function SightingModal({ spotId, spotTitle, onClose, onSuccess }:
       }
       let uploadedImageUrl = formData.image_url;
       if (imageFile) {
-        const fileExt = imageFile.name.split('.').pop();
-        const fileName = `${spotId}-${user.id}-${Date.now()}.${fileExt}`;
-        const filePath = `sighting-images/${fileName}`;
+        const filePath = buildSeoImageFileName({
+          folder: 'sighting-images',
+          userId: user.id,
+          title: formData.title || spotTitle,
+          originalName: imageFile.name,
+          prefix: spotTitle,
+        });
         const { error: uploadError } = await supabase.storage
           .from('spot-images')
           .upload(filePath, imageFile, {
@@ -130,29 +245,93 @@ export default function SightingModal({ spotId, spotTitle, onClose, onSuccess }:
           .getPublicUrl(filePath);
         uploadedImageUrl = publicUrl;
       }
+      if (!uploadedImageUrl && helpType === 'virtual' && formData.link_preview_image.trim()) {
+        uploadedImageUrl = formData.link_preview_image.trim();
+      }
+
       const sightingData = {
         spot_id: spotId,
         spotter_id: user.id,
-        title: formData.title.trim(),
-        location_description: formData.location_description.trim(),
+        title: helpType === 'virtual'
+          ? formData.link_preview_title.trim() || formData.title.trim() || spotTitle
+          : formData.title.trim() || spotTitle,
+        location_description: helpType === 'physical'
+          ? formData.location_description.trim()
+          : (formData.marketplace || formData.source_domain || 'Sanal ortam'),
         price: formData.price ? parseFloat(formData.price) : null,
-        notes: formData.notes.trim() || null,
+        notes: buildCombinedDetail(formData.notes, formData.link_preview_description) || null,
         image_url: uploadedImageUrl || null,
         category: formData.category || null,
         hashtags: formData.hashtags.trim() || null,
-        latitude: formData.latitude || null,
-        longitude: formData.longitude || null
+        latitude: helpType === 'physical' ? formData.latitude || null : null,
+        longitude: helpType === 'physical' ? formData.longitude || null : null,
+        source_channel: helpType,
+        product_url: formData.product_url.trim() || null,
+        marketplace: formData.marketplace.trim() || null,
+        seller_name: formData.seller_name.trim() || null,
+        link_preview_title: formData.link_preview_title.trim() || null,
+        link_preview_image: uploadedImageUrl || formData.link_preview_image.trim() || null,
+        link_preview_description: formData.link_preview_description.trim() || null,
+        link_preview_brand: formData.link_preview_brand.trim() || null,
+        link_preview_availability: formData.link_preview_availability.trim() || null,
+        link_preview_currency: formData.link_preview_currency.trim() || null,
+        source_domain: formData.source_domain.trim() || null,
       };
       const { data: insertedData, error: insertError } = await supabase
         .from('sightings')
         .insert(sightingData)
         .select();
-      if (insertError) {
-        setErrorMessage(`Bildirim kaydedilirken hata oluştu: ${insertError.message}`);
+      let finalInsertedData = insertedData;
+      let finalInsertError = insertError;
+
+      if (finalInsertError && (
+        finalInsertError.message?.includes('product_url') ||
+        finalInsertError.message?.includes('marketplace') ||
+        finalInsertError.message?.includes('seller_name') ||
+        finalInsertError.message?.includes('link_preview_title') ||
+        finalInsertError.message?.includes('link_preview_image') ||
+        finalInsertError.message?.includes('link_preview_description') ||
+        finalInsertError.message?.includes('link_preview_brand') ||
+        finalInsertError.message?.includes('link_preview_availability') ||
+        finalInsertError.message?.includes('link_preview_currency') ||
+        finalInsertError.message?.includes('source_domain')
+      )) {
+        const legacyPayload = { ...sightingData } as Record<string, any>;
+        // source_channel KALDIRILMAMALI — hangi sayfada görüneceğini belirler
+        delete legacyPayload.product_url;
+        delete legacyPayload.marketplace;
+        delete legacyPayload.seller_name;
+        delete legacyPayload.link_preview_title;
+        delete legacyPayload.link_preview_image;
+        delete legacyPayload.link_preview_description;
+        delete legacyPayload.link_preview_brand;
+        delete legacyPayload.link_preview_availability;
+        delete legacyPayload.link_preview_currency;
+        delete legacyPayload.source_domain;
+
+        const retry = await supabase
+          .from('sightings')
+          .insert(legacyPayload)
+          .select();
+
+        finalInsertedData = retry.data;
+        finalInsertError = retry.error;
+      }
+
+      if (finalInsertError) {
+        const fallbackErrorMessage = finalInsertError.message || 'Bilinmeyen hata';
+        setErrorMessage(`Bildirim kaydedilirken hata oluştu: ${fallbackErrorMessage}`);
         setLoading(false);
         return;
       }
-      const sightingId = insertedData[0]?.id;
+
+      if (!finalInsertedData || finalInsertedData.length === 0) {
+        setErrorMessage('Bildirim kaydedildi fakat kayıt ID alınamadı. Lütfen tekrar deneyin.');
+        setLoading(false);
+        return;
+      }
+
+      const sightingId = finalInsertedData[0]?.id;
       try {
         const { data: spotData } = await supabase
           .from('spots')
@@ -168,9 +347,11 @@ export default function SightingModal({ spotId, spotTitle, onClose, onSuccess }:
               actorId: user.id,
               type: 'spot_sighting',
               postId: `sighting-${sightingId}`,
-              message: `"${spotTitle}" için "Ben Gördüm" bildirimi gönderdi`,
+              message: helpType === 'virtual'
+                ? `"${spotTitle}" için Yardımlar sayfasında paylaştı`
+                : `"${spotTitle}" için "Ben Gördüm" bildirimi gönderdi`,
               spotTitle,
-              spotLocation: formData.location_description,
+              spotLocation: helpType === 'virtual' ? (formData.marketplace || formData.product_url) : formData.location_description,
               spotPrice: formData.price,
               spotNotes: formData.notes
             })
@@ -183,7 +364,13 @@ export default function SightingModal({ spotId, spotTitle, onClose, onSuccess }:
       } catch (notifError) {
         // Bildirim hatası olsa bile devam et
       }
-      onSuccess();
+      
+      // Sanal yardım ise listesine yönlendir
+      if (helpType === 'virtual') {
+        router.push('/virtual-sightings?tab=virtual-helps')
+      } else {
+        onSuccess();
+      }
     } catch (error) {
       setErrorMessage('Bir hata oluştu, lütfen tekrar deneyin');
     } finally {
@@ -211,6 +398,198 @@ export default function SightingModal({ spotId, spotTitle, onClose, onSuccess }:
               </button>
             </div>
           </div>
+          <div className="p-6 space-y-4">
+            <div className="rounded-xl border border-gray-200 p-1 grid grid-cols-2 gap-1 bg-gray-50">
+              <button
+                type="button"
+                onClick={() => setHelpType('physical')}
+                className={`px-3 py-2 text-sm rounded-lg font-semibold ${helpType === 'physical' ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-600'}`}
+              >
+                Konumlu Yardım
+              </button>
+              <button
+                type="button"
+                onClick={() => setHelpType('virtual')}
+                className={`px-3 py-2 text-sm rounded-lg font-semibold ${helpType === 'virtual' ? 'bg-white text-emerald-700 shadow-sm' : 'text-gray-600'}`}
+              >
+                Sanal Yardım
+              </button>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Ürün Başlığı {helpType === 'virtual' && <span className="text-gray-400 font-normal">(boş bırakırsanız ürün adı kullanılır)</span>}
+              </label>
+              <input
+                type="text"
+                value={formData.title}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                placeholder="Ürün adı"
+              />
+              {formData.title.length > 0 && formData.title.trim().length < 10 && (
+                <p className="text-xs text-amber-600 mt-1">
+                  Başlıkta marka, model veya ürün tipini açık yazın.
+                </p>
+              )}
+            </div>
+
+            {helpType === 'physical' ? (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Nerede Gördünüz? *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.location_description}
+                    onChange={(e) => setFormData({ ...formData, location_description: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                    placeholder="Mağaza adı, semt, AVM"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleGetLocation}
+                  className="w-full px-4 py-2 border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50"
+                  disabled={geoLoading}
+                >
+                  {geoLoading ? 'Konum alınıyor...' : 'Konumu Otomatik Al'}
+                </button>
+              </>
+            ) : (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Ürün Linki *
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      value={formData.product_url}
+                      onChange={(e) => setFormData({ ...formData, product_url: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                      placeholder="https://..."
+                    />
+                    <button
+                      type="button"
+                      onClick={fetchLinkPreview}
+                      className="px-3 py-2 text-sm rounded-lg bg-emerald-600 text-white hover:bg-emerald-700"
+                      disabled={previewLoading || !formData.product_url.trim()}
+                    >
+                      {previewLoading ? '...' : 'Önizle'}
+                    </button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <input
+                    type="text"
+                    value={formData.marketplace}
+                    onChange={(e) => setFormData({ ...formData, marketplace: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                    placeholder="Pazar yeri (Amazon, eBay...)"
+                  />
+                  <input
+                    type="text"
+                    value={formData.seller_name}
+                    onChange={(e) => setFormData({ ...formData, seller_name: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                    placeholder="Satıcı adı (opsiyonel)"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <input
+                    type="text"
+                    value={formData.link_preview_brand}
+                    onChange={(e) => setFormData({ ...formData, link_preview_brand: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                    placeholder="Marka (otomatik gelir)"
+                  />
+                  <input
+                    type="text"
+                    value={formData.link_preview_availability}
+                    onChange={(e) => setFormData({ ...formData, link_preview_availability: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                    placeholder="Stok durumu (opsiyonel)"
+                  />
+                </div>
+
+                <textarea
+                  value={formData.link_preview_description}
+                  onChange={(e) => setFormData({ ...formData, link_preview_description: e.target.value })}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                  placeholder="Ürün özeti (boş bırakırsanız linkten gelen açıklama kullanılır)"
+                  rows={3}
+                />
+
+                {formData.link_preview_image && (
+                  <div className="rounded-xl border border-gray-200 overflow-hidden bg-white">
+                    <div className="px-3 py-2 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
+                      <span className="text-xs font-semibold text-gray-700 truncate">
+                        {formData.marketplace || formData.source_domain || 'Online pazar'}
+                      </span>
+                      <span className="text-[11px] text-gray-500">Mini Ürün Sayfası</span>
+                    </div>
+                    <div className="flex">
+                      <div className="w-28 h-28 bg-gray-100 shrink-0">
+                        <img src={formData.link_preview_image} alt="Link önizleme" className="w-full h-full object-cover" />
+                      </div>
+                      <div className="p-3 min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-gray-900 line-clamp-2">
+                          {formData.link_preview_title || formData.title || 'Ürün'}
+                        </p>
+                        <p className="text-xs text-gray-600 line-clamp-2 mt-1">
+                          {formData.link_preview_description || 'Linkten ürün özeti alındı.'}
+                        </p>
+                        <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-gray-500">
+                          {formData.link_preview_brand && <span>Marka: {formData.link_preview_brand}</span>}
+                          {formData.seller_name && <span>Satıcı: {formData.seller_name}</span>}
+                          {formData.link_preview_availability && <span>Durum: {formData.link_preview_availability}</span>}
+                        </div>
+                        {formData.price && (
+                          <p className="mt-2 text-sm font-bold text-green-700">
+                            {getCurrencyPrefix(formData.link_preview_currency)}
+                            {Number(formData.price).toLocaleString('tr-TR')}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="px-3 py-2 border-t border-gray-100 text-xs text-blue-700 truncate">
+                      {formData.product_url}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              💰 Gördüğünüz Fiyat <span className="text-gray-400 font-normal">(opsiyonel)</span>
+            </label>
+            <div className="grid grid-cols-[120px_1fr] gap-2">
+              <select
+                value={selectedCurrency}
+                onChange={(e) => setFormData({ ...formData, link_preview_currency: e.target.value })}
+                className="px-3 py-3 border border-gray-300 rounded-lg bg-gray-50 text-sm"
+              >
+                {currencyOptions.map((code) => (
+                  <option key={code} value={code}>{code}</option>
+                ))}
+              </select>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={formData.price}
+                onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                placeholder="Örn: 2500"
+              />
+            </div>
+            <p className="text-xs text-gray-500 mt-1">Etikette veya satıcıdan öğrendiğiniz fiyatı yazın</p>
+          </div>
+
           {/* KATEGORİ (opsiyonel) */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -243,20 +622,44 @@ export default function SightingModal({ spotId, spotTitle, onClose, onSuccess }:
               placeholder="Örn: #stokta #indirimli #sınırlı"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
             />
-            <p className="text-xs text-gray-500 mt-1">Boşlukla ayrılmış hashtag'ler</p>
+            <p className="text-xs text-gray-500 mt-1">Boşlukla ayrılmış hashtag'ler. En az 1 etiket ekleyin.</p>
+            {suggestedHashtags.length > 0 && (
+              <div className="mt-3">
+                <p className="text-xs font-medium text-gray-600 mb-2">Otomatik etiket önerileri</p>
+                <div className="flex flex-wrap gap-2">
+                  {suggestedHashtags.map((tag) => (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => addSuggestedHashtag(tag)}
+                      className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
+                    >
+                      {tag}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
           {/* NOTLAR (opsiyonel) */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Ek Notlar
+              {helpType === 'virtual' ? 'Kendi Detayınız' : 'Ek Notlar'}
             </label>
             <textarea
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              placeholder="Stokta sınırlı sayıda var, açıkgöz olun!"
+              placeholder={helpType === 'virtual'
+                ? 'Kendi yorumunuz, neden nadir oldugu, kondisyon, tavsiye gibi bilgiler... Yazarsanız ürün özetiyle birlikte kullanılır.'
+                : 'Stokta sınırlı sayıda var, açıkgöz olun!'}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
               rows={3}
             />
+            {helpType === 'virtual' && (
+              <p className="text-xs text-gray-500 mt-1">
+                Siz detay girmezseniz linkten gelen ürün özeti kullanılır. Girerseniz ikisi birlikte detay sayfasında değerlendirilir.
+              </p>
+            )}
           </div>
           {/* RESİM YÜKLEME (opsiyonel) */}
           <div>
@@ -311,6 +714,7 @@ export default function SightingModal({ spotId, spotTitle, onClose, onSuccess }:
             >
               {loading ? 'Kaydediliyor...' : 'Kaydet'}
             </button>
+          </div>
           </div>
         </div>
       </div>

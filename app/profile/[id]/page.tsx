@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase'
 import UserProfileCard from '@/components/UserProfileCard'
 import SimpleTabs from '@/components/SimpleTabs'
 import Feed from '@/components/social/Feed'
+import { buildSpotPath } from '@/lib/sighting-slug'
 
 type TabType = 'sightings' | 'spots' | 'reputation' | 'social'
 
@@ -304,7 +305,7 @@ export default function UserProfilePage() {
                     <div 
                       key={spot.id} 
                       className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 cursor-pointer"
-                      onClick={() => router.push(`/spots/${spot.id}`)}
+                      onClick={() => router.push(buildSpotPath(spot.id, spot.title))}
                     >
                       <div className="flex items-start justify-between">
                         <div>

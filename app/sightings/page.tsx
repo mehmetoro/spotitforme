@@ -1,19 +1,21 @@
-// app/sightings/page.tsx
 'use client'
 
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import ResponsiveAd from '@/components/ResponsiveAd'
+import { buildRareSightingPath, buildSightingPath } from '@/lib/sighting-slug'
 
 interface Sighting {
   id: string
   spot_id: string
   title: string
+  link_preview_title?: string | null
   spotter_id: string
   image_url: string | null
   location_description: string
   price: string | null
+  link_preview_currency?: string | null
   notes: string | null
   category: string | null
   hashtags: string | null
@@ -27,7 +29,10 @@ interface Sighting {
 interface RareSighting {
   id: string
   user_id: string
+  title?: string | null
   description: string
+  link_preview_title?: string | null
+  link_preview_currency?: string | null
   category: string | null
   price: number | null
   has_photo: boolean
@@ -97,6 +102,7 @@ export default function SightingsPage() {
     try {
       setSightingsLoading(true);
       const params = new URLSearchParams();
+      params.append('channel', 'physical');
       if (filters.category) params.append('category', filters.category);
       if (filters.hasLocation !== 'all') params.append('hasLocation', filters.hasLocation);
       if (filters.hasPrice !== 'all') params.append('hasPrice', filters.hasPrice);
@@ -123,6 +129,7 @@ export default function SightingsPage() {
     try {
       setRareLoading(true);
       const params = new URLSearchParams();
+      params.append('channel', 'physical');
       if (filters.category) params.append('category', filters.category);
       if (filters.hasLocation !== 'all') params.append('hasLocation', filters.hasLocation);
       if (filters.hasPrice !== 'all') params.append('hasPrice', filters.hasPrice);
@@ -150,11 +157,21 @@ export default function SightingsPage() {
   const formatDate = (date: string) =>
     new Date(date).toLocaleDateString('tr-TR')
 
+  const getCurrencyPrefix = (currency: string | null | undefined) => {
+    const code = (currency || 'TRY').toUpperCase()
+    if (code === 'TRY') return '₺'
+    if (code === 'USD') return '$'
+    if (code === 'EUR') return '€'
+    if (code === 'GBP') return '£'
+    return `${code} `
+  }
+
   // ---- Fetch sightings ----
   const fetchSightings = async () => {
     try {
       setSightingsLoading(true);
       const params = new URLSearchParams();
+      params.append('channel', 'physical');
       if (filters.category) params.append('category', filters.category);
       if (filters.hasLocation !== 'all') params.append('hasLocation', filters.hasLocation);
       if (filters.hasPrice !== 'all') params.append('hasPrice', filters.hasPrice);
@@ -183,6 +200,7 @@ export default function SightingsPage() {
     try {
       setRareLoading(true);
       const params = new URLSearchParams();
+      params.append('channel', 'physical');
       if (filters.category) params.append('category', filters.category);
       if (filters.hasLocation !== 'all') params.append('hasLocation', filters.hasLocation);
       if (filters.hasPrice !== 'all') params.append('hasPrice', filters.hasPrice);
@@ -221,6 +239,11 @@ export default function SightingsPage() {
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900">🤝 Yardımlar</h1>
         <p className="text-gray-600 mt-1">Kullanıcıların bildirdiği ürünler ve konumlar</p>
+        <div className="mt-3">
+          <Link href="/virtual-sightings" className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-700 hover:text-emerald-800">
+            🌐 Sanal Yardımlara Geç
+          </Link>
+        </div>
       </div>
 
       {/* Ortak Arama ve Filtreler */}
@@ -309,7 +332,7 @@ export default function SightingsPage() {
               {sightings.map((s) => (
                 <Link
                   key={s.id}
-                  href={`/sightings/${s.id}`}
+                  href={buildSightingPath(s.id, s.title || s.link_preview_title || s.location_description)}
                   className="bg-white rounded-xl shadow hover:shadow-lg transition overflow-hidden"
                 >
                   <div className="h-44 bg-gray-100 overflow-hidden relative">
@@ -322,7 +345,7 @@ export default function SightingsPage() {
                       <span className="absolute top-2 right-2 bg-blue-600 text-white px-2 py-0.5 rounded-full text-xs font-bold">📍 GPS</span>
                     )}
                     {s.price && (
-                      <span className="absolute top-2 left-2 bg-green-600 text-white px-2 py-0.5 rounded-full text-sm font-bold">₺{s.price}</span>
+                      <span className="absolute top-2 left-2 bg-green-600 text-white px-2 py-0.5 rounded-full text-sm font-bold">{getCurrencyPrefix(s.link_preview_currency)}{s.price}</span>
                     )}
                   </div>
                   <div className="p-4">
@@ -385,7 +408,7 @@ export default function SightingsPage() {
               {rareSightings.map((s) => (
                 <Link
                   key={s.id}
-                  href={`/sightings/rare/${s.id}`}
+                  href={buildRareSightingPath(s.id, s.title || s.link_preview_title || s.description)}
                   className="bg-white rounded-xl shadow hover:shadow-lg transition overflow-hidden group"
                 >
                   <div className="h-44 bg-gradient-to-br from-purple-50 to-indigo-100 overflow-hidden relative">
@@ -400,7 +423,7 @@ export default function SightingsPage() {
                     {/* Badges */}
                     {s.price != null && (
                       <span className="absolute top-2 left-2 bg-green-600 text-white px-2 py-0.5 rounded-full text-sm font-bold">
-                        ₺{s.price.toLocaleString('tr-TR')}
+                        {getCurrencyPrefix(s.link_preview_currency)}{s.price.toLocaleString('tr-TR')}
                       </span>
                     )}
                     {s.latitude && s.longitude && (
@@ -418,8 +441,10 @@ export default function SightingsPage() {
                         {CATEGORIES.find((c) => c.value === s.category)?.label ?? s.category}
                       </span>
                     )}
-                    {/* Description */}
-                    <h3 className="font-bold text-gray-900 line-clamp-2 mb-1 break-words">{s.description}</h3>
+                    {/* Başlık */}
+                    <h3 className="font-bold text-gray-900 line-clamp-2 mb-1 break-words">{s.title || s.link_preview_title || 'Nadir ürün paylaşımı'}</h3>
+                    {/* Detay */}
+                    {s.description && <p className="text-sm text-gray-600 line-clamp-2 mb-1 break-words">{s.description}</p>}
                     {/* Location */}
                     <p className="text-sm text-gray-600 truncate mb-1">📍 {s.location_name}{s.city ? `, ${s.city}` : ''}</p>
                     {/* Footer */}

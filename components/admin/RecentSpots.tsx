@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
+import { buildSpotPath } from '@/lib/sighting-slug'
 
 interface Spot {
   id: string
@@ -103,7 +104,7 @@ export default function RecentSpots() {
             <div className="flex justify-between items-start">
               <div className="flex-1">
                 <Link
-                  href={`/spots/${spot.id}`}
+                  href={buildSpotPath(spot.id, spot.title)}
                   className="font-medium text-gray-900 hover:text-blue-600"
                 >
                   {spot.title.length > 50 ? spot.title.substring(0, 50) + '...' : spot.title}

@@ -3,7 +3,9 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { buildSeoImageFileName, suggestHashtagsFromText } from '@/lib/content-seo'
 import { supabase } from '@/lib/supabase'
+import { buildSpotPath } from '@/lib/sighting-slug'
 // Header ve Footer import'larını KALDIRIYORUZ - Layout'ta zaten var
 
 export default function CreateSpotPage() {
@@ -17,6 +19,11 @@ export default function CreateSpotPage() {
   const [imagePreview, setImagePreview] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const normalizedTitle = title.trim()
+  const normalizedDescription = description.trim()
+  const isTitleDetailedEnough = normalizedTitle.length >= 12
+  const isDescriptionDetailedEnough = normalizedDescription.length >= 40
+  const suggestedSeoTags = suggestHashtagsFromText([title, description, category, location])
 
   const categories = [
     'Elektronik',
@@ -63,6 +70,18 @@ export default function CreateSpotPage() {
     setLoading(true)
     setError('')
 
+    if (!isTitleDetailedEnough) {
+      setError('Başlık en az 12 karakter olmalı. Marka, model veya ürün tipi ekleyin.')
+      setLoading(false)
+      return
+    }
+
+    if (!isDescriptionDetailedEnough) {
+      setError('Açıklama en az 40 karakter olmalı. Renk, kondisyon, yıl veya ayırt edici detay ekleyin.')
+      setLoading(false)
+      return
+    }
+
     try {
       // 1. Kullanıcı kontrolü
       const { data: { user }, error: userError } = await supabase.auth.getUser()
@@ -79,9 +98,12 @@ export default function CreateSpotPage() {
         console.log('📸 Resim yükleniyor:', imageFile.name)
         
         try {
-          const timestamp = Date.now()
-          const fileExt = imageFile.name.split('.').pop()
-          const fileName = `${user.id}/${timestamp}.${fileExt}`
+          const fileName = buildSeoImageFileName({
+            folder: 'spots',
+            userId: user.id,
+            title,
+            originalName: imageFile.name,
+          })
           
           console.log('📁 Dosya adı:', fileName)
           
@@ -168,7 +190,7 @@ export default function CreateSpotPage() {
       
       // Yeni oluşturulan spot'a yönlendir
       if (spotDataResult && spotDataResult[0]) {
-        router.push(`/spots/${spotDataResult[0].id}`)
+        router.push(buildSpotPath(spotDataResult[0].id, title))
       } else {
         router.push('/spots')
       }
@@ -285,6 +307,11 @@ export default function CreateSpotPage() {
               <p className="text-xs md:text-sm text-gray-500 mt-1">
                 {title.length}/100 karakter
               </p>
+              {!isTitleDetailedEnough && title.length > 0 && (
+                <p className="text-xs text-amber-600 mt-1">
+                  Ürün adı, marka ve model içeren daha net bir başlık aramalarda daha iyi görünür.
+                </p>
+              )}
             </div>
 
             {/* Açıklama */}
@@ -304,6 +331,23 @@ export default function CreateSpotPage() {
               <p className="text-xs md:text-sm text-gray-500 mt-1">
                 {description.length}/1000 karakter
               </p>
+              {!isDescriptionDetailedEnough && description.length > 0 && (
+                <p className="text-xs text-amber-600 mt-1">
+                  Açıklamaya renk, kondisyon, boyut, dönem veya parça bilgisini ekleyin.
+                </p>
+              )}
+              {suggestedSeoTags.length > 0 && (
+                <div className="mt-3">
+                  <p className="text-xs font-medium text-gray-600 mb-2">Önerilen SEO etiketleri</p>
+                  <div className="flex flex-wrap gap-2">
+                    {suggestedSeoTags.map((tag) => (
+                      <span key={tag} className="rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-700">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Kategori ve Konum */}

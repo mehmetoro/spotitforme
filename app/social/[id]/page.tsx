@@ -1,267 +1,153 @@
-'use client'
+import { createClient } from '@supabase/supabase-js'
+import type { Metadata } from 'next'
+import { headers } from 'next/headers'
+import { permanentRedirect } from 'next/navigation'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
-import FeedPost from '@/components/social/FeedPost'
-// useLocalState kaldırıldı, zaten useState var
-import { DynamicAdvancedMap } from './DynamicAdvancedMap'
+import { buildArticleJsonLd } from '@/lib/seo-jsonld'
+import { buildSocialPath, extractSightingIdFromParam } from '@/lib/sighting-slug'
+import SocialPostDetailClient from './SocialPostDetailClient'
 
-interface PostPageProps {
-  params: { id: string }
+const FALLBACK_SUPABASE_URL = 'https://gobzxreumkbgaohvzoef.supabase.co'
+const FALLBACK_SUPABASE_ANON_KEY =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdvYnp4cmV1bWtiZ2FvaHZ6b2VmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkyODI2MjksImV4cCI6MjA4NDg1ODYyOX0.9r7Ds_Ja0ulkTYWxJsl9r14ylIbUHzdFULvWehfoTDQ'
+
+interface SocialMetadataRecord {
+  id: string
+  title: string | null
+  content: string | null
+  description: string | null
+  location: string | null
+  city: string | null
+  image_urls: string[] | null
+  post_type: string | null
 }
 
-export default function PostPage({ params }: PostPageProps) {
-  const { id } = params
-  const router = useRouter()
-  const [post, setPost] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
-  const [showMap, setShowMap] = useState(false)
+const trimMeta = (value: string, max = 160) => {
+  if (value.length <= max) return value
+  return `${value.slice(0, max - 1).trim()}…`
+}
 
-  useEffect(() => {
-    const fetch = async () => {
-      setLoading(true)
-      setError(null)
-      try {
-        // get base post
-        const { data: p, error: postError } = await supabase
-          .from('social_posts')
-          .select('*')
-          .eq('id', id)
-          .maybeSingle()
-        if (postError) throw postError
-        if (!p) {
-          setError('Gönderi bulunamadı')
-          return
-        }
+async function getBaseUrl() {
+  const headerList = await headers()
+  const host = headerList.get('x-forwarded-host') || headerList.get('host') || 'localhost:3000'
+  const protocol = headerList.get('x-forwarded-proto') || (host.includes('localhost') ? 'http' : 'https')
+  return `${protocol}://${host}`
+}
 
-        // gather additional fields (counts, user, saved/liked)
-        let like_count = 0
-        let comment_count = 0
-        let save_count = 0
-        let isLiked = false
-        let isSaved = false
+async function getSocialRecord(id: string): Promise<SocialMetadataRecord | null> {
+  try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || FALLBACK_SUPABASE_URL
+    const supabaseKey =
+      process.env.SUPABASE_SERVICE_ROLE_KEY ||
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+      FALLBACK_SUPABASE_ANON_KEY
 
-        const [{ count: lc }, { count: cc }] = await Promise.all([
-          supabase
-            .from('social_likes')
-            .select('*', { count: 'exact', head: true })
-            .eq('post_id', id),
-          supabase
-            .from('social_comments')
-            .select('*', { count: 'exact', head: true })
-            .eq('post_id', id)
-        ])
-        like_count = lc || 0
-        comment_count = cc || 0
+    const supabase = createClient(supabaseUrl, supabaseKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    })
 
-        try {
-          const { count: sc } = await supabase
-            .from('social_saves')
-            .select('*', { count: 'exact', head: true })
-            .eq('post_id', id)
-          save_count = sc || 0
-        } catch {
-          save_count = 0
-        }
+    let { data, error } = await supabase
+      .from('social_posts')
+      .select('id, title, content, description, location, city, image_urls, post_type')
+      .eq('id', id)
+      .maybeSingle()
 
-        const { data: { user } } = await supabase.auth.getUser()
-        setCurrentUserId(user?.id ?? null)
-        if (user) {
-          const [{ data: ld }, { data: sd }] = await Promise.all([
-            supabase
-              .from('social_likes')
-              .select('id')
-              .eq('post_id', id)
-              .eq('user_id', user.id)
-              .maybeSingle(),
-            supabase
-              .from('social_saves')
-              .select('id')
-              .eq('post_id', id)
-              .eq('user_id', user.id)
-              .maybeSingle()
-          ])
-          isLiked = !!ld
-          isSaved = !!sd
-        }
+    if (error?.message?.includes('title')) {
+      const fallback = await supabase
+        .from('social_posts')
+        .select('id, content, description, location, city, image_urls, post_type')
+        .eq('id', id)
+        .maybeSingle()
 
-        // fetch user profile if not included
-        if (!p.user) {
-          const { data: u } = await supabase
-            .from('user_profiles')
-            .select('*')
-            .eq('id', p.user_id)
-            .maybeSingle()
-          p.user = u
-        }
-
-        setPost({
-          ...p,
-          like_count,
-          comment_count,
-          save_count,
-          is_liked: isLiked,
-          is_saved: isSaved
-        })
-      } catch (err: any) {
-        console.error('Post yükleme hatası', err)
-        setError(err.message || 'Hata')
-      } finally {
-        setLoading(false)
-      }
+      data = fallback.data ? { ...fallback.data, title: null } : null
+      error = fallback.error
     }
-    fetch()
-  }, [id])
 
-  const handleLike = async (postId: string, liked: boolean) => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-      if (liked) {
-        await supabase.from('social_likes').delete().eq('post_id', postId).eq('user_id', user.id)
-      } else {
-        await supabase.from('social_likes').insert({ post_id: postId, user_id: user.id })
-      }
-      setPost((p: any) => ({
-        ...p,
-        like_count: liked ? p.like_count - 1 : p.like_count + 1,
-        is_liked: !liked
-      }))
-    } catch (e) {
-      console.error(e)
+    if (error || !data) return null
+    return data as SocialMetadataRecord
+  } catch {
+    return null
+  }
+}
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params
+  const resolvedId = extractSightingIdFromParam(id)
+  const baseUrl = await getBaseUrl()
+  const record = await getSocialRecord(resolvedId)
+  const canonical = `${baseUrl}${record ? buildSocialPath(resolvedId, record.title || record.content || record.description || record.location) : `/social/${id}`}`
+
+  if (!record) {
+    return {
+      title: 'Sosyal paylaşım | SpotItForMe',
+      description: 'Topluluktaki sosyal paylaşımları SpotItForMe üzerinde inceleyin.',
+      alternates: { canonical },
+      robots: { index: false, follow: true },
     }
   }
 
-  const handleSave = async (postId: string, saved: boolean) => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-      if (saved) {
-        await supabase.from('social_saves').delete().eq('post_id', postId).eq('user_id', user.id)
-      } else {
-        await supabase.from('social_saves').insert({ post_id: postId, user_id: user.id })
-      }
-      setPost((p: any) => ({
-        ...p,
-        save_count: saved ? p.save_count - 1 : p.save_count + 1,
-        is_saved: !saved
-      }))
-    } catch (e) {
-      console.error(e)
+  const title = record.title || record.content || record.description || record.location || 'Sosyal paylaşım'
+  const description = trimMeta(
+    [record.content, record.description, record.location, record.city, record.post_type]
+      .filter(Boolean)
+      .join(' ') || 'Topluluktaki sosyal paylaşımları SpotItForMe üzerinde inceleyin.'
+  )
+  const ogImage = Array.isArray(record.image_urls) ? record.image_urls[0] : undefined
+
+  return {
+    title: `${title} | SpotItForMe`,
+    description,
+    alternates: { canonical },
+    robots: { index: true, follow: true },
+    openGraph: {
+      title,
+      description,
+      url: canonical,
+      type: 'article',
+      images: ogImage ? [{ url: ogImage, alt: title }] : undefined,
+    },
+    twitter: {
+      card: ogImage ? 'summary_large_image' : 'summary',
+      title,
+      description,
+      images: ogImage ? [ogImage] : undefined,
+    },
+  }
+}
+
+export default async function SocialPostPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const resolvedId = extractSightingIdFromParam(id)
+  const baseUrl = await getBaseUrl()
+  const record = await getSocialRecord(resolvedId)
+
+  if (record) {
+    const canonicalPath = buildSocialPath(resolvedId, record.title || record.content || record.description || record.location)
+    if (canonicalPath !== `/social/${id}`) {
+      permanentRedirect(canonicalPath)
     }
   }
 
-  const handleMessageRequest = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        alert('Mesaj talebi için giriş yapmanız gerekir')
-        router.push('/auth/login')
-        return
-      }
-
-      if (!post?.user_id) {
-        alert('Gönderi sahibi bilgisi bulunamadı')
-        return
-      }
-
-      if (post.user_id === user.id) {
-        alert('Kendi gönderiniz için mesaj talebi gönderemezsiniz.')
-        return
-      }
-
-      const postTitle = (post?.title || post?.content || post?.description || 'gönderi').toString().slice(0, 80)
-      const draft = `Merhaba, paylaştığınız \"${postTitle}\" gönderisi hakkında iletişime geçmek istiyorum. Uygun olunca dönüş yapabilir misiniz?`
-      const params = new URLSearchParams({
-        receiver: post.user_id,
-        type: 'social',
-        draft,
+  const canonical = `${baseUrl}${record ? buildSocialPath(resolvedId, record.title || record.content || record.description || record.location) : `/social/${id}`}`
+  const jsonLd = record
+    ? buildArticleJsonLd({
+        url: canonical,
+        title: record.title || record.content || record.description || record.location || 'Sosyal paylaşım',
+        description: trimMeta(
+          [record.content, record.description, record.location, record.city, record.post_type]
+            .filter(Boolean)
+            .join(' ') || 'Topluluktaki sosyal paylaşımları SpotItForMe üzerinde inceleyin.'
+        ),
+        images: Array.isArray(record.image_urls) ? record.image_urls : [],
+        keywords: [record.post_type, record.city, record.location],
+        section: record.post_type,
       })
-
-      router.push(`/messages?${params.toString()}`)
-    } catch (err) {
-      console.error('Social message request navigation error:', err)
-      alert('Mesaj talebi başlatılamadı')
-    }
-  }
-
-  if (loading) {
-    return <div className="text-center py-12">Yükleniyor...</div>
-  }
-  if (error) {
-    return (
-      <div className="text-center py-12">
-        <p>{error}</p>
-      </div>
-    )
-  }
-
+    : null
 
   return (
-    <div className="max-w-2xl mx-auto py-8">
-      <div className="mb-4">
-        <button
-          onClick={() => router.back()}
-          className="text-blue-600 hover:underline"
-        >
-          ← Geri
-        </button>
-      </div>
-      {post?.user_id && post.user_id !== currentUserId && (
-        <div className="mb-4">
-          <button
-            onClick={handleMessageRequest}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2 rounded-lg"
-          >
-            Mesaj Talebi Gönder
-          </button>
-        </div>
-      )}
-      {post && (
-        <>
-          <FeedPost
-            post={post}
-            onLike={handleLike}
-            onSave={handleSave}
-            onComment={() => {}}
-            onShare={() => {}}
-            showFull={true}
-            initialShowComments={true}
-          />
-          {(post.latitude || post.longitude || post.location || post.city) && (
-            <div className="mt-6 flex justify-center">
-              <button
-                onClick={() => setShowMap(true)}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-lg shadow"
-              >
-                📍 Haritada Gör
-              </button>
-            </div>
-          )}
-          {showMap && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
-              <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-6 relative">
-                <button
-                  onClick={() => setShowMap(false)}
-                  className="absolute top-3 right-3 text-2xl text-gray-500 hover:text-gray-700"
-                >
-                  ×
-                </button>
-                <DynamicAdvancedMap
-                  latitude={post.latitude}
-                  longitude={post.longitude}
-                  location={post.city || post.location || ''}
-                  address={post.location || ''}
-                  accuracy={post.accuracy || 100}
-                />
-              </div>
-            </div>
-          )}
-        </>
-      )}
-    </div>
+    <>
+      <SocialPostDetailClient />
+      {jsonLd ? <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} /> : null}
+    </>
   )
 }

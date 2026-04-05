@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase'
 import { useToast } from '@/hooks/useToast'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
+import { buildSpotPath } from '@/lib/sighting-slug'
 
 interface SpotInfo {
   id: string
@@ -227,7 +228,7 @@ export default function HelpPage() {
               </p>
               <div className="space-y-4">
                 <button
-                  onClick={() => router.push(`/spots/${spotId}`)}
+                  onClick={() => router.push(buildSpotPath(spotId, spot?.title || 'spot'))}
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-lg"
                 >
                   Spot'a Dön
@@ -257,7 +258,7 @@ export default function HelpPage() {
         <div className="max-w-2xl mx-auto">
           {/* Geri Dön Butonu */}
           <button
-            onClick={() => router.push(`/spots/${spotId}`)}
+            onClick={() => router.push(buildSpotPath(spotId, spot?.title || 'spot'))}
             className="mb-6 text-blue-600 hover:text-blue-800 flex items-center"
           >
             ← Spot'a Geri Dön

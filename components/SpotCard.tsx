@@ -1,4 +1,6 @@
 import Link from 'next/link'
+import { buildSeoImageAlt } from '@/lib/content-seo'
+import { buildSpotPath } from '@/lib/sighting-slug'
 
 interface SpotCardProps {
   spot: {
@@ -90,6 +92,7 @@ export default function SpotCard({ spot }: SpotCardProps) {
 
   const imageUrl = getImageUrl()
   const hasImage = !!imageUrl
+  const seoAlt = buildSeoImageAlt({ title: spot.title, category: spot.category, location: spot.location })
 
   // KATEGORİ RENGİ
   const getCategoryColor = (category: string | null) => {
@@ -121,7 +124,7 @@ export default function SpotCard({ spot }: SpotCardProps) {
             {/* RESİM */}
             <img
               src={imageUrl}
-              alt={spot.title}
+              alt={seoAlt}
               className="w-full h-full object-cover"
               onLoad={() => console.log(`✅ Resim yüklendi: ${spot.id}`)}
               onError={(e) => {
@@ -190,7 +193,7 @@ export default function SpotCard({ spot }: SpotCardProps) {
         </div>
 
         {/* BAŞLIK */}
-        <Link href={`/spots/${spot.id}`}>
+        <Link href={buildSpotPath(spot.id, spot.title)}>
           <h3 className="font-bold text-lg mb-2 hover:text-blue-600 line-clamp-1">
             {spot.title}
           </h3>
@@ -229,7 +232,7 @@ export default function SpotCard({ spot }: SpotCardProps) {
           </div>
           
           <Link 
-            href={`/spots/${spot.id}`}
+            href={buildSpotPath(spot.id, spot.title)}
             className="text-blue-600 hover:text-blue-800 font-medium"
           >
             Detay →

@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import Link from 'next/link'
+import { buildSpotPath } from '@/lib/sighting-slug'
 
 interface ShopSpot {
   id: string
@@ -554,7 +555,7 @@ export default function ShopSpotsPage() {
                     
                     <div className="flex space-x-2">
                       <Link
-                        href={`/spots/${spot.id}`}
+                        href={buildSpotPath(spot.id, spot.title)}
                         className="flex-1 bg-blue-50 text-blue-600 hover:bg-blue-100 text-center py-2 rounded-lg text-sm font-medium"
                       >
                         Görüntüle
@@ -598,7 +599,7 @@ export default function ShopSpotsPage() {
                         <td className="py-4 px-6">
                           <div>
                             <Link
-                              href={`/spots/${spot.id}`}
+                              href={buildSpotPath(spot.id, spot.title)}
                               className="font-medium text-blue-600 hover:text-blue-800 block mb-1"
                             >
                               {spot.title.length > 50 ? spot.title.substring(0, 50) + '...' : spot.title}
@@ -649,7 +650,7 @@ export default function ShopSpotsPage() {
                           <div className="flex flex-col space-y-2">
                             <div className="flex space-x-2">
                               <Link
-                                href={`/spots/${spot.id}`}
+                                href={buildSpotPath(spot.id, spot.title)}
                                 className="flex-1 bg-blue-50 text-blue-600 hover:bg-blue-100 text-center py-2 rounded text-sm font-medium"
                               >
                                 👁️ Görüntüle

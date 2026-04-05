@@ -908,7 +908,7 @@ export default function ProductPage() {
                     <a
                       href={shop.website}
                       target="_blank"
-                      rel="noopener noreferrer"
+                      rel="nofollow ugc noopener noreferrer"
                       className="p-2 bg-gray-100 hover:bg-gray-200 rounded-lg"
                     >
                       <Globe size={20} className="text-gray-600" />
@@ -919,7 +919,7 @@ export default function ProductPage() {
                     <a
                       href={`https://instagram.com/${shop.instagram}`}
                       target="_blank"
-                      rel="noopener noreferrer"
+                      rel="nofollow ugc noopener noreferrer"
                       className="p-2 bg-gray-100 hover:bg-gray-200 rounded-lg"
                     >
                       <Instagram size={20} className="text-gray-600" />

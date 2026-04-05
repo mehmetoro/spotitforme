@@ -77,7 +77,7 @@ export default function SimpleMap({ location, height = '400px' }: SimpleMapProps
             <a
               href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`}
               target="_blank"
-              rel="noopener noreferrer"
+              rel="nofollow ugc noopener noreferrer"
               className="text-blue-600 hover:text-blue-800"
             >
               Google Maps'te aç →

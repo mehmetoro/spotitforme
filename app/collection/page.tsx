@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import { buildCollectionPath } from '@/lib/sighting-slug'
 
 interface CollectionPost {
   id: string
@@ -108,7 +109,7 @@ export default function CollectionPage() {
                   <span>{new Date(item.created_at).toLocaleDateString('tr-TR')}</span>
                 </div>
                 <Link
-                  href={`/collection/${item.id}`}
+                  href={buildCollectionPath(item.id, item.title)}
                   className="mt-3 inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-800"
                 >
                   Detayı Görüntüle

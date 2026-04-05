@@ -2,6 +2,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { buildSeoImageFileName, suggestHashtagsFromText } from '@/lib/content-seo'
 import { supabase } from '@/lib/supabase'
 import LocationSelector from '../LocationSelector'
 
@@ -39,6 +40,7 @@ export default function CreatePostModal({
   parentSpotId
 }: CreatePostModalProps) {
   const [loading, setLoading] = useState(false)
+  const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const CITY_LIST = [
     'İstanbul', 'Ankara', 'İzmir', 'Bursa', 'Antalya', 'Adana', 'Konya', 'Trabzon'
@@ -56,6 +58,13 @@ export default function CreatePostModal({
   const [isPublicPost, setIsPublicPost] = useState(true) // yalnızca "found" tipi için geçerli
   const [hasIsPublicColumn, setHasIsPublicColumn] = useState<boolean>(true)
   const [uploadedImageUrls, setUploadedImageUrls] = useState<string[]>([])
+  const normalizedTitle = title.trim()
+  const normalizedContent = content.trim()
+  const isTitleDetailedEnough = normalizedTitle.length >= 12
+  const isContentDetailedEnough = normalizedContent.length >= 40
+  const suggestedHashtags = suggestHashtagsFromText([title, content, category, location, city]).filter(
+    (tag) => !hashtags.includes(tag.replace('#', ''))
+  )
   // Konum seçildiğinde şehir bilgisini otomatik doldur
   const handleLocationSelect = (loc: any) => {
     setLocation(loc.address || loc.name || '')
@@ -92,12 +101,25 @@ export default function CreatePostModal({
     setHashtags(prev => prev.filter(t => t !== tag))
   }
 
+  const addSuggestedHashtag = (tag: string) => {
+    const normalizedTag = tag.replace('#', '')
+    if (!hashtags.includes(normalizedTag)) {
+      setHashtags(prev => [...prev, normalizedTag])
+    }
+  }
+
   const uploadImages = async (userId: string): Promise<string[]> => {
     const urls: string[] = []
     
     for (let i = 0; i < images.length; i++) {
       const file = images[i]
-      const fileName = `${userId}/${Date.now()}-${i}.${file.name.split('.').pop()}`
+      const fileName = buildSeoImageFileName({
+        folder: 'social',
+        userId,
+        title: title || content,
+        originalName: file.name,
+        index: i,
+      })
       
       const { error: uploadError } = await supabase.storage
         .from('spot-images')
@@ -116,6 +138,21 @@ export default function CreatePostModal({
   }
 
   const handleSubmit = async () => {
+
+    if (!isTitleDetailedEnough) {
+      alert('Başlık en az 12 karakter olmalı. Ürün adı, seri veya ayırt edici ifade ekleyin.')
+      return
+    }
+
+    if (!isContentDetailedEnough) {
+      alert('Açıklama en az 40 karakter olmalı. Neyi, nerede ve neden paylaştığınızı daha detaylı yazın.')
+      return
+    }
+
+    if (hashtags.length === 0) {
+      alert('En az 1 etiket ekleyin. Etiketler paylaşımınızın keşfedilmesini kolaylaştırır.')
+      return
+    }
 
     setLoading(true)
     try {
@@ -150,6 +187,7 @@ export default function CreatePostModal({
       // 2. Post verilerini hazırla
       const postData: any = {
         user_id: user.id,
+        title: normalizedTitle,
         content: content || 'Paylaşım',
         post_type: postType
       }
@@ -190,11 +228,24 @@ export default function CreatePostModal({
       console.log('Gönderilecek veri:', JSON.stringify(postData, null, 2))
 
       // 3. Post'u oluştur
-      const { data: newPost, error: postError } = await supabase
+      const insertPayload: any = { ...postData }
+      let { data: newPost, error: postError } = await supabase
         .from('social_posts')
-        .insert(postData)
+        .insert(insertPayload)
         .select()
         .single()
+
+      // Eski şema uyumu: title kolonu yoksa title'sız tekrar dene
+      if (postError?.message?.includes('title')) {
+        delete insertPayload.title
+        const retry = await supabase
+          .from('social_posts')
+          .insert(insertPayload)
+          .select()
+          .single()
+        newPost = retry.data
+        postError = retry.error
+      }
 
       if (postError) {
         console.error('social_posts insert hatası:', postError, 'user_id:', postData.user_id);
@@ -230,6 +281,7 @@ export default function CreatePostModal({
       alert('✅ Paylaşımınız yayınlandı!')
       
       // 5. Formu temizle
+      setTitle('')
       setContent('')
       setLocation('')
       setCategory('')
@@ -344,10 +396,29 @@ export default function CreatePostModal({
 
           {/* Konum Seçimi kaldırıldı, sadece şehir zorunlu */}
 
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Başlık *
+            </label>
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Örn: 1980'ler Sony Walkman kutulu bulundu"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              maxLength={120}
+            />
+            <div className="flex items-center justify-between text-xs mt-1">
+              <span className={isTitleDetailedEnough ? 'text-emerald-600' : 'text-amber-600'}>
+                Başlıkta ürün adı, marka veya seri bilgisi geçsin.
+              </span>
+              <span className="text-gray-500">{title.length}/120</span>
+            </div>
+          </div>
+
           {/* Açıklama */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Açıklama
+              Açıklama *
             </label>
             <textarea
               value={content}
@@ -359,6 +430,11 @@ export default function CreatePostModal({
             <div className="text-right text-sm text-gray-500 mt-1">
               {content.length}/500
             </div>
+            {!isContentDetailedEnough && content.length > 0 && (
+              <p className="text-xs text-amber-600 mt-1">
+                Yer, kondisyon, fiyat ipucu veya neden önemli olduğunu yazmanız keşfi güçlendirir.
+              </p>
+            )}
           </div>
 
           {/* Hashtagler */}
@@ -399,6 +475,28 @@ export default function CreatePostModal({
                     </button>
                   </span>
                 ))}
+              </div>
+            )}
+            {hashtags.length === 0 && (
+              <p className="text-xs text-amber-600 mt-2">
+                En az bir etiket ekleyin: örn. vintage, saat, koleksiyon, walkman.
+              </p>
+            )}
+            {suggestedHashtags.length > 0 && (
+              <div className="mt-3">
+                <p className="text-xs font-medium text-gray-600 mb-2">Otomatik etiket önerileri</p>
+                <div className="flex flex-wrap gap-2">
+                  {suggestedHashtags.map((tag) => (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => addSuggestedHashtag(tag)}
+                      className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
+                    >
+                      {tag}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>

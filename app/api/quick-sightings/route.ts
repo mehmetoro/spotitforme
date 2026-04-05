@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
     const hasPrice = searchParams.get('hasPrice')
     const hasLocation = searchParams.get('hasLocation')
     const search = searchParams.get('search')
+    const channel = searchParams.get('channel')
 
     const { data, error } = await supabase
       .from('quick_sightings')
@@ -54,14 +55,25 @@ export async function GET(request: NextRequest) {
       filtered = filtered.filter((s: any) => s.category === category)
     }
 
+    if (channel === 'physical' || channel === 'virtual') {
+      filtered = filtered.filter((s: any) => (s.source_channel || 'physical') === channel)
+    }
+
     if (search) {
       const text = search.toLowerCase();
       filtered = filtered.filter((s: any) =>
+        s.title?.toLowerCase().includes(text) ||
         s.description?.toLowerCase().includes(text) ||
         s.location_name?.toLowerCase().includes(text) ||
         s.address?.toLowerCase().includes(text) ||
         s.city?.toLowerCase().includes(text) ||
         s.district?.toLowerCase().includes(text) ||
+        s.product_url?.toLowerCase().includes(text) ||
+        s.marketplace?.toLowerCase().includes(text) ||
+        s.seller_name?.toLowerCase().includes(text) ||
+        s.link_preview_title?.toLowerCase().includes(text) ||
+        s.link_preview_description?.toLowerCase().includes(text) ||
+        s.link_preview_brand?.toLowerCase().includes(text) ||
         s.hashtags?.toLowerCase().includes(text) ||
         s.price?.toString().toLowerCase().includes(text) ||
         s.points_earned?.toString().toLowerCase().includes(text) ||

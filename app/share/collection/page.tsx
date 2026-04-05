@@ -3,7 +3,9 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import { buildSeoImageFileName, suggestHashtagsFromText } from '@/lib/content-seo'
 import { supabase } from '@/lib/supabase'
+import { buildCollectionPath } from '@/lib/sighting-slug'
 
 interface CollectionFormState {
   title: string
@@ -37,6 +39,11 @@ export default function ShareCollectionPage() {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [form, setForm] = useState<CollectionFormState>(initialForm)
   const formRef = useRef<HTMLFormElement>(null)
+  const normalizedTitle = form.title.trim()
+  const normalizedDescription = form.description.trim()
+  const isTitleDetailedEnough = normalizedTitle.length >= 12
+  const isDescriptionDetailedEnough = normalizedDescription.length >= 50
+  const suggestedSeoTags = suggestHashtagsFromText([form.title, form.description, form.category, form.city, form.district])
 
   useEffect(() => {
     const ensureAuth = async () => {
@@ -107,6 +114,16 @@ export default function ShareCollectionPage() {
       return
     }
 
+    if (!isTitleDetailedEnough) {
+      alert('Başlık en az 12 karakter olmalı. Parçanın adı veya seri bilgisini ekleyin.')
+      return
+    }
+
+    if (!isDescriptionDetailedEnough) {
+      alert('Açıklama en az 50 karakter olmalı. Kondisyon, dönem ve ayırt edici özellikleri yazın.')
+      return
+    }
+
     if (!userId) {
       alert('Kullanıcı bulunamadı.')
       return
@@ -118,8 +135,12 @@ export default function ShareCollectionPage() {
       let uploadedPhotoUrl: string | null = form.photo_url.trim() || null
 
       if (photoFile) {
-        const fileExt = photoFile.name.split('.').pop() || 'jpg'
-        const fileName = `${userId}/collection/${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`
+        const fileName = buildSeoImageFileName({
+          folder: 'collection',
+          userId,
+          title: form.title,
+          originalName: photoFile.name,
+        })
 
         const { error: uploadError } = await supabase.storage
           .from('spot-images')
@@ -155,7 +176,7 @@ export default function ShareCollectionPage() {
 
       if (error || !data) throw error || new Error('Koleksiyon kaydı oluşturulamadı.')
 
-      router.push(`/collection/${data.id}`)
+      router.push(buildCollectionPath(data.id, form.title))
     } catch (err: any) {
       alert(err?.message || 'Koleksiyon paylaşımı kaydedilemedi.')
     } finally {
@@ -225,6 +246,11 @@ export default function ShareCollectionPage() {
                       className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
                     />
                   </div>
+                  {!isTitleDetailedEnough && form.title.length > 0 && (
+                    <p className="text-xs text-amber-600">
+                      Başlıkta ürün adı, dönem veya marka geçmesi SEO açısından faydalı olur.
+                    </p>
+                  )}
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <input
@@ -290,6 +316,23 @@ export default function ShareCollectionPage() {
                     rows={4}
                     className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
                   />
+                  {!isDescriptionDetailedEnough && form.description.length > 0 && (
+                    <p className="text-xs text-amber-600">
+                      Açıklamaya materyal, kondisyon, ölçü, dönem ve varsa şehir bilgisini ekleyin.
+                    </p>
+                  )}
+                  {suggestedSeoTags.length > 0 && (
+                    <div>
+                      <p className="text-xs font-medium text-gray-600 mb-2">Önerilen SEO etiketleri</p>
+                      <div className="flex flex-wrap gap-2">
+                        {suggestedSeoTags.map((tag) => (
+                          <span key={tag} className="rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-700">
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   <label className="inline-flex items-center gap-2 text-sm text-gray-700">
                     <input

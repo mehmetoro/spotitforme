@@ -3,8 +3,10 @@
 
 import { useEffect, useState, type ChangeEvent } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { buildSeoImageFileName } from '@/lib/content-seo'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
+import { buildCollectionPath, buildRareSightingPath, buildSightingPath, buildSpotPath } from '@/lib/sighting-slug'
 
 interface UserProfile {
   id: string
@@ -54,6 +56,7 @@ interface UserHelpItem {
   location_description: string
   notes: string | null
   price: string | null
+  link_preview_currency: string | null
   created_at: string
   spot_title: string
 }
@@ -225,7 +228,7 @@ export default function ProfilePage() {
       // Kullanıcının spot yardımları
       const { data: helpsData } = await supabase
         .from('sightings')
-        .select('id, spot_id, location_description, notes, price, created_at')
+        .select('id, spot_id, location_description, notes, price, link_preview_currency, created_at')
         .eq('spotter_id', userId)
         .order('created_at', { ascending: false })
 
@@ -343,6 +346,16 @@ export default function ProfilePage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const getCurrencyPrefix = (currency: string | null | undefined) => {
+    const code = (currency || 'TRY').toUpperCase()
+    if (code === 'TRY') return '₺'
+    if (code === 'USD') return '$'
+    if (code === 'EUR') return '€'
+    if (code === 'GBP') return '£'
+    if (code === 'JPY') return '¥'
+    return `${code} `
   }
 
   const handleLogout = async () => {
@@ -649,8 +662,12 @@ export default function ProfilePage() {
       let updatedPhotoUrl: string | null = collectionEditForm.photo_url || null
 
       if (collectionEditPhotoFile) {
-        const fileExt = collectionEditPhotoFile.name.split('.').pop() || 'jpg'
-        const fileName = `${user.id}/collection/${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`
+        const fileName = buildSeoImageFileName({
+          folder: 'collection',
+          userId: user.id,
+          title: collectionEditForm.title,
+          originalName: collectionEditPhotoFile.name,
+        })
 
         const { error: uploadError } = await supabase.storage
           .from('spot-images')
@@ -771,8 +788,12 @@ export default function ProfilePage() {
       let uploadedPhotoUrl: string | null = collectionForm.photo_url || null
 
       if (collectionPhotoFile) {
-        const fileExt = collectionPhotoFile.name.split('.').pop() || 'jpg'
-        const fileName = `${user.id}/collection/${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`
+        const fileName = buildSeoImageFileName({
+          folder: 'collection',
+          userId: user.id,
+          title: collectionForm.title,
+          originalName: collectionPhotoFile.name,
+        })
 
         const { error: uploadError } = await supabase.storage
           .from('spot-images')
@@ -1175,7 +1196,7 @@ export default function ProfilePage() {
                           <tr key={spot.id} className="hover:bg-gray-50">
                             <td className="py-3 px-4">
                               <Link
-                                href={`/spots/${spot.id}`}
+                                href={buildSpotPath(spot.id, spot.title)}
                                 className="font-medium text-blue-600 hover:text-blue-800"
                               >
                                 {spot.title.length > 40 ? spot.title.substring(0, 40) + '...' : spot.title}
@@ -1207,7 +1228,7 @@ export default function ProfilePage() {
                             <td className="py-3 px-4">
                               <div className="flex flex-wrap gap-2">
                                 <Link
-                                  href={`/spots/${spot.id}`}
+                                  href={buildSpotPath(spot.id, spot.title)}
                                   className="text-blue-600 hover:text-blue-800 text-sm"
                                 >
                                   Görüntüle
@@ -1293,7 +1314,7 @@ export default function ProfilePage() {
                                   className="w-full min-w-[110px] px-3 py-2 border border-amber-200 rounded-lg"
                                 />
                               ) : help.price ? (
-                                `₺${help.price}`
+                                `${getCurrencyPrefix(help.link_preview_currency)}${help.price}`
                               ) : (
                                 '-'
                               )}
@@ -1320,7 +1341,7 @@ export default function ProfilePage() {
                                   </>
                                 ) : (
                                   <>
-                                    <Link href={`/sightings/${help.id}`} className="text-blue-600 hover:text-blue-800 text-sm">
+                                    <Link href={buildSightingPath(help.id, help.title || help.link_preview_title || help.location_description)} className="text-blue-600 hover:text-blue-800 text-sm">
                                       Görüntüle
                                     </Link>
                                     <button
@@ -1440,7 +1461,7 @@ export default function ProfilePage() {
                               <p className="text-xs text-gray-500 mt-1">{new Date(rare.created_at).toLocaleString('tr-TR')}</p>
                             </div>
                             <div className="flex items-center gap-2 flex-wrap">
-                              <Link href={`/sightings/rare/${rare.id}`} className="px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-sm">
+                              <Link href={buildRareSightingPath(rare.id, rare.title || rare.link_preview_title || rare.description)} className="px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-sm">
                                 Detay
                               </Link>
                               <button
@@ -1491,7 +1512,7 @@ export default function ProfilePage() {
                           <p className="font-semibold text-gray-900 mb-1">{rare.description}</p>
                           <p className="text-sm text-gray-600">📍 {rare.location_name}{rare.city ? `, ${rare.city}` : ''}</p>
                           <div className="mt-3 flex items-center gap-2">
-                            <Link href={`/sightings/rare/${rare.id}`} className="px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-sm">
+                            <Link href={buildRareSightingPath(rare.id, rare.title || rare.link_preview_title || rare.description)} className="px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-sm">
                               Detay
                             </Link>
                             <button
@@ -1737,7 +1758,7 @@ export default function ProfilePage() {
                                 {item.is_public ? 'Herkese Açık' : 'Özel'} • {item.status === 'active' ? 'Yayında' : 'Arşivde'} • {new Date(item.created_at).toLocaleDateString('tr-TR')}
                               </p>
                               <div className="mt-3 flex flex-wrap gap-3">
-                                <Link href={`/collection/${item.id}`} className="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                                <Link href={buildCollectionPath(item.id, item.title)} className="text-sm text-blue-600 hover:text-blue-800 font-medium">
                                   Detay Sayfasına Git
                                 </Link>
                                 <button

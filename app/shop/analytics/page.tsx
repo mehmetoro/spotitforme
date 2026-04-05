@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
+import Link from 'next/link'
+import { buildSpotPath } from '@/lib/sighting-slug'
 
 interface AnalyticsData {
   date: string
@@ -371,12 +373,12 @@ export default function AnalyticsPage() {
                   {topSpots.map((spot) => (
                     <tr key={spot.id} className="hover:bg-gray-50">
                       <td className="py-3 px-4">
-                        <a 
-                          href={`/spots/${spot.id}`}
+                        <Link 
+                          href={buildSpotPath(spot.id, spot.title)}
                           className="font-medium text-blue-600 hover:text-blue-800"
                         >
                           {spot.title}
-                        </a>
+                        </Link>
                       </td>
                       <td className="py-3 px-4">{spot.views}</td>
                       <td className="py-3 px-4">{spot.helps}</td>

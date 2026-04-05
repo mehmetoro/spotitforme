@@ -597,7 +597,7 @@ export default function ShopPage() {
                           <a 
                             href={shop.website.startsWith('http') ? shop.website : `https://${shop.website}`}
                             target="_blank"
-                            rel="noopener noreferrer"
+                            rel="nofollow ugc noopener noreferrer"
                             className="text-blue-600 hover:text-blue-800"
                           >
                             {shop.website}

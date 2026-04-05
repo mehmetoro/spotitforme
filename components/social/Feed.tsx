@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
 import FeedPost from './FeedPost'
+import { buildSocialPath } from '@/lib/sighting-slug'
 import FeedFilters, { FilterType } from './FeedFilters'
 import CreatePostButton from './CreatePostButton'
 import CreatePostModal from './CreatePostModal'
@@ -495,7 +496,7 @@ export default function Feed({ initialUserId, type, category, city, initialSearc
             return true
           })
           .map((post) => (
-            <Link key={post.id} href={`/social/${post.id}`} className="block">
+            <Link key={post.id} href={buildSocialPath(post.id, post.title || post.content || post.description || post.location)} className="block">
               <FeedPost
                 post={post}
                 onLike={handleLike}

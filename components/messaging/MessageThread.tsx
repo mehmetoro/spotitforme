@@ -608,7 +608,7 @@ export default function MessageThread({ threadId, userId, onBack }: MessageThrea
                             <a 
                               href={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/message-attachments/${url}`}
                               target="_blank"
-                              rel="noopener noreferrer"
+                              rel="nofollow ugc noopener noreferrer"
                               className="flex items-center p-2 hover:bg-gray-50"
                             >
                               <Paperclip className="w-4 h-4 mr-2" />

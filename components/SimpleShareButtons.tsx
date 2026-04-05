@@ -37,7 +37,7 @@ export default function SimpleShareButtons({
         <a
           href={shareLinks.facebook}
           target="_blank"
-          rel="noopener noreferrer"
+          rel="nofollow ugc noopener noreferrer"
           className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-lg flex items-center justify-center"
         >
           <span className="mr-2">📘</span>
@@ -47,7 +47,7 @@ export default function SimpleShareButtons({
         <a
           href={shareLinks.whatsapp}
           target="_blank"
-          rel="noopener noreferrer"
+          rel="nofollow ugc noopener noreferrer"
           className="bg-green-500 hover:bg-green-600 text-white font-medium py-3 rounded-lg flex items-center justify-center"
         >
           <span className="mr-2">💚</span>
