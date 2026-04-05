@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
-import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import FeedPost from './FeedPost'
 import { buildSocialPath } from '@/lib/sighting-slug'
 import FeedFilters, { FilterType } from './FeedFilters'
@@ -22,6 +22,7 @@ interface FeedProps {
 }
 
 export default function Feed({ initialUserId, type, category, city, initialSearch }: FeedProps) {
+  const router = useRouter()
   const [posts, setPosts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [hasMore, setHasMore] = useState(true)
@@ -496,7 +497,19 @@ export default function Feed({ initialUserId, type, category, city, initialSearc
             return true
           })
           .map((post) => (
-            <Link key={post.id} href={buildSocialPath(post.id, post.title || post.content || post.description || post.location)} className="block">
+            <div
+              key={post.id}
+              className="block"
+              role="link"
+              tabIndex={0}
+              onClick={() => router.push(buildSocialPath(post.id, post.title || post.content || post.description || post.location))}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  router.push(buildSocialPath(post.id, post.title || post.content || post.description || post.location))
+                }
+              }}
+            >
               <FeedPost
                 post={post}
                 onLike={handleLike}
@@ -508,7 +521,7 @@ export default function Feed({ initialUserId, type, category, city, initialSearc
                   setShowFoundModal(true)
               }}
             />
-          </Link>
+          </div>
         ))}
       </div>
 
