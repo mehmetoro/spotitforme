@@ -390,7 +390,8 @@ function extractUrlPriceFallback(parsed: URL) {
   if (pdpNpi) {
     const decoded = decodeURIComponent(pdpNpi)
     const taggedPriceMatches = Array.from(
-      decoded.matchAll(/(?:^|!)([A-Z]{3})\s*([0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]{2})|[0-9]+(?:\.[0-9]{2}))/g)
+      // AliExpress pdp_npi formati: ...!TRY!807.17!807.17!!...
+      decoded.matchAll(/(?:^|!)([A-Z]{3})(?:\s|!|:|=)+([0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]{2})|[0-9]+(?:\.[0-9]{2}))/g)
     )
       .map((m) => ({
         currency: m[1],
@@ -446,10 +447,30 @@ function extractAmazonFallback(html: string) {
     /"brand"\s*:\s*"([^"]+)"/i,
   ])
 
-  const availability = extractByRegex(html, [
-    /<div[^>]*id=["']availability["'][^>]*>[\s\S]*?<span[^>]*>([^<]+)<\/span>/i,
-    /"availability"\s*:\s*"([^"]+)"/i,
-  ])
+  // Amazon availability tespiti:
+  // - Fiyat varsa (escaped a-offscreen) → in_stock (en güvenilir sinyal)
+  // - outOfStockBuyBox div'i gerçek içerik taşıyorsa → out_of_stock
+  // - Sayfada "Currently unavailable" / "unavailable" span'ı varsa → out_of_stock
+  // - id=availability div'i içeriği (JS ile dolsa da)
+  const hasPrice = /a-offscreen\\&quot;&gt;[^&<]{1,60}[0-9]/.test(html)
+  const hasOutOfStockContent =
+    /<div[^>]*id=["']outOfStock["'][^>]*>[\s\S]{1,200}?<span[^>]*>\s*[A-Za-z]/.test(html) ||
+    /<p[^>]*id=["']outOfStock["'][^>]*>/.test(html)
+  const currentlyUnavailableInPage =
+    /<span[^>]*>\s*Currently unavailable\.?\s*<\/span>/i.test(html) ||
+    /id=["']availability["'][^>]*>[\s\S]{0,300}Currently unavailable/i.test(html)
+
+  let availability: string | null = null
+  if (hasPrice) {
+    availability = 'InStock'
+  } else if (hasOutOfStockContent || currentlyUnavailableInPage) {
+    availability = 'OutOfStock'
+  } else {
+    // Fallback: availability div içindeki span
+    availability = extractByRegex(html, [
+      /<div[^>]*id=["']availability["'][^>]*>[\s\S]*?<span[^>]*>\s*([^<]{3,}?)\s*<\/span>/i,
+    ])
+  }
 
   const seller = extractByRegex(html, [
     /<div[^>]*id=["']merchantInfoFeature_feature_div["'][^>]*>[\s\S]*?<span[^>]*>([^<]+)<\/span>/i,
@@ -589,6 +610,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'sadece http/https desteklenir' }, { status: 400 })
     }
 
+    // Amazon; sunucu IP'sine göre TRY/eski kur fiyatı döndürür.
+    // i18n-prefs=USD cookie'si ile her lokasyondan USD fiyatı alınır.
+    const isAmazonUrl = /(^|\.)amazon\./i.test(parsed.hostname)
     const res = await fetch(parsed.toString(), {
       method: 'GET',
       headers: {
@@ -598,6 +622,7 @@ export async function GET(request: NextRequest) {
         'Accept-Language': 'tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7',
         'Cache-Control': 'no-cache',
         Pragma: 'no-cache',
+        ...(isAmazonUrl ? { Cookie: 'i18n-prefs=USD; lc-main=en_US' } : {}),
       },
       cache: 'no-store',
     })
@@ -658,6 +683,7 @@ export async function GET(request: NextRequest) {
     const domain = normalizeDomain(parsed.toString()) || ''
     const isAmazon = /(^|\.)amazon\./i.test(domain)
     const isEbay = /(^|\.)ebay\./i.test(domain)
+    const isAliExpress = /(^|\.)aliexpress\./i.test(domain)
     const isIdeasoft = /product-price-new|product-price-old|salePrice\s*:|storefront\/assets\/css\/global\.css/i.test(html)
 
     const amazonData = isAmazon ? extractAmazonFallback(html) : null
@@ -734,7 +760,22 @@ export async function GET(request: NextRequest) {
         .toUpperCase()
     const seller = jsonSeller || amazonData?.seller || ebayData?.seller
     const brand = jsonBrand || amazonData?.brand || ebayData?.brand
-    const availability = normalizeAvailability(jsonAvailability) || amazonData?.availability || ebayData?.availability
+    const aliHasHardOosSignal =
+      /\bsold\s*out\b/i.test(html) ||
+      /\bout\s+of\s+stock\b/i.test(html) ||
+      /currently unavailable/i.test(html) ||
+      /no longer available/i.test(html) ||
+      /can't be shipped to your selected country/i.test(html)
+    const aliAvailability = isAliExpress
+      ? aliHasHardOosSignal
+        ? 'OutOfStock'
+        : urlPriceData?.price
+          ? 'InStock'
+          : null
+      : null
+
+    const availability =
+      normalizeAvailability(jsonAvailability) || amazonData?.availability || ebayData?.availability || aliAvailability
 
     return NextResponse.json({
       title,

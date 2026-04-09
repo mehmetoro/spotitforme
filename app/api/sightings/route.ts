@@ -39,6 +39,7 @@ export async function GET(request: NextRequest) {
       .from('sightings')
       .select('*')
       .order('created_at', { ascending: false })
+      .eq('is_hidden', false)
       .limit(100)
 
     if (category) {

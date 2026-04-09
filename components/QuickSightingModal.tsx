@@ -36,6 +36,7 @@ export default function QuickSightingModal({
   const [sourceType, setSourceType] = useState<'physical' | 'virtual'>('physical')
   const [previewLoading, setPreviewLoading] = useState(false)
   const [showAuthModal, setShowAuthModal] = useState(false)
+  const [pendingWarning, setPendingWarning] = useState('')
   
   const [formData, setFormData] = useState({
     title: '',
@@ -387,6 +388,34 @@ export default function QuickSightingModal({
         source_domain: formData.source_domain || null,
       }
 
+      // Pre-publish URL kontrolü (sadece sanal paylaşımlar)
+      let isPendingReview = false
+      if (sourceType === 'virtual' && formData.product_url.trim()) {
+        try {
+          const checkRes = await fetch('/api/product-check', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: formData.product_url.trim() }),
+          })
+          const checkData = await checkRes.json()
+          if (checkData.status === 'active') {
+            // Satın alınabilir: direkt yayına al
+            basePayload.is_hidden = false
+            basePayload.product_check_status = 'active'
+          } else {
+            // Stokta yok, kaldırılmış, bot engeli vb: manuel onaya at
+            basePayload.is_hidden = true
+            basePayload.product_check_status = 'pending_review'
+            isPendingReview = true
+          }
+        } catch {
+          // Kontrol hatası: manuel onaya at
+          basePayload.is_hidden = true
+          basePayload.product_check_status = 'pending_review'
+          isPendingReview = true
+        }
+      }
+
       // Fiyat varsa normalize et; geçersizse kullanıcıyı uyar
       if (formData.price) {
         const parsedPrice = parsePriceNumber(formData.price)
@@ -518,6 +547,15 @@ export default function QuickSightingModal({
       
       // Sanal yardım ise sanal yardımlar sayfasına yönlendir
       if (sourceType === 'virtual') {
+        if (isPendingReview) {
+          setPendingWarning('Paylaşımınız alındı. Ürün bağlantısı otomatik doğrulanamadığı için incelendikten sonra yayınlanacaktır.')
+          setLoading(false)
+          setTimeout(() => {
+            onClose()
+            router.push('/virtual-sightings?tab=virtual-helps')
+          }, 3000)
+          return
+        }
         onClose()
         router.push('/virtual-sightings?tab=virtual-helps')
       } else {
@@ -542,6 +580,11 @@ export default function QuickSightingModal({
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="sticky top-0 bg-white border-b p-6 z-10">
+          {pendingWarning && (
+            <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+              ⏳ {pendingWarning}
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-bold text-gray-900">👁️ Nadir Gördüm!</h2>

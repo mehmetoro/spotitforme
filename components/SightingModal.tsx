@@ -41,6 +41,7 @@ export default function SightingModal({ spotId, spotTitle, onClose, onSuccess }:
   const [errorMessage, setErrorMessage] = useState('');
   const [geoLoading, setGeoLoading] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
+    const [pendingWarning, setPendingWarning] = useState('');
   const hashtagCount = formData.hashtags
     .split(/\s+/)
     .map((tag) => tag.trim())
@@ -277,6 +278,34 @@ export default function SightingModal({ spotId, spotTitle, onClose, onSuccess }:
         link_preview_currency: formData.link_preview_currency.trim() || null,
         source_domain: formData.source_domain.trim() || null,
       };
+      // Pre-publish URL kontrolü (sadece sanal yardımlar için)
+      let isPendingReview = false;
+      if (helpType === 'virtual' && formData.product_url.trim()) {
+        try {
+          const checkRes = await fetch('/api/product-check', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: formData.product_url.trim() }),
+          });
+          const checkData = await checkRes.json();
+          if (checkData.status === 'active') {
+            // Satın alınabilir: direkt yayına al
+            (sightingData as Record<string, unknown>).is_hidden = false;
+            (sightingData as Record<string, unknown>).product_check_status = 'active';
+          } else {
+            // Stokta yok, kaldırılmış, bot engeli vb: manuel onaya at
+            (sightingData as Record<string, unknown>).is_hidden = true;
+            (sightingData as Record<string, unknown>).product_check_status = 'pending_review';
+            isPendingReview = true;
+          }
+        } catch {
+          // Kontrol hatası: manuel onaya at
+          (sightingData as Record<string, unknown>).is_hidden = true;
+          (sightingData as Record<string, unknown>).product_check_status = 'pending_review';
+          isPendingReview = true;
+        }
+      }
+
       const { data: insertedData, error: insertError } = await supabase
         .from('sightings')
         .insert(sightingData)
@@ -367,7 +396,13 @@ export default function SightingModal({ spotId, spotTitle, onClose, onSuccess }:
       
       // Sanal yardım ise listesine yönlendir
       if (helpType === 'virtual') {
-        router.push('/virtual-sightings?tab=virtual-helps')
+        if (isPendingReview) {
+          setPendingWarning('Paylaşımınız alındı. Ürün bağlantısı otomatik doğrulanamadığı için incelendikten sonra yayınlanacaktır.');
+          setLoading(false);
+          setTimeout(() => router.push('/virtual-sightings?tab=virtual-helps'), 3000);
+          return;
+        }
+        router.push('/virtual-sightings?tab=virtual-helps');
       } else {
         onSuccess();
       }
@@ -699,6 +734,17 @@ export default function SightingModal({ spotId, spotTitle, onClose, onSuccess }:
           </div>
           {/* BUTONLAR */}
           <div className="flex space-x-3 pt-4">
+                      {/* MESAJLAR */}
+                      {errorMessage && (
+                        <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700 mb-2">
+                          {errorMessage}
+                        </div>
+                      )}
+                      {pendingWarning && (
+                        <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800 mb-2">
+                          ⏳ {pendingWarning}
+                        </div>
+                      )}
             <button
               type="button"
               onClick={onClose}

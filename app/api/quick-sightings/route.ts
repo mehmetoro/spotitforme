@@ -29,6 +29,7 @@ export async function GET(request: NextRequest) {
       .from('quick_sightings')
       .select('*')
       .eq('status', 'active')
+      .eq('is_hidden', false)
       .order('created_at', { ascending: false })
       .limit(100)
 
