@@ -15,6 +15,7 @@ export default function AdminSidebar() {
     { name: 'Mesajlaşma', href: '/admin/messaging', icon: '💬' },
     { name: 'Sosyal İçerik', href: '/admin/social', icon: '📱' },
     { name: 'Stok Kontrolü', href: '/admin/product-checks', icon: '🔍' },
+    { name: 'Saatlik Kontrol', href: '/admin/hourly-checks', icon: '⏱️' },
     { name: 'Ödemeler', href: '/admin/payments', icon: '💳' },
     { name: 'Bildirimler', href: '/admin/notifications', icon: '🔔' },
     { name: 'AdSense', href: '/admin/adsense', icon: '💰' },
@@ -23,13 +24,25 @@ export default function AdminSidebar() {
   ]
 
   return (
-    <aside className="w-64 bg-gray-900 text-white min-h-screen">
+    <aside className="w-64 bg-gray-900 text-white min-h-screen flex flex-col">
       <div className="p-6">
         <h2 className="text-xl font-bold">Admin Panel</h2>
         <p className="text-gray-400 text-sm mt-1">SpotItForMe Yönetim</p>
       </div>
 
-      <nav className="mt-6">
+      <div className="px-4 pb-3">
+        <Link
+          href="/"
+          className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition"
+        >
+          <span>←</span>
+          <span>Siteye Dön</span>
+        </Link>
+      </div>
+
+      <div className="border-t border-gray-800 mx-4" />
+
+      <nav className="mt-3 flex-1">
         {menuItems.map((item) => {
           const isActive = pathname === item.href
           
@@ -47,17 +60,6 @@ export default function AdminSidebar() {
           )
         })}
       </nav>
-
-      {/* Footer */}
-      <div className="absolute bottom-0 w-full p-4 border-t border-gray-800">
-        <Link
-          href="/"
-          className="flex items-center space-x-3 text-gray-400 hover:text-white"
-        >
-          <span>←</span>
-          <span>Siteye Dön</span>
-        </Link>
-      </div>
     </aside>
   )
 }

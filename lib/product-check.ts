@@ -71,6 +71,14 @@ function isPrivateHost(hostname: string): boolean {
   return false
 }
 
+function normalizeAmazonProductUrl(parsed: URL): string {
+  const asinMatch = parsed.pathname.match(/\/(?:dp|gp\/product)\/([A-Z0-9]{10})(?:[/?]|$)/i)
+  if (!asinMatch) return parsed.toString()
+
+  const normalized = new URL(`https://${parsed.hostname}/dp/${asinMatch[1].toUpperCase()}`)
+  return normalized.toString()
+}
+
 /**
  * Bir ürün URL'sini kontrol eder; HTTP erişilebilirliği ve stok durumunu döner.
  * Timeout: 10 saniye. Response: maksimum 100KB okunur.
@@ -99,8 +107,13 @@ export async function checkProductUrl(rawUrl: string): Promise<ProductCheckResul
     const isAmazon = /(^|\.)amazon\./i.test(parsed.hostname)
     const isEbay = /(^|\.)ebay\./i.test(parsed.hostname)
     const isAliExpress = /(^|\.)aliexpress\./i.test(parsed.hostname)
+    // IdeaSoft: /urun/ path'i olan Türk e-ticaret siteleri (HTML'den de doğrulanır)
+    const likelyIdeaSoft =
+      /\/urun\//i.test(parsed.pathname) &&
+      /\.(com\.tr|net\.tr|org\.tr)$/i.test(parsed.hostname)
+    const requestUrl = isAmazon ? normalizeAmazonProductUrl(parsed) : rawUrl
 
-    const response = await fetch(rawUrl, {
+    const response = await fetch(requestUrl, {
       method: 'GET',
       signal: controller.signal,
       headers: {
@@ -118,7 +131,14 @@ export async function checkProductUrl(rawUrl: string): Promise<ProductCheckResul
         'Sec-Fetch-Site': 'none',
         'Upgrade-Insecure-Requests': '1',
         // Amazon lokasyona göre TRY/eski kur fiyatı döndürür; USD cookie ile gerçek fiyatı al
-        ...(isAmazon ? { Cookie: 'i18n-prefs=USD; lc-main=en_US' } : {}),
+        ...(isAmazon
+          ? {
+              Cookie: 'i18n-prefs=USD; lc-main=en_US',
+              Referer: `https://${parsed.hostname}/`,
+            }
+          : {}),
+        // IdeaSoft WAF Referer kontrolü: kendi sitesinden geliyormuş gibi göster
+        ...(!isAmazon && likelyIdeaSoft ? { Referer: `https://${parsed.hostname}/` } : {}),
       },
       redirect: 'follow',
     })
@@ -169,10 +189,21 @@ export async function checkProductUrl(rawUrl: string): Promise<ProductCheckResul
     const readLimit = isAmazon ? 600000 : isEbay ? 450000 : isAliExpress ? 200000 : 100000
     const html = rawText.slice(0, readLimit)
     const sampleLower = html.toLowerCase()
+    // IdeaSoft URL tespiti doğrulanır veya HTML içinden tespit edilir
+    const isIdeaSoft = likelyIdeaSoft || sampleLower.includes('ideasoft')
 
     // Bot koruması sayfası mı?
     const isBot = BLOCK_SIGNALS.some((s) => sampleLower.includes(s.toLowerCase()))
     if (isBot) {
+      // IdeaSoft sitelerinde WAF/Cloudflare engeli ürünün kaldırıldığı anlamına gelmez;
+      // gizleme yapma, manuel incelemeye bırak.
+      if (isIdeaSoft) {
+        return {
+          status: 'pending_review',
+          http_status: httpStatus,
+          notes: 'Bot koruması tespit edildi (IdeaSoft – erişim kısıtlı, ürün kaldırılmadı)',
+        }
+      }
       return { status: 'blocked', http_status: httpStatus, notes: 'Bot koruması tespit edildi' }
     }
 
@@ -300,6 +331,34 @@ export async function checkProductUrl(rawUrl: string): Promise<ProductCheckResul
       return { status: 'active', http_status: httpStatus, notes: 'AliExpress: sayfa erişilebilir' }
     }
 
+    // IdeaSoft'a özel stok tespiti:
+    // Türk e-ticaret platformu; fiyat Türkçe sayı formatında (5.844,45 TL), CTA Türkçe.
+    if (isIdeaSoft) {
+      const hasPurchaseCta =
+        /sepete\s+ekle/i.test(html) ||
+        /hemen\s+satın\s+al/i.test(html) ||
+        /satın\s+al/i.test(html) ||
+        /alışverişe\s+başla/i.test(html) ||
+        /sipariş\s+ver/i.test(html)
+
+      const hasTurkishPrice =
+        /\d[\d.]*,\d{2}\s*(?:TL|₺)/i.test(html) ||
+        /(?:satış\s+fiyat[ıi]|indirimli\s+fiyat)[^<]{0,40}\d/i.test(html)
+
+      const hasIdeaSoftOos =
+        /stokta\s+yok/i.test(html) ||
+        /tükend[ii]/i.test(html) ||
+        /satışa\s+kapalı/i.test(html)
+
+      if (hasIdeaSoftOos) {
+        return { status: 'out_of_stock', http_status: httpStatus, notes: 'IdeaSoft: ürün stokta yok' }
+      }
+      if (hasPurchaseCta || hasTurkishPrice) {
+        return { status: 'active', http_status: httpStatus, notes: 'IdeaSoft: ürün stokta' }
+      }
+      return { status: 'active', http_status: httpStatus, notes: 'IdeaSoft: sayfa erişilebilir' }
+    }
+
     // === HYBRID GENEL KONTROL SİSTEMİ ===
     // Tanınan siteler dışında kalan tüm siteler için uygulanan kontrol sistemi:
     // 1. Sert stok tükenmesi sinyalleri → out_of_stock
@@ -316,15 +375,16 @@ export async function checkProductUrl(rawUrl: string): Promise<ProductCheckResul
       }
     }
 
-    // 2. Fiyat sinyalleri ara (farklı format ve parabirimler)
+    // 2. Fiyat sinyalleri ara (farklı format ve parabirimler + Türkçe TL formatı)
     const hasPriceSignal =
-      /[$€£¥₺]\s*\d+[.,]\d{2}|[\d]+(?:,\d{3})*\s*(?:₺|TL|$|€|£)/i.test(html) ||
+      /[$€£¥₺]\s*\d+[.,]\d{2}|[\d]+(?:,\d{3})*\s*(?:₺|TL|€|£|\$)/i.test(html) ||
+      /\d[\d.]*,\d{2}\s*(?:TL|₺)/i.test(html) ||
       /price[">:\s]/i.test(html) ||
       /data-price=["']\d+/i.test(html) ||
       /cost[">:\s]/i.test(html) ||
       /amount[">:\s]/i.test(html)
 
-    // 3. Satın alma/ekleme CTA sinyalleri
+    // 3. Satın alma/ekleme CTA sinyalleri (İngilizce + Türkçe)
     const hasCtaSignal =
       /add\s+to\s+cart|add\s+to\s+bag/i.test(html) ||
       /buy\s+now|buy\s+it\s+now/i.test(html) ||
@@ -333,7 +393,11 @@ export async function checkProductUrl(rawUrl: string): Promise<ProductCheckResul
       /purchase|order\s+now/i.test(html) ||
       /place\s+order|place\s+bid/i.test(html) ||
       /id=["'][^"']*cart[^"']*["']/i.test(html) ||
-      /id=["'][^"']*checkout[^"']*["']/i.test(html)
+      /id=["'][^"']*checkout[^"']*["']/i.test(html) ||
+      /sepete\s+ekle/i.test(html) ||
+      /satın\s+al/i.test(html) ||
+      /sipariş\s+ver/i.test(html) ||
+      /alışverişe\s+başla/i.test(html)
 
     if (hasPriceSignal || hasCtaSignal) {
       return {
