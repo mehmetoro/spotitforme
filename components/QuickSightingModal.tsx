@@ -242,6 +242,53 @@ export default function QuickSightingModal({
     return points
   }
 
+  // Browser Share API ya da ürünün paylaş özelliğinden URL gelirse, otomatik bilgileri çek
+  useEffect(() => {
+    if (!isOpen || sourceType !== 'virtual') return
+    if (!initialProductUrl?.trim()) return
+    // Eğer zaten veriler varsa (kullanıcı manuel entered), güncelleme yapma
+    if (formData.link_preview_title) return
+
+    let isMounted = true
+    const autoFetchLinkPreview = async () => {
+      if (!isMounted) return
+      setPreviewLoading(true)
+      try {
+        const res = await fetch(`/api/link-preview?url=${encodeURIComponent(initialProductUrl.trim())}`)
+        const payload = await res.json()
+        if (!res.ok) throw new Error(payload?.error || 'Bilgi çekilemedi')
+        if (!isMounted) return
+
+        setFormData((prev) => ({
+          ...prev,
+          title: prev.title ? prev.title : (payload.title || prev.title),
+          description: prev.description ? prev.description : (payload.description || prev.description),
+          price: prev.price ? prev.price : (payload.price || prev.price),
+          link_preview_title: payload.title || prev.link_preview_title,
+          link_preview_image: payload.image || prev.link_preview_image,
+          link_preview_description: payload.description || prev.link_preview_description,
+          link_preview_brand: payload.brand || prev.link_preview_brand,
+          link_preview_availability: payload.availability || prev.link_preview_availability,
+          link_preview_currency: payload.currency || prev.link_preview_currency,
+          marketplace: payload.marketplace || prev.marketplace,
+          seller_name: payload.seller || prev.seller_name,
+          product_url: payload.url || prev.product_url,
+          source_domain: payload.domain || prev.source_domain,
+        }))
+      } catch (error) {
+        console.error('Auto-fetch link preview hatası:', error)
+      } finally {
+        if (isMounted) setPreviewLoading(false)
+      }
+    }
+
+    const timeoutId = setTimeout(autoFetchLinkPreview, 200)
+    return () => {
+      isMounted = false
+      clearTimeout(timeoutId)
+    }
+  }, [isOpen, initialProductUrl, sourceType])
+
   useEffect(() => {
     if (!isOpen) return
 

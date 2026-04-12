@@ -610,22 +610,42 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'sadece http/https desteklenir' }, { status: 400 })
     }
 
-    // Amazon; sunucu IP'sine göre TRY/eski kur fiyatı döndürür.
-    // i18n-prefs=USD cookie'si ile her lokasyondan USD fiyatı alınır.
+    // Timeout: 10 saniye (çoğu sitenin HTML başlığı bu sürede gelir)
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 10000)
+
+    // Site-specific detections
     const isAmazonUrl = /(^|\.)amazon\./i.test(parsed.hostname)
+    const isAliExpressUrl = /(^|\.)aliexpress\./i.test(parsed.hostname)
+    // IdeaSoft: /urun/ path'i ve Türk e-ticaret TLD'si
+    const likelyIdeaSoft =
+      /\/urun\//i.test(parsed.pathname) &&
+      /\.(com\.tr|net\.tr|org\.tr)$/i.test(parsed.hostname)
+
     const res = await fetch(parsed.toString(), {
       method: 'GET',
+      signal: controller.signal,
       headers: {
         'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36 Edg/125.0.0.0',
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
         'Accept-Language': 'tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7',
         'Cache-Control': 'no-cache',
         Pragma: 'no-cache',
+        'Sec-Ch-Ua': '"Not_A Brand";v="8", "Chromium";v="125", "Microsoft Edge";v="125"',
+        'Sec-Ch-Ua-Mobile': '?0',
+        'Sec-Ch-Ua-Platform': '"Windows"',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Upgrade-Insecure-Requests': '1',
+        // Amazon lokasyona göre TRY fiyatı döndürür — USD cookie ile localization bypass
         ...(isAmazonUrl ? { Cookie: 'i18n-prefs=USD; lc-main=en_US' } : {}),
+        // IdeaSoft WAF Referer kontrolü: kendi sitesinden geliyormuş gibi göster
+        ...(!isAmazonUrl && likelyIdeaSoft ? { Referer: `https://${parsed.hostname}/` } : {}),
       },
       cache: 'no-store',
-    })
+    }).finally(() => clearTimeout(timeoutId))
 
     if (!res.ok) {
       if ([401, 403, 429, 503].includes(res.status)) {
@@ -684,7 +704,10 @@ export async function GET(request: NextRequest) {
     const isAmazon = /(^|\.)amazon\./i.test(domain)
     const isEbay = /(^|\.)ebay\./i.test(domain)
     const isAliExpress = /(^|\.)aliexpress\./i.test(domain)
-    const isIdeasoft = /product-price-new|product-price-old|salePrice\s*:|storefront\/assets\/css\/global\.css/i.test(html)
+    // IdeaSoft: URL pattern (PATH + TLD) ya da HTML pattern match
+    const isIdeasoft =
+      likelyIdeaSoft ||
+      /product-price-new|product-price-old|salePrice\s*:|storefront\/assets\/css\/global\.css/i.test(html)
 
     const amazonData = isAmazon ? extractAmazonFallback(html) : null
     const ebayData = isEbay ? extractEbayFallback(html) : null
