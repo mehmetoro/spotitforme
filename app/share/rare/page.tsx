@@ -5,13 +5,20 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 import QuickSightingModal from '@/components/QuickSightingModal'
 
+function extractFirstUrl(input: string) {
+  const match = input.match(/https?:\/\/[^\s<>"]+/i)
+  return match?.[0] || ''
+}
+
 export default function ShareRarePage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [modalOpen, setModalOpen] = useState(true)
-  const sharedUrl = searchParams.get('url') || ''
+  const rawSharedUrl = searchParams.get('url') || ''
   const sharedTitle = searchParams.get('title') || ''
   const sharedText = searchParams.get('text') || ''
+  const extractedUrlFromText = extractFirstUrl([rawSharedUrl, sharedText, sharedTitle].filter(Boolean).join(' '))
+  const sharedUrl = rawSharedUrl || extractedUrlFromText
   const sharedDescription = [sharedTitle, sharedText].filter(Boolean).join(' - ')
 
   const handleCloseModal = () => {

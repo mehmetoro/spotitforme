@@ -27,6 +27,7 @@ export default function QuickSightingModal({
 }: QuickSightingModalProps) {
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const autoPreviewUrlRef = useRef('')
   
   const [loading, setLoading] = useState(false)
   const [locationData, setLocationData] = useState<any>(null)
@@ -147,7 +148,11 @@ export default function QuickSightingModal({
   useEffect(() => {
     if (!isOpen) return
 
-    if (initialSourceType) {
+    const incomingUrl = (initialProductUrl || '').trim()
+    if (incomingUrl) {
+      // Share akışında URL geldiyse form her zaman sanal sekmede açılsın.
+      setSourceType('virtual')
+    } else if (initialSourceType) {
       setSourceType(initialSourceType)
     }
 
@@ -245,16 +250,16 @@ export default function QuickSightingModal({
   // Browser Share API ya da ürünün paylaş özelliğinden URL gelirse, otomatik bilgileri çek
   useEffect(() => {
     if (!isOpen || sourceType !== 'virtual') return
-    if (!initialProductUrl?.trim()) return
-    // Eğer zaten veriler varsa (kullanıcı manuel entered), güncelleme yapma
-    if (formData.link_preview_title) return
+    const incomingUrl = (initialProductUrl || '').trim()
+    if (!incomingUrl) return
+    if (autoPreviewUrlRef.current === incomingUrl) return
 
     let isMounted = true
     const autoFetchLinkPreview = async () => {
       if (!isMounted) return
       setPreviewLoading(true)
       try {
-        const res = await fetch(`/api/link-preview?url=${encodeURIComponent(initialProductUrl.trim())}`)
+        const res = await fetch(`/api/link-preview?url=${encodeURIComponent(incomingUrl)}`)
         const payload = await res.json()
         if (!res.ok) throw new Error(payload?.error || 'Bilgi çekilemedi')
         if (!isMounted) return
@@ -275,6 +280,7 @@ export default function QuickSightingModal({
           product_url: payload.url || prev.product_url,
           source_domain: payload.domain || prev.source_domain,
         }))
+        autoPreviewUrlRef.current = incomingUrl
       } catch (error) {
         console.error('Auto-fetch link preview hatası:', error)
       } finally {
