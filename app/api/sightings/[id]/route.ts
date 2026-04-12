@@ -60,6 +60,14 @@ export async function GET(
       )
     }
 
+    // Listede görünmeyen kayıtlar detaydan da erişilemesin
+    if (sightingData.is_hidden) {
+      return NextResponse.json(
+        { error: 'Sighting not found' },
+        { status: 404 }
+      )
+    }
+
     // Spotter bilgilerini al
     let spotter = null
     if (sightingData.spotter_id) {

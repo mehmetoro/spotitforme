@@ -80,12 +80,13 @@ export default function AdminSpotsPage() {
     if (!confirm('Bu spotu silmek istediğinize emin misiniz?')) return
 
     try {
-      const { error } = await supabase
-        .from('spots')
-        .delete()
-        .eq('id', spotId)
-
-      if (error) throw error
+      const res = await fetch('/api/admin/delete-record', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ table_name: 'spots', id: spotId }),
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result?.error || 'Spot silinemedi')
 
       alert('Spot silindi')
       fetchSpots()

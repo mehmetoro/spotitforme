@@ -144,13 +144,22 @@ export default function ProductChecksPage() {
     if (!confirm('Bu kaydı kalıcı olarak silmek istediğinize emin misiniz?')) return
     setActionLoading(`delete-${item.id}`)
     try {
-      await supabase.from(item.table_name).delete().eq('id', item.id)
+      const res = await fetch('/api/admin/delete-virtual', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ table_name: item.table_name, id: item.id, delete_reports: true }),
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result?.error || 'Silme işlemi başarısız')
+
       setItems((prev) => prev.filter((i) => i.id !== item.id || i.table_name !== item.table_name))
       setCounts((prev) => ({
         ...prev,
         all: (prev.all ?? 0) - 1,
         [item.product_check_status]: Math.max(0, (prev[item.product_check_status] ?? 0) - 1),
       }))
+    } catch (err: any) {
+      alert(err?.message || 'Silme işlemi başarısız')
     } finally {
       setActionLoading(null)
     }

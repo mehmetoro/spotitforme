@@ -124,13 +124,16 @@ export default function InventoryPage() {
 
     setDeletingId(productId);
     try {
-      const { error } = await supabase
+      const { data: deletedProduct, error } = await supabase
         .from('shop_inventory')
         .delete()
         .eq('id', productId)
-        .eq('shop_id', shopId);
+        .eq('shop_id', shopId)
+        .select('id')
+        .maybeSingle();
 
       if (error) throw error;
+      if (!deletedProduct) throw new Error('Ürün silinemedi veya yetkiniz yok');
 
       // Ürün resim sayacını güncelle
       const product = products.find(p => p.id === productId);

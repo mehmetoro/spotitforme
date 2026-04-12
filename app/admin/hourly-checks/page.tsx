@@ -319,12 +319,17 @@ export default function AdminHourlyChecksPage() {
 
     setActionLoading(`delete-${item.id}`)
     try {
-      const { error } = await supabase.from(item.table_name).delete().eq('id', item.id)
-      if (error) throw error
+      const res = await fetch('/api/admin/delete-virtual', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ table_name: item.table_name, id: item.id, delete_reports: true }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Silme başarısız')
       setItems((prev) => prev.filter((x) => !(x.id === item.id && x.table_name === item.table_name)))
-    } catch (error) {
+    } catch (error: any) {
       console.error('Kayıt silinemedi:', error)
-      alert('Kayıt silinemedi')
+      alert(error?.message || 'Kayıt silinemedi')
     } finally {
       setActionLoading(null)
     }

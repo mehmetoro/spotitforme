@@ -244,12 +244,15 @@ export default function ShopSpotsPage() {
     }
 
     try {
-      const { error } = await supabase
+      const { data: deletedSpot, error } = await supabase
         .from('spots')
         .delete()
         .eq('id', spotId)
+        .select('id')
+        .maybeSingle()
 
       if (error) throw error
+      if (!deletedSpot) throw new Error('Spot silinemedi veya yetkiniz yok')
 
       alert('Spot başarıyla silindi!')
       // Spot'ları yenile

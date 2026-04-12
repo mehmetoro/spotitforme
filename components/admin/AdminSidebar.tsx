@@ -16,6 +16,8 @@ export default function AdminSidebar() {
     { name: 'Sosyal İçerik', href: '/admin/social', icon: '📱' },
     { name: 'Stok Kontrolü', href: '/admin/product-checks', icon: '🔍' },
     { name: 'Saatlik Kontrol', href: '/admin/hourly-checks', icon: '⏱️' },
+    { name: 'Kullanıcı Ürün Bildirimleri', href: '/admin/product-reports', icon: '🧾' },
+    { name: 'Cron Yöneticisi', href: '/admin/cron-manager', icon: '⚙️' },
     { name: 'Ödemeler', href: '/admin/payments', icon: '💳' },
     { name: 'Bildirimler', href: '/admin/notifications', icon: '🔔' },
     { name: 'AdSense', href: '/admin/adsense', icon: '💰' },

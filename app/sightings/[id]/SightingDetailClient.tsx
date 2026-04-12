@@ -36,6 +36,15 @@ interface Sighting {
   title: string | null
 }
 
+type ProductReportReason = 'out_of_stock' | 'broken_page' | 'prohibited_product' | 'not_rare'
+
+const REPORT_REASON_OPTIONS: Array<{ value: ProductReportReason; label: string }> = [
+  { value: 'out_of_stock', label: '1. Stok Yok' },
+  { value: 'broken_page', label: '2. Bozuk Sayfa' },
+  { value: 'prohibited_product', label: '3. Yasaklı Ürün' },
+  { value: 'not_rare', label: '4. Nadir Değil' },
+]
+
 export default function SightingDetailClient() {
   const router = useRouter()
   const params = useParams()
@@ -44,6 +53,7 @@ export default function SightingDetailClient() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [reportLoading, setReportLoading] = useState<ProductReportReason | null>(null)
 
   useEffect(() => {
     const loadCurrentUser = async () => {
@@ -152,6 +162,41 @@ export default function SightingDetailClient() {
       router.push(`/messages?${params.toString()}`)
     } catch {
       toast.error('Mesaj talebi başlatılamadı')
+    }
+  }
+
+  const submitProductReport = async (reason: ProductReportReason) => {
+    if (!sighting?.product_url) {
+      toast.error('Bu kayıt için ürün linki bulunamadı')
+      return
+    }
+
+    setReportLoading(reason)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+
+      const response = await fetch('/api/product-reports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          table_name: 'sightings',
+          record_id: sighting.id,
+          product_url: sighting.product_url,
+          reason,
+          record_title: displayTitle,
+          reporter_user_id: user?.id ?? null,
+          reporter_name: user?.user_metadata?.full_name ?? user?.email ?? null,
+        }),
+      })
+
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(result?.error || 'Bildirim gönderilemedi')
+
+      toast.success('Teşekkürler! Bildiriminiz admin ekibine iletildi.')
+    } catch (err: any) {
+      toast.error(err?.message || 'Bildirim gönderilemedi')
+    } finally {
+      setReportLoading(null)
     }
   }
 
@@ -280,6 +325,27 @@ export default function SightingDetailClient() {
                   </div>
                   {sighting.product_url && <div className="px-3 py-2 border-t border-gray-100 text-xs text-blue-700 truncate">{sighting.product_url}</div>}
                 </a>
+
+                {sighting.source_channel === 'virtual' && sighting.product_url && (
+                  <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                    <p className="text-sm font-semibold text-amber-900">🛟 Bize Yardımcı Olun</p>
+                    <p className="text-xs text-amber-800 mt-1">
+                      Bu linkte problem görürseniz hızlıca bildirin. Admin panelde inceleyip yayına alma/gizleme kararını güncelliyoruz.
+                    </p>
+                    <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {REPORT_REASON_OPTIONS.map((option) => (
+                        <button
+                          key={option.value}
+                          onClick={() => submitProductReport(option.value)}
+                          disabled={!!reportLoading}
+                          className="px-3 py-2 text-xs font-medium rounded-md bg-white border border-amber-300 text-amber-900 hover:bg-amber-100 disabled:opacity-50"
+                        >
+                          {reportLoading === option.value ? 'Gönderiliyor...' : option.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

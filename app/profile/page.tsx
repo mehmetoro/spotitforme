@@ -424,12 +424,15 @@ export default function ProfilePage() {
     try {
       setSpotActionId(spot.id)
 
-      const { error } = await supabase
+      const { data: deletedSpot, error } = await supabase
         .from('spots')
         .delete()
         .eq('id', spot.id)
+        .select('id')
+        .maybeSingle()
 
       if (error) throw error
+      if (!deletedSpot) throw new Error('Spot silinemedi veya yetkiniz yok')
 
       setUserSpots((prev) => prev.filter((item) => item.id !== spot.id))
     } catch (err: any) {
@@ -446,12 +449,15 @@ export default function ProfilePage() {
     try {
       setHelpActionId(help.id)
 
-      const { error } = await supabase
+      const { data: deletedHelp, error } = await supabase
         .from('sightings')
         .delete()
         .eq('id', help.id)
+        .select('id')
+        .maybeSingle()
 
       if (error) throw error
+      if (!deletedHelp) throw new Error('Yardım paylaşımı silinemedi veya yetkiniz yok')
 
       setUserHelps((prev) => prev.filter((item) => item.id !== help.id))
       if (helpEditingId === help.id) {
@@ -527,12 +533,15 @@ export default function ProfilePage() {
     try {
       setRareActionId(rare.id)
 
-      const { error } = await supabase
+      const { data: deletedRare, error } = await supabase
         .from('quick_sightings')
         .delete()
         .eq('id', rare.id)
+        .select('id')
+        .maybeSingle()
 
       if (error) throw error
+      if (!deletedRare) throw new Error('Nadir paylaşımı silinemedi veya yetkiniz yok')
 
       setUserRares((prev) => prev.filter((item) => item.id !== rare.id))
       if (rareEditingId === rare.id) {
@@ -744,12 +753,15 @@ export default function ProfilePage() {
     try {
       setCollectionActionId(item.id)
 
-      const { error } = await supabase
+      const { data: deletedCollectionItem, error } = await supabase
         .from('collection_posts')
         .delete()
         .eq('id', item.id)
+        .select('id')
+        .maybeSingle()
 
       if (error) throw error
+      if (!deletedCollectionItem) throw new Error('Koleksiyon paylaşımı silinemedi veya yetkiniz yok')
 
       if (item.photo_url) {
         const oldStoragePath = extractSpotImagePath(item.photo_url)

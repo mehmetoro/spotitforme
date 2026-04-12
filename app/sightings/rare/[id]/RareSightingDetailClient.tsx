@@ -42,6 +42,15 @@ interface RareSighting {
   user: { id: string; full_name: string; avatar_url: string | null } | null
 }
 
+type ProductReportReason = 'out_of_stock' | 'broken_page' | 'prohibited_product' | 'not_rare'
+
+const REPORT_REASON_OPTIONS: Array<{ value: ProductReportReason; label: string }> = [
+  { value: 'out_of_stock', label: '1. Stok Yok' },
+  { value: 'broken_page', label: '2. Bozuk Sayfa' },
+  { value: 'prohibited_product', label: '3. Yasaklı Ürün' },
+  { value: 'not_rare', label: '4. Nadir Değil' },
+]
+
 const CATEGORIES: Record<string, string> = {
   electronics: 'Elektronik',
   fashion: 'Giyim & Aksesuar',
@@ -69,6 +78,7 @@ export default function RareSightingDetailClient() {
   const [error, setError] = useState('')
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [museumToggleLoading, setMuseumToggleLoading] = useState(false)
+  const [reportLoading, setReportLoading] = useState<ProductReportReason | null>(null)
 
   useEffect(() => {
     const loadCurrentUser = async () => {
@@ -160,6 +170,41 @@ export default function RareSightingDetailClient() {
     }
   }
 
+  const submitProductReport = async (reason: ProductReportReason) => {
+    if (!sighting?.product_url) {
+      toast.error('Bu kayıt için ürün linki bulunamadı')
+      return
+    }
+
+    setReportLoading(reason)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+
+      const response = await fetch('/api/product-reports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          table_name: 'quick_sightings',
+          record_id: sighting.id,
+          product_url: sighting.product_url,
+          reason,
+          record_title: displayTitle,
+          reporter_user_id: user?.id ?? null,
+          reporter_name: user?.user_metadata?.full_name ?? user?.email ?? null,
+        }),
+      })
+
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(result?.error || 'Bildirim gönderilemedi')
+
+      toast.success('Teşekkürler! Bildiriminiz admin ekibine iletildi.')
+    } catch (err: any) {
+      toast.error(err?.message || 'Bildirim gönderilemedi')
+    } finally {
+      setReportLoading(null)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -233,37 +278,60 @@ export default function RareSightingDetailClient() {
             )}
 
             {(sighting.product_url || sighting.link_preview_title || sighting.marketplace || sighting.source_channel === 'virtual') && (
-              <a
-                href={sighting.product_url || '#'}
-                target="_blank"
-                rel="nofollow ugc noopener noreferrer"
-                className="block rounded-xl border border-gray-200 overflow-hidden mb-5 hover:border-purple-300"
-              >
-                <div className="px-3 py-2 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
-                  <span className="text-xs font-semibold text-gray-700 truncate">{sighting.marketplace || sighting.source_domain || 'Online kaynak'}</span>
-                  <span className="text-[11px] text-gray-500">SEO ürün önizlemesi</span>
-                </div>
-                <div className="flex">
-                  <div className="w-24 h-24 bg-gray-100 shrink-0 flex items-center justify-center">
-                    {sighting.link_preview_image || sighting.photo_url ? (
-                      <img src={sighting.link_preview_image || sighting.photo_url || ''} alt={seoAlt} className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-2xl">💎</span>
-                    )}
+              <div className="mb-5">
+                <a
+                  href={sighting.product_url || '#'}
+                  target="_blank"
+                  rel="nofollow ugc noopener noreferrer"
+                  className="block rounded-xl border border-gray-200 overflow-hidden hover:border-purple-300"
+                >
+                  <div className="px-3 py-2 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+                    <span className="text-xs font-semibold text-gray-700 truncate">{sighting.marketplace || sighting.source_domain || 'Online kaynak'}</span>
+                    <span className="text-[11px] text-gray-500">SEO ürün önizlemesi</span>
                   </div>
-                  <div className="p-3 min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-gray-900 line-clamp-2">{displayTitle}</p>
-                    <p className="text-xs text-gray-600 line-clamp-3 mt-1">{displayDetail}</p>
-                    <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-gray-500">
-                      {sighting.link_preview_brand && <span>Marka: {sighting.link_preview_brand}</span>}
-                      {sighting.seller_name && <span>Satıcı: {sighting.seller_name}</span>}
-                      {sighting.link_preview_availability && <span>Durum: {sighting.link_preview_availability}</span>}
-                      {sighting.price != null && <span className="font-semibold text-green-700">{getCurrencyPrefix(sighting.link_preview_currency)}{sighting.price.toLocaleString('tr-TR')}</span>}
+                  <div className="flex">
+                    <div className="w-24 h-24 bg-gray-100 shrink-0 flex items-center justify-center">
+                      {sighting.link_preview_image || sighting.photo_url ? (
+                        <img src={sighting.link_preview_image || sighting.photo_url || ''} alt={seoAlt} className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-2xl">💎</span>
+                      )}
+                    </div>
+                    <div className="p-3 min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-gray-900 line-clamp-2">{displayTitle}</p>
+                      <p className="text-xs text-gray-600 line-clamp-3 mt-1">{displayDetail}</p>
+                      <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-gray-500">
+                        {sighting.link_preview_brand && <span>Marka: {sighting.link_preview_brand}</span>}
+                        {sighting.seller_name && <span>Satıcı: {sighting.seller_name}</span>}
+                        {sighting.link_preview_availability && <span>Durum: {sighting.link_preview_availability}</span>}
+                        {sighting.price != null && <span className="font-semibold text-green-700">{getCurrencyPrefix(sighting.link_preview_currency)}{sighting.price.toLocaleString('tr-TR')}</span>}
+                      </div>
                     </div>
                   </div>
-                </div>
-                {sighting.product_url && <div className="px-3 py-2 border-t border-gray-100 text-xs text-blue-700 truncate">{sighting.product_url}</div>}
-              </a>
+                  {sighting.product_url && <div className="px-3 py-2 border-t border-gray-100 text-xs text-blue-700 truncate">{sighting.product_url}</div>}
+                </a>
+
+                {sighting.source_channel === 'virtual' && sighting.product_url && (
+                  <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                    <p className="text-sm font-semibold text-amber-900">🛟 Bize Yardımcı Olun</p>
+                    <p className="text-xs text-amber-800 mt-1">
+                      Bu linkte problem görürseniz hızlıca bildirin. Admin panelde inceleyip yayına alma/gizleme kararını güncelliyoruz.
+                    </p>
+                    <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {REPORT_REASON_OPTIONS.map((option) => (
+                        <button
+                          key={option.value}
+                          onClick={() => submitProductReport(option.value)}
+                          disabled={!!reportLoading}
+                          className="px-3 py-2 text-xs font-medium rounded-md bg-white border border-amber-300 text-amber-900 hover:bg-amber-100 disabled:opacity-50"
+                        >
+                          {reportLoading === option.value ? 'Gönderiliyor...' : option.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
 
             <div className="space-y-3">

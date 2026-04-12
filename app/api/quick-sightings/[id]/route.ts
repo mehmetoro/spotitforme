@@ -36,6 +36,11 @@ export async function GET(
       return NextResponse.json({ error: 'Kayıt bulunamadı' }, { status: 404 })
     }
 
+    // Listede görünmeyen kayıtlar detaydan da erişilemesin
+    if (data.is_hidden || data.status !== 'active') {
+      return NextResponse.json({ error: 'Kayıt bulunamadı' }, { status: 404 })
+    }
+
     // Fetch user profile
     let user = null
     if (data.user_id) {

@@ -134,15 +134,15 @@ export default function AdminUsersPage() {
     }
 
     try {
-      // Önce ilişkili verileri sil
-      await supabase.from('spots').delete().eq('user_id', userId);
-      await supabase.from('sightings').delete().eq('spotter_id', userId);
-      await supabase.from('user_profiles').delete().eq('id', userId);
-
-      // Auth kullanıcısını sil (admin yetkisi gerektirir)
-      const { error } = await supabase.auth.admin.deleteUser(userId);
-      
-      if (error) throw error;
+      const res = await fetch('/api/admin/delete-user', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId }),
+      });
+      const result = await res.json();
+      if (!res.ok) {
+        throw new Error(result?.error || 'Kullanıcı silinemedi');
+      }
 
       // Listeden kaldır
       setUsers(users.filter(user => user.id !== userId));
@@ -150,7 +150,7 @@ export default function AdminUsersPage() {
       alert('Kullanıcı başarıyla silindi!');
     } catch (error) {
       console.error('Kullanıcı silinemedi:', error);
-      alert('Kullanıcı silinirken bir hata oluştu. Supabase dashboard üzerinden deneyin.');
+      alert(error instanceof Error ? error.message : 'Kullanıcı silinirken bir hata oluştu.');
     }
   };
 

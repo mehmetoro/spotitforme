@@ -555,7 +555,15 @@ export default function SystemTestPage() {
             
             if (data && data[0]) {
               setTimeout(async () => {
-                await supabase.from('spots').delete().eq('id', data[0].id)
+                try {
+                  await fetch('/api/admin/delete-record', {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ table_name: 'spots', id: data[0].id }),
+                  })
+                } catch {
+                  // Test cleanup hatası ana test sonucunu etkilemesin.
+                }
               }, 5000)
             }
             

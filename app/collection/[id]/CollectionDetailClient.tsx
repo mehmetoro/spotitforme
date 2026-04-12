@@ -241,8 +241,14 @@ export default function CollectionDetailClient() {
       setDeleting(true)
       const previousPhotoUrl = item.photo_url
       const ownerId = item.user_id
-      const { error: deleteError } = await supabase.from('collection_posts').delete().eq('id', item.id)
+      const { data: deletedItem, error: deleteError } = await supabase
+        .from('collection_posts')
+        .delete()
+        .eq('id', item.id)
+        .select('id')
+        .maybeSingle()
       if (deleteError) throw deleteError
+      if (!deletedItem) throw new Error('Koleksiyon paylaşımı silinemedi veya yetkiniz yok')
 
       if (previousPhotoUrl) {
         const oldStoragePath = extractSpotImagePath(previousPhotoUrl)

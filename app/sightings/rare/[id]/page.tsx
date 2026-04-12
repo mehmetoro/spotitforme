@@ -1,7 +1,7 @@
 // app/sightings/rare/[id]/page.tsx
 import type { Metadata } from 'next'
 import { headers } from 'next/headers'
-import { permanentRedirect } from 'next/navigation'
+import { notFound, permanentRedirect } from 'next/navigation'
 
 import { buildProductJsonLd } from '@/lib/seo-jsonld'
 import { buildRareSightingPath, extractSightingIdFromParam } from '@/lib/sighting-slug'
@@ -109,6 +109,8 @@ export default async function RareSightingDetailPage({ params }: { params: Promi
   const resolvedId = extractSightingIdFromParam(id)
   const baseUrl = await getBaseUrl()
   const record = await getRareRecord(resolvedId)
+
+  if (!record) notFound()
 
   if (record) {
     const canonicalPath = buildRareSightingPath(resolvedId, record.title || record.link_preview_title || record.description)

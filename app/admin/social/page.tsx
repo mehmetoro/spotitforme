@@ -78,12 +78,13 @@ export default function AdminSocialPage() {
     if (!confirm('Bu gönderiyi silmek istediğinize emin misiniz?')) return
 
     try {
-      const { error } = await supabase
-        .from('social_posts')
-        .delete()
-        .eq('id', postId)
-
-      if (error) throw error
+      const res = await fetch('/api/admin/delete-record', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ table_name: 'social_posts', id: postId }),
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result?.error || 'Gönderi silinemedi')
 
       alert('Gönderi silindi')
       fetchSocialData()

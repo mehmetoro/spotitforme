@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { headers } from 'next/headers'
-import { permanentRedirect } from 'next/navigation'
+import { notFound, permanentRedirect } from 'next/navigation'
 
 import { buildArticleJsonLd } from '@/lib/seo-jsonld'
 import { buildSightingPath, extractSightingIdFromParam } from '@/lib/sighting-slug'
@@ -102,6 +102,8 @@ export default async function SightingDetailPage({ params }: { params: Promise<{
   const resolvedId = extractSightingIdFromParam(id)
   const baseUrl = await getBaseUrl()
   const record = await getSightingRecord(resolvedId)
+
+  if (!record) notFound()
 
   if (record) {
     const canonicalPath = buildSightingPath(resolvedId, record.title || record.link_preview_title || record.spot?.title)

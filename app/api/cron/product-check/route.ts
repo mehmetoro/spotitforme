@@ -22,6 +22,9 @@ const BATCH_SIZE = 20
 const CANDIDATE_MULTIPLIER = 4
 // İstekler arası bekleme (ms) – site ban riskini azaltır
 const DELAY_MS = 1500
+const CLEANUP_REPORT_RETENTION_DAYS = 30
+const CLEANUP_LOG_RETENTION_DAYS = 90
+const CLEANUP_BATCH_SIZE = 500
 // Çalışma pencereleri (UTC):
 // - 07:00-09:59 UTC  (TRT 10:00-12:59)
 // - 17:00-18:59 UTC  (TRT 20:00-21:59)
@@ -42,6 +45,154 @@ interface RecordToCheck {
   table_name: TableName
   created_at: string
   product_checked_at: string | null
+}
+
+interface CleanupStats {
+  orphanReportsDeleted: number
+  oldResolvedReportsDeleted: number
+  oldLogsDeleted: number
+}
+
+function chunkArray<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = []
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size))
+  }
+  return chunks
+}
+
+async function cleanupOrphanProductReports(supabase: any, dryRun = false): Promise<number> {
+  const { data, error } = await supabase
+    .from('product_user_reports')
+    .select('id, table_name, record_id')
+    .order('created_at', { ascending: false })
+    .limit(CLEANUP_BATCH_SIZE)
+
+  const reports = (data ?? []) as Array<{
+    id: string
+    table_name: string
+    record_id: string
+  }>
+
+  if (error) {
+    // Migration uygulanmadıysa tablo olmayabilir.
+    if ((error as any)?.code === '42P01') return 0
+    throw error
+  }
+
+  if (!reports || reports.length === 0) return 0
+
+  const idsByTable: Record<TableName, string[]> = { sightings: [], quick_sightings: [] }
+  for (const row of reports) {
+    if (row.table_name === 'sightings' || row.table_name === 'quick_sightings') {
+      idsByTable[row.table_name].push(row.record_id)
+    }
+  }
+
+  const existing = new Set<string>()
+
+  for (const tableName of ['sightings', 'quick_sightings'] as const) {
+    const uniqueIds = Array.from(new Set(idsByTable[tableName]))
+    if (uniqueIds.length === 0) continue
+
+    const chunks = chunkArray(uniqueIds, 200)
+    for (const idChunk of chunks) {
+      const { data: rows, error: tableError } = await supabase
+        .from(tableName)
+        .select('id')
+        .in('id', idChunk)
+
+      if (tableError) throw tableError
+      for (const row of rows ?? []) {
+        existing.add(`${tableName}:${row.id}`)
+      }
+    }
+  }
+
+  const orphanIds = reports
+    .filter((row) => !existing.has(`${row.table_name}:${row.record_id}`))
+    .map((row) => row.id)
+
+  if (orphanIds.length === 0) return 0
+  if (dryRun) return orphanIds.length
+
+  let deletedCount = 0
+  for (const orphanChunk of chunkArray(orphanIds, 200)) {
+    const { data: deletedRows, error: deleteError } = await supabase
+      .from('product_user_reports')
+      .delete()
+      .in('id', orphanChunk)
+      .select('id')
+
+    if (deleteError) throw deleteError
+    deletedCount += deletedRows?.length ?? 0
+  }
+
+  return deletedCount
+}
+
+async function cleanupOldProductReports(supabase: any, dryRun = false): Promise<number> {
+  const olderThanIso = new Date(
+    Date.now() - CLEANUP_REPORT_RETENTION_DAYS * 24 * 60 * 60 * 1000,
+  ).toISOString()
+
+  if (dryRun) {
+    const { count, error } = await supabase
+      .from('product_user_reports')
+      .select('id', { count: 'exact', head: true })
+      .in('report_status', ['resolved', 'dismissed'])
+      .lt('created_at', olderThanIso)
+    if (error) {
+      if ((error as any)?.code === '42P01') return 0
+      throw error
+    }
+    return count ?? 0
+  }
+
+  const { data, error } = await supabase
+    .from('product_user_reports')
+    .delete()
+    .in('report_status', ['resolved', 'dismissed'])
+    .lt('created_at', olderThanIso)
+    .select('id')
+
+  if (error) {
+    if ((error as any)?.code === '42P01') return 0
+    throw error
+  }
+
+  return data?.length ?? 0
+}
+
+async function cleanupOldProductCheckLogs(supabase: any, dryRun = false): Promise<number> {
+  const olderThanIso = new Date(
+    Date.now() - CLEANUP_LOG_RETENTION_DAYS * 24 * 60 * 60 * 1000,
+  ).toISOString()
+
+  if (dryRun) {
+    const { count, error } = await supabase
+      .from('product_check_logs')
+      .select('id', { count: 'exact', head: true })
+      .lt('created_at', olderThanIso)
+    if (error) {
+      if ((error as any)?.code === '42P01') return 0
+      throw error
+    }
+    return count ?? 0
+  }
+
+  const { data, error } = await supabase
+    .from('product_check_logs')
+    .delete()
+    .lt('created_at', olderThanIso)
+    .select('id')
+
+  if (error) {
+    if ((error as any)?.code === '42P01') return 0
+    throw error
+  }
+
+  return data?.length ?? 0
 }
 
 function getAgeHours(createdAt: string): number {
@@ -84,6 +235,7 @@ export async function GET(request: NextRequest) {
   // Sadece belirlenen TRT pencerelerinde çalıştır.
   // Acil/manuel tetikleme için ?force=1 ile pencere kuralı atlanabilir.
   const forceRun = request.nextUrl.searchParams.get('force') === '1'
+  const dryRun = request.nextUrl.searchParams.get('dry_run') === '1'
   if (!forceRun && !isWithinRunWindowUtc()) {
     return NextResponse.json({
       success: true,
@@ -166,6 +318,11 @@ export async function GET(request: NextRequest) {
     .slice(0, BATCH_SIZE)
 
   const stats = { checked: 0, active: 0, hidden: 0, blocked: 0, errors: 0 }
+  const cleanupStats: CleanupStats = {
+    orphanReportsDeleted: 0,
+    oldResolvedReportsDeleted: 0,
+    oldLogsDeleted: 0,
+  }
 
   for (let i = 0; i < records.length; i++) {
     const record = records[i]
@@ -220,11 +377,25 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  try {
+    cleanupStats.orphanReportsDeleted = await cleanupOrphanProductReports(supabase, dryRun)
+    cleanupStats.oldResolvedReportsDeleted = await cleanupOldProductReports(supabase, dryRun)
+    cleanupStats.oldLogsDeleted = await cleanupOldProductCheckLogs(supabase, dryRun)
+  } catch {
+    // Cleanup hatasi stok kontrol akisini bozmasin.
+  }
+
   return NextResponse.json({
     success: true,
+    dry_run: dryRun,
     ...stats,
     selected: records.length,
     candidates: candidateRecords.length,
+    cleanup: cleanupStats,
+    cleanup_policy: {
+      reports_retention_days: CLEANUP_REPORT_RETENTION_DAYS,
+      logs_retention_days: CLEANUP_LOG_RETENTION_DAYS,
+    },
     timestamp: new Date().toISOString(),
   })
 }
