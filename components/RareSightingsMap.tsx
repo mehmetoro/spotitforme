@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { MapContainer, Marker, Popup, TileLayer, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
-import { buildRareSightingPath } from '@/lib/sighting-slug'
+import { buildRareSightingPath, buildSocialPath } from '@/lib/sighting-slug'
 
 type RareItem = {
   id: string
@@ -121,6 +121,13 @@ const markerIcon = new L.Icon({
 })
 
 function clamp(val: number, min: number, max: number) { return Math.max(min, Math.min(max, val)) }
+
+function buildItemDetailPath(item: RareItem) {
+  const title = item.title || item.description || ''
+  return item.source_channel === 'social'
+    ? buildSocialPath(item.id, title)
+    : buildRareSightingPath(item.id, title)
+}
 
 function createClusterIcon(level: ClusterLevel, count: number, currentZoom: number, label?: string | null) {
   const safeCount = count > 999 ? '999+' : String(count)
@@ -888,7 +895,7 @@ export default function RareSightingsMap({ channel = 'physical' }: RareSightings
                     )}
                     <div className="mt-2 flex items-center gap-2">
                       <a
-                        href={buildRareSightingPath(item.id, item.title || item.description || '')}
+                        href={buildItemDetailPath(item)}
                         className="text-xs font-semibold text-blue-600 hover:text-blue-700"
                       >
                         Paylasimi ac
@@ -1010,7 +1017,7 @@ export default function RareSightingsMap({ channel = 'physical' }: RareSightings
                     {cluster.items.slice(0, 5).map((item) => (
                       <a
                         key={item.id}
-                        href={buildRareSightingPath(item.id, item.title || item.description || '')}
+                        href={buildItemDetailPath(item)}
                         className="block truncate text-xs text-gray-700 hover:text-blue-600"
                       >
                         • {item.title || item.description || 'Nadir Paylasim'}
