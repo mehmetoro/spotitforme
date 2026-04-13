@@ -1,4 +1,6 @@
 /* app/globals.css - Z-INDEX + PWA AYARLARI */
+@import 'leaflet/dist/leaflet.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -64,4 +66,58 @@ header {
 /* ── btn-primary yardımcı sınıf ── */
 .btn-primary {
   @apply bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2 rounded-xl transition-colors shadow-sm text-sm;
+}
+
+.rare-cluster-icon-wrapper {
+  background: transparent;
+  border: 0;
+}
+
+.rare-cluster-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 2px;
+  border-radius: 9999px;
+  border: 3px solid rgba(255, 255, 255, 0.95);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18);
+  color: #fff;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.rare-cluster-label {
+  display: block;
+  max-width: 72px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.62rem;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  opacity: 0.95;
+}
+
+.rare-cluster-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: inherit;
+}
+
+.rare-cluster-country {
+  background: linear-gradient(135deg, #0f766e, #14b8a6);
+}
+
+.rare-cluster-city {
+  background: linear-gradient(135deg, #1d4ed8, #60a5fa);
+}
+
+.rare-cluster-district {
+  background: linear-gradient(135deg, #7c3aed, #a78bfa);
+}
+
+.rare-cluster-location {
+  background: linear-gradient(135deg, #ea580c, #fb923c);
 }

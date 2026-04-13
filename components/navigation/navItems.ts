@@ -66,6 +66,7 @@ export const navSections: NavSection[] = [
       { href: '/sightings', icon: HelpCircle, label: 'Yardımlar' },
       { href: '/virtual-sightings', icon: HelpCircle, label: 'Sanal Yardımlar' },
       { href: '/discovery', icon: Eye, label: 'Nadir' },
+      { href: '/rare-map', icon: MapPin, label: 'Nadir Haritası' },
       { href: '/museum', icon: Landmark, label: 'Müze' },
       { href: '/collection', icon: Gem, label: 'Koleksiyon' },
       { href: '/spots', icon: MapPin, label: "Spot'lar" },
