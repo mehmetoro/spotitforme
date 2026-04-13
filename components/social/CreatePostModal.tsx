@@ -217,6 +217,10 @@ export default function CreatePostModal({
       if (location && location.trim() !== '') {
         postData.location = location
       }
+      if (locationData?.latitude != null && locationData?.longitude != null) {
+        postData.latitude = Number(locationData.latitude)
+        postData.longitude = Number(locationData.longitude)
+      }
       if (city && city.trim() !== '') {
         // normalize: küçük harf, trimli
         postData.city = city.trim().toLocaleLowerCase('tr-TR')
@@ -245,6 +249,19 @@ export default function CreatePostModal({
           .single()
         newPost = retry.data
         postError = retry.error
+      }
+
+      // Eski şema uyumu: koordinat kolonları yoksa kaldırıp tekrar dene
+      if (postError && (postError.message?.includes('latitude') || postError.message?.includes('longitude'))) {
+        delete insertPayload.latitude
+        delete insertPayload.longitude
+        const retryWithoutCoords = await supabase
+          .from('social_posts')
+          .insert(insertPayload)
+          .select()
+          .single()
+        newPost = retryWithoutCoords.data
+        postError = retryWithoutCoords.error
       }
 
       if (postError) {

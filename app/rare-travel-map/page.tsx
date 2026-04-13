@@ -9,17 +9,17 @@ const RareSightingsMap = dynamic(() => import('@/components/RareSightingsMap'), 
   ),
 })
 
-export default function RareMapPage() {
+export default function RareTravelMapPage() {
   return (
     <main className="container-custom py-6 md:py-8">
       <div className="mb-4">
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Nadir Urun Haritasi</h1>
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Nadir Seyahat Haritasi</h1>
         <p className="mt-1 text-sm text-gray-600">
-          Fiziksel nadir urun paylasimlarinin konumlarini tek haritada gorun.
+          Sosyal nadir paylasimlarinin konumlarini tek haritada gorun.
         </p>
       </div>
 
-      <RareSightingsMap channel="physical" />
+      <RareSightingsMap channel="social" />
     </main>
   )
 }

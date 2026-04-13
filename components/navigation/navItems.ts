@@ -60,13 +60,31 @@ export const navSections: NavSection[] = [
     ],
   },
   {
+    title: 'Haritalar',
+    items: [
+      {
+        href: '/rare-map',
+        icon: MapPin,
+        label: 'Nadir Ürün Haritası',
+        description: 'Fiziksel nadir urun paylasimlari',
+        isPinned: true,
+      },
+      {
+        href: '/rare-travel-map',
+        icon: MapPin,
+        label: 'Nadir Seyahat Haritası',
+        description: 'Discovery sosyal paylasimlari',
+        isPinned: true,
+      },
+    ],
+  },
+  {
     title: 'Kesif',
     items: [
       { href: '/', icon: Home, label: 'Ana Sayfa' },
       { href: '/sightings', icon: HelpCircle, label: 'Yardımlar' },
       { href: '/virtual-sightings', icon: HelpCircle, label: 'Sanal Yardımlar' },
       { href: '/discovery', icon: Eye, label: 'Nadir' },
-      { href: '/rare-map', icon: MapPin, label: 'Nadir Haritası' },
       { href: '/museum', icon: Landmark, label: 'Müze' },
       { href: '/collection', icon: Gem, label: 'Koleksiyon' },
       { href: '/spots', icon: MapPin, label: "Spot'lar" },

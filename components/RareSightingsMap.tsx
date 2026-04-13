@@ -72,6 +72,10 @@ type MapFocusTarget = {
   zoom: number
 } | null
 
+type RareSightingsMapProps = {
+  channel?: 'physical' | 'virtual' | 'social'
+}
+
 const DEFAULT_CENTER: [number, number] = [39.0, 35.0]
 const DEFAULT_FILTERS: Filters = {
   searchText: '',
@@ -173,7 +177,7 @@ function createClusterIcon(level: ClusterLevel, count: number, currentZoom: numb
   })
 }
 
-export default function RareSightingsMap() {
+export default function RareSightingsMap({ channel = 'physical' }: RareSightingsMapProps) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -286,7 +290,7 @@ export default function RareSightingsMap() {
       setLoading(true)
       setError('')
       try {
-        const res = await fetch('/api/quick-sightings?channel=physical&hasLocation=with')
+        const res = await fetch(`/api/quick-sightings?channel=${channel}&hasLocation=with`)
         const data = await res.json()
         if (!res.ok) throw new Error(data?.error || 'Nadir verileri alinamadi')
         if (!isMounted) return
@@ -303,7 +307,7 @@ export default function RareSightingsMap() {
             category: item.category ?? null,
             marketplace: item.marketplace ?? null,
             seller_name: item.seller_name ?? null,
-            source_channel: item.source_channel ?? 'physical',
+            source_channel: item.source_channel ?? channel,
             price: parsePrice(item.price),
             latitude: item.latitude != null ? Number(item.latitude) : null,
             longitude: item.longitude != null ? Number(item.longitude) : null,
@@ -327,7 +331,7 @@ export default function RareSightingsMap() {
     return () => {
       isMounted = false
     }
-  }, [])
+  }, [channel])
 
   const countryOptions = useMemo(
     () => Array.from(new Set(items.map((item) => item.country).filter(Boolean) as string[])).sort((a, b) => a.localeCompare(b, 'tr')),
@@ -616,7 +620,13 @@ export default function RareSightingsMap() {
   }
 
   if (!items.length) {
-    return <div className="rounded-xl border border-gray-200 p-6 text-sm text-gray-600">Konum bilgisi olan fiziksel nadir paylasimi bulunamadi.</div>
+    return (
+      <div className="rounded-xl border border-gray-200 p-6 text-sm text-gray-600">
+        {channel === 'social'
+          ? 'Konum bilgisi olan sosyal nadir paylasimi bulunamadi.'
+          : 'Konum bilgisi olan fiziksel nadir paylasimi bulunamadi. Discovery paylasimlari icin Nadir Seyahat Haritasi sayfasini kullanin.'}
+      </div>
+    )
   }
 
   return (

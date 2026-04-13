@@ -61,9 +61,44 @@ export default function AppSidebar() {
               </div>
             )}
 
+            {section.title === 'Haritalar' && (
+              <div className="mb-3 rounded-2xl border border-emerald-100 bg-gradient-to-b from-emerald-50 to-white p-2">
+                <p className="px-2 pb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-600">
+                  Hızlı Haritalar
+                </p>
+                <div className="grid grid-cols-2 gap-1">
+                  {section.items
+                    .filter((item) => item.isPinned)
+                    .map(({ href, icon: Icon, label, description, matchPath }) => {
+                      const isActive = isActivePath(href, matchPath)
+
+                      return (
+                        <Link
+                          key={href}
+                          href={href}
+                          className={`block rounded-xl px-3 py-2 transition-colors ${
+                            isActive
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : 'text-gray-700 hover:bg-emerald-50 hover:text-emerald-700'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <Icon className="h-4 w-4 shrink-0" />
+                            <span className="text-sm font-semibold leading-tight">{label}</span>
+                          </div>
+                          {description && (
+                            <p className="mt-1 text-xs text-gray-500">{description}</p>
+                          )}
+                        </Link>
+                      )
+                    })}
+                </div>
+              </div>
+            )}
+
             <div className="space-y-1">
               {section.items
-                .filter((item) => section.title !== 'Paylasim' || !item.isPinned)
+                .filter((item) => (section.title !== 'Paylasim' && section.title !== 'Haritalar') || !item.isPinned)
                 .map(({ href, icon: Icon, label, matchPath, description }) => {
                   const isActive = isActivePath(href, matchPath)
 
