@@ -69,14 +69,17 @@ export default function AppSidebar() {
                 <div className="grid grid-cols-2 gap-1">
                   {section.items
                     .filter((item) => item.isPinned)
-                    .map(({ href, icon: Icon, label, description, matchPath }) => {
+                    .map(({ href, icon: Icon, label, description, matchPath }, index, items) => {
                       const isActive = isActivePath(href, matchPath)
+                      const shouldSpanFullRow = items.length % 2 === 1 && index === items.length - 1
 
                       return (
                         <Link
                           key={href}
                           href={href}
                           className={`block rounded-xl px-3 py-2 transition-colors ${
+                            shouldSpanFullRow ? 'col-span-2' : ''
+                          } ${
                             isActive
                               ? 'bg-emerald-100 text-emerald-800'
                               : 'text-gray-700 hover:bg-emerald-50 hover:text-emerald-700'

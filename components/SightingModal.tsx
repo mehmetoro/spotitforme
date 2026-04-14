@@ -636,12 +636,25 @@ export default function SightingModal({ spotId, spotTitle, onClose, onSuccess }:
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
             >
               <option value="">Kategori Seç</option>
-              <option value="Elektronik">Elektronik</option>
-              <option value="Giyim">Giyim</option>
-              <option value="Ev Eşyaları">Ev Eşyaları</option>
-              <option value="Spor">Spor</option>
-              <option value="Kitap">Kitap</option>
-              <option value="Oyuncak">Oyuncak</option>
+              <option value="Antika ve Koleksiyon">Antika ve Koleksiyon</option>
+              <option value="Vintage ve Retro">Vintage ve Retro</option>
+              <option value="Kitap ve Plak">Kitap ve Plak</option>
+              <option value="Oyuncak ve Figür">Oyuncak ve Figür</option>
+              <option value="Saat ve Takı">Saat ve Takı</option>
+              <option value="Dekorasyon ve Ev">Dekorasyon ve Ev</option>
+              <option value="Mutfak ve Zanaat">Mutfak ve Zanaat</option>
+              <option value="Giyim ve Aksesuar">Giyim ve Aksesuar</option>
+              <option value="Pazar ve Bit Pazarı">Pazar ve Bit Pazarı</option>
+              <option value="Sahaf ve Plakçı">Sahaf ve Plakçı</option>
+              <option value="Müzayede ve Mezat">Müzayede ve Mezat</option>
+              <option value="Müze ve Sergi">Müze ve Sergi</option>
+              <option value="Tarihi Çarşı ve Han">Tarihi Çarşı ve Han</option>
+              <option value="Yerel Dükkan ve Atölye">Yerel Dükkan ve Atölye</option>
+              <option value="Rota Üstü Durak">Rota Üstü Durak</option>
+              <option value="Gizli Mekan">Gizli Mekan</option>
+              <option value="Fotoğraflık Nokta">Fotoğraflık Nokta</option>
+              <option value="Etkinlik ve Festival">Etkinlik ve Festival</option>
+              <option value="Kafe ve Mola Noktası">Kafe ve Mola Noktası</option>
               <option value="Diğer">Diğer</option>
             </select>
           </div>

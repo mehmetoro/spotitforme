@@ -17,18 +17,26 @@ interface CreatePostModalProps {
 
 // Kategoriler
 const CATEGORIES = [
-  { id: 'elektronik', name: 'Elektronik', icon: '📱' },
-  { id: 'giyim', name: 'Giyim & Aksesuar', icon: '👕' },
-  { id: 'ev', name: 'Ev & Dekorasyon', icon: '🏠' },
-  { id: 'koleksiyon', name: 'Koleksiyon', icon: '🎨' },
-  { id: 'kitap', name: 'Kitap & Müzik', icon: '📚' },
-  { id: 'oyuncak', name: 'Oyuncak & Oyun', icon: '🎮' },
-  { id: 'spor', name: 'Spor & Outdoor', icon: '⚽' },
-  { id: 'arac', name: 'Araç & Parça', icon: '🚗' },
-  { id: 'saat', name: 'Saat & Aksesuar', icon: '⌚' },
-  { id: 'mutfak', name: 'Mutfak & Sofra', icon: '🍽️' },
-  { id: 'bahce', name: 'Bahçe & Dış Mekan', icon: '🌿' },
-  { id: 'diger', name: 'Diğer', icon: '🔍' }
+  { id: 'Antika ve Koleksiyon', name: 'Antika ve Koleksiyon', icon: '🗝️' },
+  { id: 'Vintage ve Retro', name: 'Vintage ve Retro', icon: '📻' },
+  { id: 'Kitap ve Plak', name: 'Kitap ve Plak', icon: '📚' },
+  { id: 'Oyuncak ve Figür', name: 'Oyuncak ve Figür', icon: '🧸' },
+  { id: 'Saat ve Takı', name: 'Saat ve Takı', icon: '⌚' },
+  { id: 'Dekorasyon ve Ev', name: 'Dekorasyon ve Ev', icon: '🏺' },
+  { id: 'Mutfak ve Zanaat', name: 'Mutfak ve Zanaat', icon: '🍽️' },
+  { id: 'Giyim ve Aksesuar', name: 'Giyim ve Aksesuar', icon: '🧥' },
+  { id: 'Pazar ve Bit Pazarı', name: 'Pazar ve Bit Pazarı', icon: '🛒' },
+  { id: 'Sahaf ve Plakçı', name: 'Sahaf ve Plakçı', icon: '📖' },
+  { id: 'Müzayede ve Mezat', name: 'Müzayede ve Mezat', icon: '🏛️' },
+  { id: 'Müze ve Sergi', name: 'Müze ve Sergi', icon: '🖼️' },
+  { id: 'Tarihi Çarşı ve Han', name: 'Tarihi Çarşı ve Han', icon: '🏚️' },
+  { id: 'Yerel Dükkan ve Atölye', name: 'Yerel Dükkan ve Atölye', icon: '🧰' },
+  { id: 'Rota Üstü Durak', name: 'Rota Üstü Durak', icon: '🧭' },
+  { id: 'Gizli Mekan', name: 'Gizli Mekan', icon: '🕵️' },
+  { id: 'Fotoğraflık Nokta', name: 'Fotoğraflık Nokta', icon: '📸' },
+  { id: 'Etkinlik ve Festival', name: 'Etkinlik ve Festival', icon: '🎪' },
+  { id: 'Kafe ve Mola Noktası', name: 'Kafe ve Mola Noktası', icon: '☕' },
+  { id: 'Diğer', name: 'Diğer', icon: '🔍' }
 ]
 
 

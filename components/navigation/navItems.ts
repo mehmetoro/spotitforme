@@ -76,6 +76,13 @@ export const navSections: NavSection[] = [
         description: 'Discovery sosyal paylasimlari',
         isPinned: true,
       },
+      {
+        href: '/rare-travel-plan',
+        icon: MapPin,
+        label: 'Nadir Seyahat Planı',
+        description: 'Rota ustu akilli nadir planlayici',
+        isPinned: true,
+      },
     ],
   },
   {

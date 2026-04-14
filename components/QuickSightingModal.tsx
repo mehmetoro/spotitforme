@@ -899,12 +899,26 @@ export default function QuickSightingModal({
               className="w-full px-4 py-3 border border-gray-300 rounded-lg"
             >
               <option value="">Kategori seçin (opsiyonel)</option>
-              <option value="electronics">Elektronik</option>
-              <option value="fashion">Giyim & Aksesuar</option>
-              <option value="home">Ev & Bahçe</option>
-              <option value="collectible">Koleksiyon</option>
-              <option value="vehicle">Araç & Parça</option>
-              <option value="other">Diğer</option>
+              <option value="Antika ve Koleksiyon">Antika ve Koleksiyon</option>
+              <option value="Vintage ve Retro">Vintage ve Retro</option>
+              <option value="Kitap ve Plak">Kitap ve Plak</option>
+              <option value="Oyuncak ve Figür">Oyuncak ve Figür</option>
+              <option value="Saat ve Takı">Saat ve Takı</option>
+              <option value="Dekorasyon ve Ev">Dekorasyon ve Ev</option>
+              <option value="Mutfak ve Zanaat">Mutfak ve Zanaat</option>
+              <option value="Giyim ve Aksesuar">Giyim ve Aksesuar</option>
+              <option value="Pazar ve Bit Pazarı">Pazar ve Bit Pazarı</option>
+              <option value="Sahaf ve Plakçı">Sahaf ve Plakçı</option>
+              <option value="Müzayede ve Mezat">Müzayede ve Mezat</option>
+              <option value="Müze ve Sergi">Müze ve Sergi</option>
+              <option value="Tarihi Çarşı ve Han">Tarihi Çarşı ve Han</option>
+              <option value="Yerel Dükkan ve Atölye">Yerel Dükkan ve Atölye</option>
+              <option value="Rota Üstü Durak">Rota Üstü Durak</option>
+              <option value="Gizli Mekan">Gizli Mekan</option>
+              <option value="Fotoğraflık Nokta">Fotoğraflık Nokta</option>
+              <option value="Etkinlik ve Festival">Etkinlik ve Festival</option>
+              <option value="Kafe ve Mola Noktası">Kafe ve Mola Noktası</option>
+              <option value="Diğer">Diğer</option>
             </select>
           </div>
 

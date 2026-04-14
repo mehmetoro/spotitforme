@@ -306,11 +306,16 @@ export default function Header() {
                   {section.title}
                 </p>
                 <div className="grid grid-cols-2 gap-1">
-                  {section.items.map(({ href, icon: Icon, label, description }) => (
+                  {section.items.map(({ href, icon: Icon, label, description }, index, items) => {
+                    const shouldSpanFullRow = section.title === 'Haritalar' && items.length % 2 === 1 && index === items.length - 1
+
+                    return (
                     <Link
                       key={href}
                       href={href}
-                      className="flex flex-col items-start gap-1 px-3 py-3 rounded-xl text-gray-700 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                      className={`flex flex-col items-start gap-1 px-3 py-3 rounded-xl text-gray-700 hover:text-blue-600 hover:bg-blue-50 transition-colors ${
+                        shouldSpanFullRow ? 'col-span-2' : ''
+                      }`}
                       onClick={() => setMobileOpen(false)}
                     >
                       <div className="flex items-center gap-2 text-sm font-medium">
@@ -321,7 +326,8 @@ export default function Header() {
                         <p className="text-xs text-gray-500">{description}</p>
                       )}
                     </Link>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
             ))}
