@@ -87,6 +87,29 @@ type NominatimResult = {
   lon: string
 }
 
+const TRAVEL_CATEGORIES = [
+  'Antika ve Koleksiyon',
+  'Vintage ve Retro',
+  'Kitap ve Plak',
+  'Oyuncak ve Figür',
+  'Saat ve Takı',
+  'Dekorasyon ve Ev',
+  'Mutfak ve Zanaat',
+  'Giyim ve Aksesuar',
+  'Pazar ve Bit Pazarı',
+  'Sahaf ve Plakçı',
+  'Müzayede ve Mezat',
+  'Müze ve Sergi',
+  'Tarihi Çarşı ve Han',
+  'Yerel Dükkan ve Atölye',
+  'Rota Üstü Durak',
+  'Gizli Mekan',
+  'Fotoğraflık Nokta',
+  'Etkinlik ve Festival',
+  'Kafe ve Mola Noktası',
+  'Diğer',
+]
+
 function LocationAutocomplete({
   value,
   onChange,
@@ -347,22 +370,7 @@ export default function RareTravelPlanner() {
 
   useEffect(() => {
     const loadInitialCategories = async () => {
-      const { data, error: fetchErr } = await supabase
-        .from('social_posts')
-        .select('category')
-        .limit(200)
-
-      if (fetchErr) return
-
-      const options = Array.from(
-        new Set(
-          (data || [])
-            .map((row: any) => String(row?.category || '').trim())
-            .filter(Boolean),
-        ),
-      ).sort((a, b) => a.localeCompare(b, 'tr'))
-
-      setInitialCategoryOptions(options)
+      setInitialCategoryOptions(TRAVEL_CATEGORIES)
     }
 
     loadInitialCategories()
