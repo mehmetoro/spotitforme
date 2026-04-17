@@ -811,7 +811,7 @@ export default function LiveTravelSessionPage() {
       throw insertErr
     }
 
-    await loadTripPosts(session.user_id)
+    await loadTripPosts()
   }
 
   useEffect(() => {
