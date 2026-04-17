@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { getImagePreviewDataUrl, optimizeImageFile } from '@/lib/image-processing';
 import { Upload, X, Loader2, Save, ArrowLeft } from 'lucide-react';
 
 export default function AddProductPage() {
@@ -80,7 +81,7 @@ export default function AddProductPage() {
     }
   };
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
     
     const file = e.target.files[0];
@@ -91,19 +92,21 @@ export default function AddProductPage() {
       return;
     }
     
-    if (file.size > 5 * 1024 * 1024) { // 5MB
-      alert('Resim boyutu maksimum 5MB olmalıdır');
+    if (file.size > 12 * 1024 * 1024) {
+      alert('Resim boyutu maksimum 12MB olmalidir');
       return;
     }
-    
-    setImageFile(file);
-    
-    // Önizleme oluştur
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setImagePreview(reader.result as string);
-    };
-    reader.readAsDataURL(file);
+
+    try {
+      const optimizedFile = await optimizeImageFile(file)
+      const preview = await getImagePreviewDataUrl(optimizedFile)
+      setImageFile(optimizedFile)
+      setImagePreview(preview)
+    } catch {
+      alert('Resim optimize edilirken bir hata olustu')
+    }
+
+    e.target.value = ''
   };
 
   const removeImage = () => {

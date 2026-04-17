@@ -4,9 +4,10 @@
 import { useEffect, useState, type ChangeEvent } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { buildSeoImageFileName } from '@/lib/content-seo'
+import { getImagePreviewDataUrl, optimizeImageFile } from '@/lib/image-processing'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
-import { buildCollectionPath, buildRareSightingPath, buildSightingPath, buildSpotPath } from '@/lib/sighting-slug'
+import { buildCollectionPath, buildRareSightingPath, buildSightingPath, buildSocialPath, buildSpotPath } from '@/lib/sighting-slug'
 
 interface UserProfile {
   id: string
@@ -91,6 +92,19 @@ interface UserCollectionItem {
   created_at: string
 }
 
+interface UserTravelPostItem {
+  id: string
+  title: string | null
+  content: string | null
+  post_type: string | null
+  category: string | null
+  location: string | null
+  city: string | null
+  hashtags: string[] | null
+  images: string[] | null
+  created_at: string
+}
+
 export default function ProfilePage() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -104,13 +118,14 @@ export default function ProfilePage() {
     spotsFound: 0
   })
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'helps' | 'spots' | 'rare' | 'museum' | 'collection' | 'shop' | 'settings'>('spots')
+  const [activeTab, setActiveTab] = useState<'helps' | 'spots' | 'rare' | 'travel' | 'museum' | 'collection' | 'shop' | 'settings'>('spots')
   const [spotBalance, setSpotBalance] = useState<number>(0)
   const [noktaBalance, setNoktaBalance] = useState<number>(0)
   const [blockedSpots, setBlockedSpots] = useState<number>(0)
   const [noktaConversionHistory, setNoktaConversionHistory] = useState<NoktaConversionHistoryItem[]>([])
   const [userHelps, setUserHelps] = useState<UserHelpItem[]>([])
   const [userRares, setUserRares] = useState<UserRareItem[]>([])
+  const [userTravelPosts, setUserTravelPosts] = useState<UserTravelPostItem[]>([])
   const [userCollectionItems, setUserCollectionItems] = useState<UserCollectionItem[]>([])
   const [collectionSaving, setCollectionSaving] = useState(false)
   const [collectionActionId, setCollectionActionId] = useState<string | null>(null)
@@ -120,6 +135,8 @@ export default function ProfilePage() {
   const [helpEditingId, setHelpEditingId] = useState<string | null>(null)
   const [rareActionId, setRareActionId] = useState<string | null>(null)
   const [rareEditingId, setRareEditingId] = useState<string | null>(null)
+  const [travelActionId, setTravelActionId] = useState<string | null>(null)
+  const [travelEditingId, setTravelEditingId] = useState<string | null>(null)
   const [collectionPhotoFile, setCollectionPhotoFile] = useState<File | null>(null)
   const [collectionPhotoPreview, setCollectionPhotoPreview] = useState<string | null>(null)
   const [collectionEditPhotoFile, setCollectionEditPhotoFile] = useState<File | null>(null)
@@ -158,6 +175,14 @@ export default function ProfilePage() {
     notes: '',
     price: '',
   })
+  const [travelEditForm, setTravelEditForm] = useState({
+    title: '',
+    content: '',
+    category: '',
+    location: '',
+    city: '',
+    hashtags: '',
+  })
 
   useEffect(() => {
     checkAuth()
@@ -167,7 +192,7 @@ export default function ProfilePage() {
     const tab = searchParams.get('tab')
     if (!tab) return
 
-    const allowedTabs: Array<'helps' | 'spots' | 'rare' | 'museum' | 'collection' | 'settings'> = ['helps', 'spots', 'rare', 'museum', 'collection', 'settings']
+    const allowedTabs: Array<'helps' | 'spots' | 'rare' | 'travel' | 'museum' | 'collection' | 'settings'> = ['helps', 'spots', 'rare', 'travel', 'museum', 'collection', 'settings']
 
     if (tab === 'shop' && userShop) {
       setActiveTab('shop')
@@ -175,7 +200,7 @@ export default function ProfilePage() {
     }
 
     if (allowedTabs.includes(tab as any)) {
-      setActiveTab(tab as 'helps' | 'spots' | 'rare' | 'museum' | 'collection' | 'settings')
+      setActiveTab(tab as 'helps' | 'spots' | 'rare' | 'travel' | 'museum' | 'collection' | 'settings')
     }
   }, [searchParams, userShop])
 
@@ -263,6 +288,32 @@ export default function ProfilePage() {
         .order('created_at', { ascending: false })
 
       setUserRares((rareData || []) as UserRareItem[])
+
+      // Kullanıcının Nadir Seyahat (social) paylaşımları
+      const { data: travelPostsData, error: travelPostsError } = await supabase
+        .from('social_posts')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+
+      if (travelPostsError) {
+        console.warn('social_posts query warning:', travelPostsError.message)
+      }
+
+      setUserTravelPosts(
+        (travelPostsData || []).map((row: any) => ({
+          id: row.id,
+          title: row.title || null,
+          content: row.content || null,
+          post_type: row.post_type || null,
+          category: row.category || null,
+          location: row.location || null,
+          city: row.city || null,
+          hashtags: Array.isArray(row.hashtags) ? row.hashtags : null,
+          images: Array.isArray(row.images) ? row.images : null,
+          created_at: row.created_at,
+        })) as UserTravelPostItem[]
+      )
 
       // Kullanıcının koleksiyon paylaşımları
       const { data: collectionData, error: collectionError } = await supabase
@@ -527,7 +578,7 @@ export default function ProfilePage() {
   }
 
   const handleDeleteRare = async (rare: UserRareItem) => {
-    const confirmed = window.confirm('Bu nadir paylaşımını silmek istediğinize emin misiniz?')
+    const confirmed = window.confirm('Bu nadir seyahati silmek istediğinize emin misiniz?')
     if (!confirmed) return
 
     try {
@@ -541,14 +592,14 @@ export default function ProfilePage() {
         .maybeSingle()
 
       if (error) throw error
-      if (!deletedRare) throw new Error('Nadir paylaşımı silinemedi veya yetkiniz yok')
+      if (!deletedRare) throw new Error('Nadir seyahat silinemedi veya yetkiniz yok')
 
       setUserRares((prev) => prev.filter((item) => item.id !== rare.id))
       if (rareEditingId === rare.id) {
         setRareEditingId(null)
       }
     } catch (err: any) {
-      alert(err?.message || 'Nadir paylaşımı silinemedi')
+      alert(err?.message || 'Nadir seyahat silinemedi')
     } finally {
       setRareActionId(null)
     }
@@ -595,14 +646,147 @@ export default function ProfilePage() {
         .select('id, description, category, location_name, city, price, points_earned, is_in_museum, created_at')
         .single()
 
-      if (error || !data) throw error || new Error('Nadir paylaşımı güncellenemedi')
+      if (error || !data) throw error || new Error('Nadir seyahat güncellenemedi')
 
       setUserRares((prev) => prev.map((item) => (item.id === rare.id ? data as UserRareItem : item)))
       setRareEditingId(null)
     } catch (err: any) {
-      alert(err?.message || 'Nadir paylaşımı güncellenemedi')
+      alert(err?.message || 'Nadir seyahat güncellenemedi')
     } finally {
       setRareActionId(null)
+    }
+  }
+
+  const handleStartTravelEdit = (post: UserTravelPostItem) => {
+    setTravelEditingId(post.id)
+    setTravelEditForm({
+      title: post.title || '',
+      content: post.content || '',
+      category: post.category || '',
+      location: post.location || '',
+      city: post.city || '',
+      hashtags: (post.hashtags || []).join(' '),
+    })
+  }
+
+  const handleCancelTravelEdit = () => {
+    setTravelEditingId(null)
+  }
+
+  const parseHashtags = (value: string): string[] => {
+    return Array.from(
+      new Set(
+        value
+          .split(/\s+/)
+          .map((tag) => tag.trim())
+          .filter(Boolean)
+          .map((tag) => (tag.startsWith('#') ? tag.slice(1) : tag))
+          .filter(Boolean)
+      )
+    )
+  }
+
+  const handleSaveTravelEdit = async (post: UserTravelPostItem) => {
+    if (!user?.id) {
+      alert('Kullanıcı bulunamadı')
+      return
+    }
+
+    const normalizedTitle = travelEditForm.title.trim()
+    const normalizedContent = travelEditForm.content.trim()
+    if (!normalizedTitle && !normalizedContent) {
+      alert('Başlık veya içerik alanlarından en az biri dolu olmalıdır.')
+      return
+    }
+
+    try {
+      setTravelActionId(post.id)
+
+      const basePayload: Record<string, any> = {
+        title: normalizedTitle || null,
+        content: normalizedContent || null,
+        category: travelEditForm.category.trim() || null,
+        location: travelEditForm.location.trim() || null,
+        city: travelEditForm.city.trim() || null,
+        hashtags: parseHashtags(travelEditForm.hashtags),
+      }
+
+      if ((basePayload.hashtags as string[]).length === 0) {
+        basePayload.hashtags = null
+      }
+
+      const optionalColumns = ['title', 'category', 'location', 'city', 'hashtags']
+      let payload = { ...basePayload }
+      let updateData: any = null
+      let updateError: any = null
+
+      while (true) {
+        const response = await supabase
+          .from('social_posts')
+          .update(payload)
+          .eq('id', post.id)
+          .eq('user_id', user.id)
+          .select('id, title, content, post_type, category, location, city, hashtags, images, created_at')
+          .maybeSingle()
+
+        updateData = response.data
+        updateError = response.error
+
+        if (!updateError) {
+          break
+        }
+
+        const removable = optionalColumns.find((field) => field in payload && updateError.message?.includes(field))
+        if (!removable) {
+          break
+        }
+
+        delete payload[removable]
+      }
+
+      if (updateError) throw updateError
+      if (!updateData) throw new Error('Nadir seyahat paylaşımı güncellenemedi veya yetkiniz yok')
+
+      setUserTravelPosts((prev) => prev.map((item) => (item.id === post.id ? (updateData as UserTravelPostItem) : item)))
+      setTravelEditingId(null)
+    } catch (err: any) {
+      alert(err?.message || 'Nadir seyahat paylaşımı güncellenemedi')
+    } finally {
+      setTravelActionId(null)
+    }
+  }
+
+  const handleDeleteTravel = async (post: UserTravelPostItem) => {
+    if (!user?.id) {
+      alert('Kullanıcı bulunamadı')
+      return
+    }
+
+    const confirmed = window.confirm('Bu nadir seyahat paylaşımını silmek istediğinize emin misiniz?')
+    if (!confirmed) return
+
+    try {
+      setTravelActionId(post.id)
+
+      const { data: deletedPost, error } = await supabase
+        .from('social_posts')
+        .delete()
+        .eq('id', post.id)
+        .eq('user_id', user.id)
+        .select('id')
+        .maybeSingle()
+
+      if (error) throw error
+      if (!deletedPost) throw new Error('Nadir seyahat paylaşımı silinemedi veya yetkiniz yok')
+
+      setUserTravelPosts((prev) => prev.filter((item) => item.id !== post.id))
+      if (travelEditingId === post.id) {
+        setTravelEditingId(null)
+      }
+    } catch (err: any) {
+      alert(err?.message || 'Nadir seyahat paylaşımı silinemedi')
+    } finally {
+      setTravelActionId(null)
     }
   }
 
@@ -641,21 +825,25 @@ export default function ProfilePage() {
     setCollectionEditPhotoPreview(null)
   }
 
-  const handleCollectionEditPhotoUpload = (e: ChangeEvent<HTMLInputElement>) => {
+  const handleCollectionEditPhotoUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
-    if (file.size > 5 * 1024 * 1024) {
-      alert('Koleksiyon fotoğrafı 5MB\'dan küçük olmalıdır.')
+    if (file.size > 12 * 1024 * 1024) {
+      alert('Koleksiyon fotografi 12MB\'dan kucuk olmalidir.')
       return
     }
 
-    setCollectionEditPhotoFile(file)
-    const reader = new FileReader()
-    reader.onloadend = () => {
-      setCollectionEditPhotoPreview(reader.result as string)
+    try {
+      const optimizedFile = await optimizeImageFile(file)
+      const preview = await getImagePreviewDataUrl(optimizedFile)
+      setCollectionEditPhotoFile(optimizedFile)
+      setCollectionEditPhotoPreview(preview)
+    } catch {
+      alert('Resim optimize edilirken bir hata olustu.')
     }
-    reader.readAsDataURL(file)
+
+    e.target.value = ''
   }
 
   const handleSaveCollectionEdit = async (item: UserCollectionItem) => {
@@ -882,21 +1070,25 @@ export default function ProfilePage() {
   const noktaProgress = ((noktaBalance % 10) + 10) % 10
   const noktaRemainingForNextSpot = 10 - noktaProgress
 
-  const handleCollectionPhotoUpload = (e: ChangeEvent<HTMLInputElement>) => {
+  const handleCollectionPhotoUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
-    if (file.size > 5 * 1024 * 1024) {
-      alert('Koleksiyon fotoğrafı 5MB\'dan küçük olmalıdır.')
+    if (file.size > 12 * 1024 * 1024) {
+      alert('Koleksiyon fotografi 12MB\'dan kucuk olmalidir.')
       return
     }
 
-    setCollectionPhotoFile(file)
-    const reader = new FileReader()
-    reader.onloadend = () => {
-      setCollectionPhotoPreview(reader.result as string)
+    try {
+      const optimizedFile = await optimizeImageFile(file)
+      const preview = await getImagePreviewDataUrl(optimizedFile)
+      setCollectionPhotoFile(optimizedFile)
+      setCollectionPhotoPreview(preview)
+    } catch {
+      alert('Resim optimize edilirken bir hata olustu.')
     }
-    reader.readAsDataURL(file)
+
+    e.target.value = ''
   }
 
   return (
@@ -1112,7 +1304,17 @@ export default function ProfilePage() {
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              💎 Nadirlerim ({userRares.length})
+              💎 Nadir Bildirimlerim ({userRares.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('travel')}
+              className={`flex-shrink-0 px-6 py-4 text-center font-medium whitespace-nowrap ${
+                activeTab === 'travel'
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              🧭 Nadir Seyahatlerim ({userTravelPosts.length})
             </button>
             <button
               onClick={() => setActiveTab('museum')}
@@ -1398,11 +1600,11 @@ export default function ProfilePage() {
 
             {activeTab === 'rare' && (
               <div>
-                <h3 className="text-xl font-bold text-gray-900 mb-4">Nadir Paylaşımlarım</h3>
+                <h3 className="text-xl font-bold text-gray-900 mb-4">Nadir Bildirimlerim</h3>
                 {userRares.length === 0 ? (
                   <div className="bg-gray-50 rounded-xl p-8 text-center">
                     <div className="text-4xl mb-4">💎</div>
-                    <p className="text-gray-600">Henüz nadir paylaşımınız yok.</p>
+                    <p className="text-gray-600">Henüz nadir seyahatiniz yok.</p>
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -1500,6 +1702,129 @@ export default function ProfilePage() {
                                 className="px-3 py-2 rounded-lg text-sm font-medium bg-red-100 text-red-700 hover:bg-red-200 disabled:opacity-60"
                               >
                                 Sil
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'travel' && (
+              <div>
+                <h3 className="text-xl font-bold text-gray-900 mb-4">Nadir Seyahat Paylaşımlarım</h3>
+                {userTravelPosts.length === 0 ? (
+                  <div className="bg-gray-50 rounded-xl p-8 text-center">
+                    <div className="text-4xl mb-4">🧭</div>
+                    <p className="text-gray-600">Henüz nadir seyahat paylaşımınız yok.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {userTravelPosts.map((post) => (
+                      <div key={post.id} className="border border-gray-100 rounded-xl p-4 flex flex-col gap-3">
+                        {travelEditingId === post.id ? (
+                          <div className="space-y-3">
+                            <input
+                              value={travelEditForm.title}
+                              onChange={(e) => setTravelEditForm({ ...travelEditForm, title: e.target.value })}
+                              placeholder="Başlık"
+                              className="w-full px-3 py-2 border border-blue-200 rounded-lg"
+                            />
+                            <textarea
+                              value={travelEditForm.content}
+                              onChange={(e) => setTravelEditForm({ ...travelEditForm, content: e.target.value })}
+                              placeholder="İçerik"
+                              rows={4}
+                              className="w-full px-3 py-2 border border-blue-200 rounded-lg"
+                            />
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              <input
+                                value={travelEditForm.category}
+                                onChange={(e) => setTravelEditForm({ ...travelEditForm, category: e.target.value })}
+                                placeholder="Kategori"
+                                className="px-3 py-2 border border-blue-200 rounded-lg"
+                              />
+                              <input
+                                value={travelEditForm.city}
+                                onChange={(e) => setTravelEditForm({ ...travelEditForm, city: e.target.value })}
+                                placeholder="Şehir"
+                                className="px-3 py-2 border border-blue-200 rounded-lg"
+                              />
+                            </div>
+                            <input
+                              value={travelEditForm.location}
+                              onChange={(e) => setTravelEditForm({ ...travelEditForm, location: e.target.value })}
+                              placeholder="Konum"
+                              className="w-full px-3 py-2 border border-blue-200 rounded-lg"
+                            />
+                            <input
+                              value={travelEditForm.hashtags}
+                              onChange={(e) => setTravelEditForm({ ...travelEditForm, hashtags: e.target.value })}
+                              placeholder="#vintage #koleksiyon"
+                              className="w-full px-3 py-2 border border-blue-200 rounded-lg"
+                            />
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                onClick={() => handleSaveTravelEdit(post)}
+                                disabled={travelActionId === post.id}
+                                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-60"
+                              >
+                                {travelActionId === post.id ? 'Kaydediliyor...' : 'Kaydet'}
+                              </button>
+                              <button
+                                onClick={handleCancelTravelEdit}
+                                disabled={travelActionId === post.id}
+                                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg disabled:opacity-60"
+                              >
+                                Vazgeç
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap gap-2 mb-1">
+                                <span className="text-xs font-medium px-2 py-1 rounded-full bg-blue-100 text-blue-700">
+                                  {post.post_type || 'rare_sight'}
+                                </span>
+                                {post.category && (
+                                  <span className="text-xs font-medium px-2 py-1 rounded-full bg-gray-100 text-gray-700">
+                                    {post.category}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="font-semibold text-gray-900 truncate">{post.title || post.content || 'Nadir Seyahat paylaşımı'}</p>
+                              {post.content && (
+                                <p className="text-sm text-gray-600 mt-1 line-clamp-2">{post.content}</p>
+                              )}
+                              <p className="text-sm text-gray-600 mt-1">
+                                📍 {post.location || '-'}{post.city ? `, ${post.city}` : ''}
+                              </p>
+                              <p className="text-xs text-gray-500 mt-1">{new Date(post.created_at).toLocaleString('tr-TR')}</p>
+                            </div>
+                            <div className="flex flex-wrap gap-2 items-center">
+                              <Link
+                                href={buildSocialPath(post.id, post.title || post.content || post.location || 'detay')}
+                                className="px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-sm"
+                              >
+                                Detay
+                              </Link>
+                              <button
+                                onClick={() => handleStartTravelEdit(post)}
+                                disabled={travelActionId === post.id}
+                                className="px-3 py-2 rounded-lg text-sm font-medium bg-amber-100 text-amber-700 hover:bg-amber-200 disabled:opacity-60"
+                              >
+                                Düzenle
+                              </button>
+                              <button
+                                onClick={() => handleDeleteTravel(post)}
+                                disabled={travelActionId === post.id}
+                                className="px-3 py-2 rounded-lg text-sm font-medium bg-red-100 text-red-700 hover:bg-red-200 disabled:opacity-60"
+                              >
+                                {travelActionId === post.id ? 'Siliniyor...' : 'Sil'}
                               </button>
                             </div>
                           </>

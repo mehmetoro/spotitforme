@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { buildSeoImageFileName, suggestHashtagsFromText } from '@/lib/content-seo'
+import { getImagePreviewDataUrl, optimizeImageFile } from '@/lib/image-processing'
 import { supabase } from '@/lib/supabase'
 
 interface SightingModalProps {
@@ -86,24 +87,29 @@ export default function SightingModal({ spotId, spotTitle, onClose, onSuccess }:
   };
 
   // RESİM SEÇİMİ
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      setErrorMessage('Resim boyutu 5MB\'dan küçük olmalıdır');
+    if (file.size > 12 * 1024 * 1024) {
+      setErrorMessage('Resim boyutu 12MB\'dan kucuk olmalidir');
       return;
     }
     if (!file.type.startsWith('image/')) {
       setErrorMessage('Sadece resim dosyaları yüklenebilir');
       return;
     }
-    setImageFile(file);
-    setErrorMessage('');
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setImagePreview(reader.result as string);
-    };
-    reader.readAsDataURL(file);
+
+    try {
+      const optimizedFile = await optimizeImageFile(file)
+      const preview = await getImagePreviewDataUrl(optimizedFile)
+      setImageFile(optimizedFile)
+      setImagePreview(preview)
+      setErrorMessage('')
+    } catch {
+      setErrorMessage('Resim optimize edilirken hata olustu')
+    }
+
+    e.target.value = ''
   };
 
   // RESİM KALDIRMA

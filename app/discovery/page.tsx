@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Feed from '@/components/social/Feed'
+import type { PopularSort, PopularWindow } from '@/components/social/Feed'
 import CreatePostModal from '@/components/social/CreatePostModal'
 import FeedFilters, { FilterType } from '@/components/social/FeedFilters'
 import CategoryGrid from '@/components/social/CategoryGrid'
@@ -252,9 +253,12 @@ export default function DiscoveryPage() {
   const composeFromUrl = searchParams.get('compose')
   const categoryFromUrl = searchParams.get('category') || ''
   const cityFromUrl = searchParams.get('city') || ''
+  const filterFromUrl = searchParams.get('filter') as FilterType | null
 
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [activeFilter, setActiveFilter] = useState<FilterType>('for-you')
+  const [popularWindow, setPopularWindow] = useState<PopularWindow>('7d')
+  const [popularSort, setPopularSort] = useState<PopularSort>('engagement')
   const [userStats, setUserStats] = useState({
     postsCount: 0,
     followersCount: 0,
@@ -275,6 +279,12 @@ export default function DiscoveryPage() {
       setShowCreateModal(true)
     }
   }, [composeFromUrl])
+
+  useEffect(() => {
+    if (filterFromUrl && ['for-you', 'following', 'popular', 'category'].includes(filterFromUrl)) {
+      setActiveFilter(filterFromUrl)
+    }
+  }, [filterFromUrl])
 
   // Kullanıcı istatistiklerini yükle
   useEffect(() => {
@@ -473,26 +483,6 @@ export default function DiscoveryPage() {
         desc: 'En çok beğenilen ve paylaşılan içerikler',
         icon: '🔥'
       },
-      'rare': {
-        title: 'Nadir Gördüm',
-        desc: 'Topluluğun nadir bulduğu ürün ve yerler',
-        icon: '👁️'
-      },
-      'spots': {
-        title: 'Spotlar',
-        desc: 'Aradığı ürünü paylaşan spot ilanları',
-        icon: '📍'
-      },
-      'found': {
-        title: 'Ben Gördüm',
-        desc: 'Bulunmuş ürün ve yer bildirimleri',
-        icon: '🔍'
-      },
-      'products': {
-        title: 'Ürünler',
-        desc: 'Mağazaların sattığı ürünler',
-        icon: '🛍️'
-      },
       'category': {
         title: 'Kategoriler',
         desc: 'Kategoriye göre göz at',
@@ -538,6 +528,40 @@ export default function DiscoveryPage() {
             activeFilter={activeFilter}
             onFilterChange={setActiveFilter}
           />
+
+          {activeFilter === 'popular' && (
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+              <label className="flex flex-col gap-1 text-sm text-gray-700">
+                <span className="font-medium">Zaman Araligi</span>
+                <select
+                  value={popularWindow}
+                  onChange={(e) => setPopularWindow(e.target.value as PopularWindow)}
+                  className="px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="24h">Son 24 Saat</option>
+                  <option value="3d">Son 3 Gun</option>
+                  <option value="7d">Son 7 Gun</option>
+                  <option value="30d">Son 30 Gun</option>
+                  <option value="all">Tum Zaman</option>
+                </select>
+              </label>
+
+              <label className="flex flex-col gap-1 text-sm text-gray-700">
+                <span className="font-medium">Populerlik Siralamasi</span>
+                <select
+                  value={popularSort}
+                  onChange={(e) => setPopularSort(e.target.value as PopularSort)}
+                  className="px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="engagement">Etkilesim Skoru</option>
+                  <option value="likes">En Cok Begeni</option>
+                  <option value="comments">En Cok Yorum</option>
+                  <option value="saves">En Cok Kaydetme</option>
+                  <option value="recent">En Yeni</option>
+                </select>
+              </label>
+            </div>
+          )}
         </div>
 
         <div className="grid lg:grid-cols-3 gap-8 min-w-0">
@@ -573,6 +597,8 @@ export default function DiscoveryPage() {
                 initialSearch={searchFromUrl}
                 category={categoryFromUrl}
                 city={cityFromUrl}
+                popularWindow={popularWindow}
+                popularSort={popularSort}
               />
             )}
           </div>
@@ -715,20 +741,12 @@ export default function DiscoveryPage() {
                     {activeFilter === 'for-you' && 'Özel Seçilmiş İçerikler'}
                     {activeFilter === 'following' && 'Takip Ettiklerinin Paylaşımları'}
                     {activeFilter === 'popular' && 'En Popüler İçerikler'}
-                    {activeFilter === 'rare' && 'Nadir Buluşlar'}
-                    {activeFilter === 'spots' && 'Aradığı Ürünler'}
-                    {activeFilter === 'found' && 'Bulunmuş Ürünler'}
-                    {activeFilter === 'products' && 'Mağaza Ürünleri'}
                     {activeFilter === 'category' && 'Kategorilere Göz At'}
                   </h4>
                   <p className="text-sm text-gray-600">
                     {activeFilter === 'for-you' && 'İlgi alanlarına göre hazırlanmış içerikleri keşfet'}
                     {activeFilter === 'following' && 'Takip ettiğin kişilerin en son paylaşımlarını gör'}
                     {activeFilter === 'popular' && 'Topluluğun en beğendiği içerikleri açılımda bul'}
-                    {activeFilter === 'rare' && 'Ender rastlanan ürünler ve yerler hakkında bilgi al'}
-                    {activeFilter === 'spots' && 'Aranan ürünlere yardımcı olmak için bul'}
-                    {activeFilter === 'found' && 'Bulduğun ürünleri paylaş ve ödüle erişin'}
-                    {activeFilter === 'products' && 'Mağazaların satış listesini gözden geçir'}
                     {activeFilter === 'category' && 'Farklı kategorilerdeki içerikleri filtrele'}
                   </p>
                 </div>

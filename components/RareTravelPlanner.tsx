@@ -79,6 +79,17 @@ type SavedTravelPlan = {
   created_at: string
 }
 
+type ActiveLivePlan = {
+  session_id: string
+  plan_id: string
+  status: 'active' | 'completed'
+  title: string
+  from_location: string
+  to_location: string
+  started_at: string
+  stops_count: number
+}
+
 type NominatimResult = {
   place_id: number
   display_name: string
@@ -240,6 +251,21 @@ function makeCircleIcon(color: string, label?: string) {
 const startIcon = makeCircleIcon('#0f172a')
 const endIcon = makeCircleIcon('#b91c1c')
 
+function isLatLngLike(value: string): boolean {
+  return /^\s*-?\d+(?:\.\d+)?\s*[,;]\s*-?\d+(?:\.\d+)?\s*$/.test(value)
+}
+
+function getLastStopLabel(result: PlannerResponse | null): string {
+  if (!result || result.posts.length === 0) return ''
+  const last = result.posts[result.posts.length - 1]
+  return (
+    last.location_name ||
+    [last.district, last.city, last.country].filter(Boolean).join(', ') ||
+    last.title ||
+    ''
+  )
+}
+
 function FitBounds({ positions }: { positions: [number, number][] }) {
   const map = useMap()
   useEffect(() => {
@@ -263,11 +289,13 @@ export default function RareTravelPlanner() {
   const [sortBy, setSortBy] = useState<string>('likes_shares')
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [searchText, setSearchText] = useState('')
+  const [selectedPostIds, setSelectedPostIds] = useState<string[]>([])
   const [corridorKm, setCorridorKm] = useState(12)
   const [nearbyOnly, setNearbyOnly] = useState(false)
   const [nearRadiusKm, setNearRadiusKm] = useState(25)
   const [currentLocation, setCurrentLocation] = useState<LatLng | null>(null)
   const [categoryMenuOpen, setCategoryMenuOpen] = useState(false)
+  const hasAutoRun = useRef(false)
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -275,8 +303,12 @@ export default function RareTravelPlanner() {
   const [activeQuery, setActiveQuery] = useState('')
   const [initialCategoryOptions, setInitialCategoryOptions] = useState<string[]>([])
   const [savedPlans, setSavedPlans] = useState<SavedTravelPlan[]>([])
+  const [activeLivePlans, setActiveLivePlans] = useState<ActiveLivePlan[]>([])
   const [savingPlan, setSavingPlan] = useState(false)
   const [saveMessage, setSaveMessage] = useState('')
+  const [liveSessionActive, setLiveSessionActive] = useState(false)
+  const [liveSessionId, setLiveSessionId] = useState<string | null>(null)
+  const [liveSessionStarting, setLiveSessionStarting] = useState(false)
   const categoryMenuRef = useRef<HTMLDivElement | null>(null)
 
   const categoryOptions = useMemo(() => {
@@ -313,10 +345,20 @@ export default function RareTravelPlanner() {
     return `${selectedCategories[0]}, ${selectedCategories[1]} +${selectedCategories.length - 2}`
   }, [selectedCategories])
 
+  const activeEditableSessions = useMemo(
+    () => activeLivePlans.filter((item) => item.status === 'active'),
+    [activeLivePlans],
+  )
+
+  const completedLiveSessions = useMemo(
+    () => activeLivePlans.filter((item) => item.status === 'completed'),
+    [activeLivePlans],
+  )
+
   const buildPlannerParams = () => {
     const params = new URLSearchParams()
     params.set('from', from)
-    params.set('to', to)
+    if (to.trim()) params.set('to', to)
     if (fromCoords) {
       params.set('fromLat', String(fromCoords.lat))
       params.set('fromLng', String(fromCoords.lng))
@@ -336,6 +378,9 @@ export default function RareTravelPlanner() {
       params.set('currentLng', String(currentLocation.lng))
       params.set('nearRadiusKm', String(nearRadiusKm))
     }
+    for (const postId of selectedPostIds) {
+      params.append('postId', postId)
+    }
     return params
   }
 
@@ -348,6 +393,7 @@ export default function RareTravelPlanner() {
       const localRaw = localStorage.getItem('rare_travel_plans_local')
       const localPlans = localRaw ? (JSON.parse(localRaw) as SavedTravelPlan[]) : []
       setSavedPlans(localPlans.slice(0, 10))
+      setActiveLivePlans([])
       return
     }
 
@@ -362,10 +408,64 @@ export default function RareTravelPlanner() {
       const localRaw = localStorage.getItem('rare_travel_plans_local')
       const localPlans = localRaw ? (JSON.parse(localRaw) as SavedTravelPlan[]) : []
       setSavedPlans(localPlans.slice(0, 10))
+    } else {
+      setSavedPlans((data || []) as SavedTravelPlan[])
+    }
+
+    const { data: liveRows } = await supabase
+      .from('live_travel_sessions')
+      .select('id, plan_id, status, started_at')
+      .eq('user_id', user.id)
+      .order('started_at', { ascending: false })
+      .limit(20)
+
+    const liveSessionRows = (liveRows || []) as Array<{ id: string; plan_id: string; status: 'active' | 'completed'; started_at: string }>
+    if (liveSessionRows.length === 0) {
+      setActiveLivePlans([])
       return
     }
 
-    setSavedPlans((data || []) as SavedTravelPlan[])
+    const sessionIds = liveSessionRows.map((row) => row.id)
+    const { data: liveTripRows } = await supabase
+      .from('live_trip_posts')
+      .select('id, session_id')
+      .in('session_id', sessionIds)
+
+    const stopCountBySession = new Map<string, number>()
+    for (const row of liveTripRows || []) {
+      const sessionId = (row as any).session_id as string
+      stopCountBySession.set(sessionId, (stopCountBySession.get(sessionId) || 0) + 1)
+    }
+
+    const planIds = Array.from(new Set(liveSessionRows.map((row) => row.plan_id).filter(Boolean)))
+    const { data: planRows } = await supabase
+      .from('rare_travel_plans')
+      .select('id, title, from_location, to_location')
+      .in('id', planIds)
+
+    const planMap = new Map((planRows || []).map((row: any) => [row.id as string, row]))
+    const mergedRaw = liveSessionRows
+      .map((sessionRow) => {
+        const planRow = planMap.get(sessionRow.plan_id)
+        if (!planRow) return null
+        return {
+          session_id: sessionRow.id,
+          plan_id: sessionRow.plan_id,
+          status: sessionRow.status,
+          title: planRow.title || `${planRow.from_location} -> ${planRow.to_location}`,
+          from_location: planRow.from_location,
+          to_location: planRow.to_location,
+          started_at: sessionRow.started_at,
+          stops_count: stopCountBySession.get(sessionRow.id) || 0,
+        } as ActiveLivePlan
+      })
+      .filter(Boolean) as ActiveLivePlan[]
+
+    const merged = mergedRaw.sort(
+      (a, b) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime(),
+    )
+
+    setActiveLivePlans(merged)
   }
 
   useEffect(() => {
@@ -378,34 +478,192 @@ export default function RareTravelPlanner() {
   }, [])
 
   useEffect(() => {
-    const fromParam = searchParams.get('from')
-    const toParam = searchParams.get('to')
-    if (!fromParam || !toParam) return
+    let disposed = false
+    let rarePlansChannel: ReturnType<typeof supabase.channel> | null = null
+    let liveSessionsChannel: ReturnType<typeof supabase.channel> | null = null
 
-    setFrom(fromParam)
-    setTo(toParam)
-    const spFromLat = Number(searchParams.get('fromLat'))
-    const spFromLng = Number(searchParams.get('fromLng'))
-    const spToLat = Number(searchParams.get('toLat'))
-    const spToLng = Number(searchParams.get('toLng'))
-    if (Number.isFinite(spFromLat) && spFromLat !== 0) setFromCoords({ lat: spFromLat, lng: spFromLng })
-    if (Number.isFinite(spToLat) && spToLat !== 0) setToCoords({ lat: spToLat, lng: spToLng })
-    setStops(Math.max(1, Math.min(12, Number(searchParams.get('stops') || 5))))
-    setSortBy(searchParams.get('sortBy') || 'likes_shares')
-    setCorridorKm(Math.max(1, Math.min(40, Number(searchParams.get('corridorKm') || 12))))
-    const categoriesFromQuery = searchParams.getAll('category')
-    setSelectedCategories(categoriesFromQuery.length > 0 ? categoriesFromQuery : (searchParams.get('category') ? [searchParams.get('category') as string] : []))
-    setSearchText(searchParams.get('q') || '')
-    setNearbyOnly(searchParams.get('nearbyOnly') === '1' || searchParams.get('nearbyOnly') === 'true')
-
-    const nearLat = Number(searchParams.get('currentLat'))
-    const nearLng = Number(searchParams.get('currentLng'))
-    if (Number.isFinite(nearLat) && Number.isFinite(nearLng)) {
-      setCurrentLocation({ lat: nearLat, lng: nearLng })
+    const refresh = () => {
+      if (disposed) return
+      loadSavedPlans()
     }
 
-    setNearRadiusKm(Math.max(1, Math.min(150, Number(searchParams.get('nearRadiusKm') || 25))))
-    setActiveQuery(searchParams.toString())
+    const handleFocus = () => refresh()
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') refresh()
+    }
+
+    window.addEventListener('focus', handleFocus)
+    document.addEventListener('visibilitychange', handleVisibility)
+
+    const setupRealtime = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      if (!user || disposed) return
+
+      rarePlansChannel = supabase
+        .channel(`rare-travel-plans-${user.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'rare_travel_plans',
+            filter: `user_id=eq.${user.id}`,
+          },
+          () => refresh(),
+        )
+        .subscribe()
+
+      liveSessionsChannel = supabase
+        .channel(`live-travel-sessions-${user.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'live_travel_sessions',
+            filter: `user_id=eq.${user.id}`,
+          },
+          () => refresh(),
+        )
+        .subscribe()
+    }
+
+    setupRealtime()
+
+    return () => {
+      disposed = true
+      window.removeEventListener('focus', handleFocus)
+      document.removeEventListener('visibilitychange', handleVisibility)
+      rarePlansChannel?.unsubscribe()
+      liveSessionsChannel?.unsubscribe()
+    }
+  }, [])
+
+  useEffect(() => {
+    const fromParam = searchParams.get('from')
+    const toParam = searchParams.get('to')
+    const postIdsFromQuery = searchParams.getAll('postId').filter(Boolean)
+
+    if (postIdsFromQuery.length > 0) {
+      setSelectedPostIds(postIdsFromQuery)
+    }
+
+    // --- Secim sayfasindan gelme (postId var): query aynen korunur ---
+    if (fromParam && postIdsFromQuery.length > 0) {
+      setFrom(fromParam)
+      setTo(toParam || '')
+      const spFromLat = Number(searchParams.get('fromLat'))
+      const spFromLng = Number(searchParams.get('fromLng'))
+      const spToLat = Number(searchParams.get('toLat'))
+      const spToLng = Number(searchParams.get('toLng'))
+      if (Number.isFinite(spFromLat) && spFromLat !== 0) setFromCoords({ lat: spFromLat, lng: spFromLng })
+      if (Number.isFinite(spToLat) && spToLat !== 0) setToCoords({ lat: spToLat, lng: spToLng })
+      setStops(Math.max(1, Math.min(12, Number(searchParams.get('stops') || 5))))
+      setSortBy(searchParams.get('sortBy') || 'likes_shares')
+      setCorridorKm(Math.max(1, Math.min(40, Number(searchParams.get('corridorKm') || 12))))
+      const categoriesFromQuery = searchParams.getAll('category')
+      setSelectedCategories(categoriesFromQuery.length > 0 ? categoriesFromQuery : (searchParams.get('category') ? [searchParams.get('category') as string] : []))
+      setSearchText(searchParams.get('q') || '')
+      setNearbyOnly(searchParams.get('nearbyOnly') === '1' || searchParams.get('nearbyOnly') === 'true')
+      const nearLat = Number(searchParams.get('currentLat'))
+      const nearLng = Number(searchParams.get('currentLng'))
+      if (Number.isFinite(nearLat) && Number.isFinite(nearLng)) {
+        setCurrentLocation({ lat: nearLat, lng: nearLng })
+      }
+      setNearRadiusKm(Math.max(1, Math.min(150, Number(searchParams.get('nearRadiusKm') || 25))))
+      setActiveQuery(searchParams.toString())
+      return
+    }
+
+    // --- Tam URL (from + to var): normal akış ---
+    if (fromParam && toParam) {
+      setFrom(fromParam)
+      setTo(toParam)
+      const spFromLat = Number(searchParams.get('fromLat'))
+      const spFromLng = Number(searchParams.get('fromLng'))
+      const spToLat = Number(searchParams.get('toLat'))
+      const spToLng = Number(searchParams.get('toLng'))
+      if (Number.isFinite(spFromLat) && spFromLat !== 0) setFromCoords({ lat: spFromLat, lng: spFromLng })
+      if (Number.isFinite(spToLat) && spToLat !== 0) setToCoords({ lat: spToLat, lng: spToLng })
+      setStops(Math.max(1, Math.min(12, Number(searchParams.get('stops') || 5))))
+      setSortBy(searchParams.get('sortBy') || 'likes_shares')
+      setCorridorKm(Math.max(1, Math.min(40, Number(searchParams.get('corridorKm') || 12))))
+      const categoriesFromQuery = searchParams.getAll('category')
+      setSelectedCategories(categoriesFromQuery.length > 0 ? categoriesFromQuery : (searchParams.get('category') ? [searchParams.get('category') as string] : []))
+      setSearchText(searchParams.get('q') || '')
+      setNearbyOnly(searchParams.get('nearbyOnly') === '1' || searchParams.get('nearbyOnly') === 'true')
+      const nearLat = Number(searchParams.get('currentLat'))
+      const nearLng = Number(searchParams.get('currentLng'))
+      if (Number.isFinite(nearLat) && Number.isFinite(nearLng)) {
+        setCurrentLocation({ lat: nearLat, lng: nearLng })
+      }
+      setNearRadiusKm(Math.max(1, Math.min(150, Number(searchParams.get('nearRadiusKm') || 25))))
+      setActiveQuery(searchParams.toString())
+      return
+    }
+
+    // --- Kategori sayfasından gelme: sadece from (+category) var, to yok ---
+    if (fromParam && !toParam && !hasAutoRun.current) {
+      hasAutoRun.current = true
+      const categoryParam = searchParams.get('category')
+      if (categoryParam) {
+        setSelectedCategories([categoryParam])
+      }
+      setFrom(fromParam)
+
+      const geocodeAndRun = async () => {
+        setLoading(true)
+        setError('')
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${encodeURIComponent(fromParam)}&accept-language=tr`,
+            { headers: { 'User-Agent': 'spotitforme/1.0' } }
+          )
+          const geoData = await res.json()
+          if (!Array.isArray(geoData) || geoData.length === 0) {
+            setError('Sehir konumu bulunamadi. Lutfen baslangic ve varis adresini manuel girin.')
+            setLoading(false)
+            return
+          }
+          const lat = Number(geoData[0].lat)
+          const lng = Number(geoData[0].lon)
+
+          setFromCoords({ lat, lng })
+          setToCoords({ lat, lng })
+          setTo(fromParam)
+          setCurrentLocation({ lat, lng })
+          setNearbyOnly(true)
+          setNearRadiusKm(30)
+
+          const params = new URLSearchParams()
+          params.set('from', fromParam)
+          params.set('to', fromParam)
+          params.set('fromLat', String(lat))
+          params.set('fromLng', String(lng))
+          params.set('toLat', String(lat))
+          params.set('toLng', String(lng))
+          params.set('stops', '5')
+          params.set('sortBy', 'likes_shares')
+          params.set('corridorKm', '12')
+          params.set('nearbyOnly', '1')
+          params.set('currentLat', String(lat))
+          params.set('currentLng', String(lng))
+          params.set('nearRadiusKm', '30')
+          if (categoryParam) params.append('category', categoryParam)
+
+          setActiveQuery(params.toString())
+          router.replace(`${pathname}?${params.toString()}`, { scroll: false })
+        } catch {
+          setError('Sehir konumu alinamadi. Lutfen baslangic ve varis adresini manuel girin.')
+          setLoading(false)
+        }
+      }
+
+      geocodeAndRun()
+    }
   }, [searchParams])
 
   useEffect(() => {
@@ -497,7 +755,15 @@ export default function RareTravelPlanner() {
     setSavingPlan(true)
     try {
       const params = buildPlannerParams().toString()
-      const title = `${from} -> ${to}`
+      const fromInput = from.trim()
+      const toInput = to.trim()
+      const fromLabel = (fromInput && !isLatLngLike(fromInput) ? fromInput : (result?.meta?.from || fromInput || 'Baslangic'))
+      const lastStopLabel = getLastStopLabel(result)
+      const toLabel =
+        (toInput && !isLatLngLike(toInput)
+          ? toInput
+          : (result?.meta?.to || lastStopLabel || toInput || 'Son durak'))
+      const title = `${fromLabel} -> ${toLabel}`
       const {
         data: { user },
       } = await supabase.auth.getUser()
@@ -506,8 +772,8 @@ export default function RareTravelPlanner() {
         const payload = {
           user_id: user.id,
           title,
-          from_location: from,
-          to_location: to,
+          from_location: fromLabel,
+          to_location: toLabel,
           query_params: params,
         }
 
@@ -520,8 +786,8 @@ export default function RareTravelPlanner() {
           {
             id: crypto.randomUUID(),
             title,
-            from_location: from,
-            to_location: to,
+            from_location: fromLabel,
+            to_location: toLabel,
             query_params: params,
             created_at: new Date().toISOString(),
           },
@@ -536,6 +802,81 @@ export default function RareTravelPlanner() {
       setSaveMessage('Plan kaydedilemedi. Tablo hazir degilse migration calistirilmali.')
     } finally {
       setSavingPlan(false)
+    }
+  }
+
+  const startLiveSession = async () => {
+    if (!result) {
+      setError('Plan olusturulmalı.')
+      return
+    }
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) {
+      setError('Canli plan baslatmak icin giris yapmalısiniz.')
+      return
+    }
+
+    setLiveSessionStarting(true)
+    setSaveMessage('')
+    try {
+      // Önce planı kaydet
+      const params = buildPlannerParams().toString()
+      const fromInput = from.trim()
+      const toInput = to.trim()
+      const fromLabel =
+        fromInput && !isLatLngLike(fromInput)
+          ? fromInput
+          : result?.meta?.from || fromInput || 'Baslangic'
+      const lastStopLabel = getLastStopLabel(result)
+      const toLabel =
+        toInput && !isLatLngLike(toInput)
+          ? toInput
+          : result?.meta?.to || lastStopLabel || toInput || 'Son durak'
+      const title = `${fromLabel} -> ${toLabel}`
+
+      const { data: planData, error: planErr } = await supabase
+        .from('rare_travel_plans')
+        .insert({
+          user_id: user.id,
+          title,
+          from_location: fromLabel,
+          to_location: toLabel,
+          query_params: params,
+        })
+        .select('id')
+        .single()
+
+      if (planErr) throw planErr
+
+      // Sonra live session başlat
+      const { data: sessionData, error: sessionErr } = await supabase
+        .from('live_travel_sessions')
+        .insert({
+          user_id: user.id,
+          plan_id: planData.id,
+          status: 'active',
+        })
+        .select('id')
+        .single()
+
+      if (sessionErr) throw sessionErr
+
+      setLiveSessionId(sessionData.id)
+      setLiveSessionActive(true)
+      setSaveMessage('Canli plan baslatildi!')
+      await loadSavedPlans()
+
+      // Canlı plan sayfasına yönlendir
+      setTimeout(() => {
+        router.push(`/rare-travel-plan/live/${sessionData.id}`)
+      }, 800)
+    } catch (err: any) {
+      setError(err?.message || 'Canli plan baslatılamadı.')
+    } finally {
+      setLiveSessionStarting(false)
     }
   }
 
@@ -794,6 +1135,17 @@ export default function RareTravelPlanner() {
             {savingPlan ? 'Kaydediliyor...' : 'Plani kaydet'}
           </button>
 
+          {result && (
+            <button
+              type="button"
+              onClick={startLiveSession}
+              disabled={liveSessionStarting || !result}
+              className="rounded-xl border border-red-300 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:opacity-60"
+            >
+              {liveSessionStarting ? 'Baslatiliyor...' : '🔴 Canli Plan Başlat'}
+            </button>
+          )}
+
           <button
             type="button"
             onClick={sharePlan}
@@ -822,6 +1174,25 @@ export default function RareTravelPlanner() {
               <p><span className="font-semibold">Sure:</span> ~{result.meta.routeDurationMin} dk</p>
               <p><span className="font-semibold">Bulunan paylasim:</span> {result.meta.foundPosts}</p>
             </div>
+            {result.posts.length > 0 && (() => {
+              const origin = `${result.route.from.lat},${result.route.from.lng}`
+              const destination = `${result.route.to.lat},${result.route.to.lng}`
+              const waypoints = result.posts
+                .slice(0, 23) // Google Maps max 23 waypoint
+                .map((p) => `${p.latitude},${p.longitude}`)
+                .join('|')
+              const gmUrl = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&waypoints=${encodeURIComponent(waypoints)}&travelmode=driving`
+              return (
+                <a
+                  href={gmUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-4 inline-flex items-center gap-2 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 transition"
+                >
+                  <span>🗺️</span> Google Maps'te Tum Rotayi Ac
+                </a>
+              )
+            })()}
             {result.meta.routeIsFallback && (
               <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
                 Rota servisinde gecici kesinti var. Plan, acil modda dogrusal guzergahla olusturuldu.
@@ -927,10 +1298,55 @@ export default function RareTravelPlanner() {
       <div className="rounded-2xl border border-gray-200 bg-white p-4 md:p-5">
         <h3 className="text-base font-bold text-gray-900">Kayitli planlarim</h3>
         <p className="mt-1 text-xs text-gray-500">Hesaba girisliysen profiline bagli saklanir, degilsen bu tarayicida tutulur.</p>
+
+        <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Canli duzenleme alanin</p>
+          <p className="mt-1 text-xs text-emerald-800">Buradaki aktif oturumlarda ara kaydet, ekle-cikar-duzenle yap; sadece sen "tamamla" dediginde rota yayina cikar.</p>
+        </div>
+
         <div className="mt-3 space-y-2">
-          {savedPlans.length === 0 && (
+          {activeEditableSessions.length === 0 && savedPlans.length === 0 && (
             <p className="text-sm text-gray-500">Henuz kayitli plan yok.</p>
           )}
+          {activeEditableSessions.map((plan) => (
+            <button
+              key={plan.session_id}
+              type="button"
+              onClick={() => router.push(`/rare-travel-plan/live/${plan.session_id}`)}
+              className="w-full rounded-xl border border-red-200 bg-red-50 p-3 text-left hover:bg-red-100"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-gray-900">{plan.title}</p>
+                <span className="rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">Canli Plan</span>
+              </div>
+              <p className="mt-1 text-xs text-gray-600">{plan.from_location} {'->'} {plan.to_location}</p>
+              <p className="mt-1 text-xs font-medium text-red-700">Durak: {plan.stops_count} · Devam etmek icin tikla · {new Date(plan.started_at).toLocaleString('tr-TR')}</p>
+            </button>
+          ))}
+
+          {completedLiveSessions.length > 0 && (
+            <div className="pt-2">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Tamamlanan canli oturumlar</p>
+              <div className="space-y-2">
+                {completedLiveSessions.map((plan) => (
+                  <button
+                    key={plan.session_id}
+                    type="button"
+                    onClick={() => router.push(`/rare-travel-plan/live/${plan.session_id}`)}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-left hover:bg-slate-100"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-sm font-semibold text-gray-900">{plan.title}</p>
+                      <span className="rounded-full bg-slate-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">Tamamlandi</span>
+                    </div>
+                    <p className="mt-1 text-xs text-gray-600">{plan.from_location} {'->'} {plan.to_location}</p>
+                    <p className="mt-1 text-xs font-medium text-slate-700">Durak: {plan.stops_count} · Duzenlemek icin tikla</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {savedPlans.map((plan) => (
             <button
               key={plan.id}

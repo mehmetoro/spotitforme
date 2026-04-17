@@ -73,7 +73,7 @@ export default function MuseumPage() {
     <main className="container-custom py-8">
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900">🏛️ Nadir Müzesi</h1>
-        <p className="text-gray-600 mt-1">Topluluğun vitrinde yayınladığı nadir paylaşımlar</p>
+        <p className="text-gray-600 mt-1">Topluluğun vitrinde yayınladığı nadir seyahatler</p>
       </div>
 
       {loading ? (
@@ -82,7 +82,7 @@ export default function MuseumPage() {
         </div>
       ) : items.length === 0 ? (
         <div className="bg-white rounded-xl shadow p-10 text-center">
-          <p className="text-gray-600">Henüz müzede yayınlanan nadir paylaşım yok.</p>
+          <p className="text-gray-600">Henüz müzede yayınlanan nadir seyahat yok.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

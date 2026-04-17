@@ -9,6 +9,7 @@ import {
   ShoppingBag,
   MessageCircle,
   PlusCircle,
+  Route,
 } from 'lucide-react'
 
 export interface NavItem {
@@ -46,7 +47,7 @@ export const navSections: NavSection[] = [
       {
         href: '/discovery?compose=1',
         icon: MessageCircle,
-        label: 'Nadir Paylaş',
+        label: 'Nadir Seyahat',
         matchPath: '/discovery',
         description: 'Topluluga gorsel ve hikaye paylas',
       },
@@ -91,7 +92,13 @@ export const navSections: NavSection[] = [
       { href: '/', icon: Home, label: 'Ana Sayfa' },
       { href: '/sightings', icon: HelpCircle, label: 'Yardımlar' },
       { href: '/virtual-sightings', icon: HelpCircle, label: 'Sanal Yardımlar' },
-      { href: '/discovery', icon: Eye, label: 'Nadir' },
+      { href: '/discovery', icon: Eye, label: 'Nadir Seyahat' },
+      {
+        href: '/seyahat-rotalari',
+        icon: Route,
+        label: 'Nadir Rotalar',
+        description: 'Canli seyahatten uretilen rota paylasimlari',
+      },
       { href: '/museum', icon: Landmark, label: 'Müze' },
       { href: '/collection', icon: Gem, label: 'Koleksiyon' },
       { href: '/spots', icon: MapPin, label: "Spot'lar" },

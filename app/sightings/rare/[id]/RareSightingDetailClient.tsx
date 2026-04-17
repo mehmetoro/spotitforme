@@ -140,7 +140,7 @@ export default function RareSightingDetailClient() {
       }
 
       if (sighting.user_id === user.id) {
-        toast.error('Kendi nadir paylaşımınız için mesaj talebi gönderemezsiniz.')
+        toast.error('Kendi nadir seyahatiniz için mesaj talebi gönderemezsiniz.')
         return
       }
 

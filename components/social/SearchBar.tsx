@@ -5,13 +5,11 @@ import { useState, useEffect } from 'react'
 
 interface SearchBarProps {
   onSearch: (query: string) => void
-  onPostTypeFilter?: (type: string) => void
   initialValue?: string
 }
 
-export default function SearchBar({ onSearch, onPostTypeFilter, initialValue }: SearchBarProps) {
+export default function SearchBar({ onSearch, initialValue }: SearchBarProps) {
   const [query, setQuery] = useState(initialValue || '')
-  const [selectedType, setSelectedType] = useState<string>('all')
 
   // initialValue prop'u değiştiğinde query'yi güncelle
   useEffect(() => {
@@ -26,48 +24,17 @@ export default function SearchBar({ onSearch, onPostTypeFilter, initialValue }: 
     onSearch(value)
   }
 
-  const handleTypeFilter = (type: string) => {
-    setSelectedType(type)
-    onPostTypeFilter?.(type)
-  }
-
-  const types = [
-    { id: 'all', label: 'Hepsi' },
-    { id: 'rare_sight', label: '👁️ Nadir Gördüm' },
-    { id: 'spot', label: '📍 Spot' },
-    { id: 'found', label: '🔍 Ben Gördüm' },
-    { id: 'product', label: '🛍️ Ürün' }
-  ]
 
   return (
-    <div className="bg-white rounded-xl shadow p-4 mb-6">
+    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-xl shadow-sm p-4 mb-6">
       {/* Arama Kutusu */}
-      <div className="mb-4">
-        <input
-          type="text"
-          value={query}
-          onChange={handleSearch}
-          placeholder="Paylaşımları ara... (başlık, içerik)"
-          className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-      </div>
-
-      {/* Tür Filtreleri */}
-      <div className="flex flex-wrap gap-2">
-        {types.map((type) => (
-          <button
-            key={type.id}
-            onClick={() => handleTypeFilter(type.id)}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition ${
-              selectedType === type.id
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            {type.label}
-          </button>
-        ))}
-      </div>
+      <input
+        type="text"
+        value={query}
+        onChange={handleSearch}
+        placeholder="Paylaşımları ara... (başlık, içerik)"
+        className="w-full bg-white border border-blue-200 rounded-lg px-4 py-3 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent shadow-sm"
+      />
     </div>
   )
 }

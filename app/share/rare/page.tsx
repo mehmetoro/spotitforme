@@ -37,9 +37,9 @@ export default function ShareRarePage() {
       />
 
       <div className="max-w-2xl mx-auto rounded-2xl border border-purple-100 bg-white p-6 shadow-sm">
-        <h1 className="text-2xl font-bold text-gray-900">Nadir Gördüm Paylaşımı</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Nadir Seyahat Paylaşımı</h1>
         <p className="mt-2 text-sm text-gray-600">
-          Nadir paylaşım formu açıldı. Formu kapatırsanız Nadir Görülenler akışına dönersiniz.
+          Nadir seyahat formu açıldı. Formu kapatırsanız Nadir Görülenler akışına dönersiniz.
         </p>
         {sharedUrl && (
           <p className="mt-2 text-xs text-emerald-700 break-all">

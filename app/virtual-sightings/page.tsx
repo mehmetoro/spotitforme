@@ -339,7 +339,7 @@ export default function VirtualSightingsPage() {
               </div>
             </Link>
           ))}
-          {!filteredRare.length && <p className="text-gray-500">Filtrelere uygun sanal nadir paylaşımı bulunamadı.</p>}
+          {!filteredRare.length && <p className="text-gray-500">Filtrelere uygun sanal nadir seyahat bulunamadı.</p>}
         </div>
       )}
     </main>

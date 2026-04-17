@@ -11,11 +11,52 @@ import { ToastProvider } from "@/components/ui/ToastProvider";
 import PWAInstaller from "@/components/PWAInstaller";
 
 const inter = Inter({ subsets: ["latin"] });
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://spotitforme.com";
 
 export const metadata: Metadata = {
-  title: "SpotItForMe – Toplulukla Ürün Bulma Platformu",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: "SpotItForMe – Toplulukla Ürün Bulma Platformu",
+    template: "%s | SpotItForMe",
+  },
   description:
     "Nadir ürünleri toplulukla bul. Sighting paylaş, spot oluştur ve mağazaları keşfet.",
+  keywords: [
+    "nadir seyahat",
+    "spot keşfi",
+    "toplulukla ürün bulma",
+    "yerel mekan önerileri",
+    "koleksiyon keşfi",
+  ],
+  alternates: {
+    canonical: "/",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
+  openGraph: {
+    type: "website",
+    locale: "tr_TR",
+    url: SITE_URL,
+    siteName: "SpotItForMe",
+    title: "SpotItForMe – Toplulukla Ürün Bulma Platformu",
+    description:
+      "Nadir ürünleri toplulukla bul. Sighting paylaş, spot oluştur ve mağazaları keşfet.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "SpotItForMe – Toplulukla Ürün Bulma Platformu",
+    description:
+      "Nadir ürünleri toplulukla bul. Sighting paylaş, spot oluştur ve mağazaları keşfet.",
+  },
   manifest: "/manifest.json?v=2",
   appleWebApp: {
     capable: true,
@@ -51,10 +92,35 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const adsenseClientId = process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID;
   // Admin route kontrolü için özel header kullan
   const isAdminRoute = headers().get('x-admin-route') === '1';
+  const websiteJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: 'SpotItForMe',
+    url: SITE_URL,
+    potentialAction: {
+      '@type': 'SearchAction',
+      target: `${SITE_URL}/discovery?search={search_term_string}`,
+      'query-input': 'required name=search_term_string',
+    },
+    inLanguage: 'tr-TR',
+  };
+  const organizationJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: 'SpotItForMe',
+    url: SITE_URL,
+    logo: `${SITE_URL}/favicon/web-app-manifest-512x512.png`,
+  };
 
   return (
     <html lang="tr">
       <head>
+        <Script id="schema-website" type="application/ld+json" strategy="beforeInteractive">
+          {JSON.stringify(websiteJsonLd)}
+        </Script>
+        <Script id="schema-organization" type="application/ld+json" strategy="beforeInteractive">
+          {JSON.stringify(organizationJsonLd)}
+        </Script>
         {adsenseClientId && (
           <Script
             async

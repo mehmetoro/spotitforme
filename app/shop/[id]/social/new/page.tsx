@@ -3,6 +3,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import { getImagePreviewDataUrl, optimizeImageFile } from '@/lib/image-processing'
 import { supabase } from '@/lib/supabase'
 
 export default function CreateShopSocialPostPage() {
@@ -17,8 +18,8 @@ export default function CreateShopSocialPostPage() {
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [postType, setPostType] = useState('product_showcase')
-  const [images, setImages] = useState<File[]>([])
-  const [imagePreviews, setImagePreviews] = useState<string[]>([])
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [submitting, setSubmitting] = useState(false)
 
@@ -49,47 +50,46 @@ export default function CreateShopSocialPostPage() {
     setUser(user)
   }
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const files = Array.from(e.target.files)
-      setImages(prev => [...prev, ...files])
-      files.forEach(file => {
-        const reader = new FileReader()
-        reader.onloadend = () => {
-          setImagePreviews(prev => [...prev, reader.result as string])
-        }
-        reader.readAsDataURL(file)
-      })
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0]
+    if (!selectedFile) return
+
+    try {
+      const optimizedFile = await optimizeImageFile(selectedFile)
+      const preview = await getImagePreviewDataUrl(optimizedFile)
+      setImageFile(optimizedFile)
+      setImagePreview(preview)
+    } catch {
+      alert('Resim optimize edilirken bir hata olustu')
     }
+
+    e.target.value = ''
   }
 
-  const removeImage = (idx: number) => {
-    setImages(prev => prev.filter((_, i) => i !== idx))
-    setImagePreviews(prev => prev.filter((_, i) => i !== idx))
+  const removeImage = () => {
+    setImageFile(null)
+    setImagePreview(null)
   }
 
-  const uploadImages = async (): Promise<string[]> => {
-    const urls: string[] = []
-    for (let i = 0; i < images.length; i++) {
-      const file = images[i]
-      const timestamp = Date.now()
-      const randomString = Math.random().toString(36).substring(2, 8)
-      const ext = file.name.split('.').pop() || 'jpg'
-      const path = `${shopId}/social/${timestamp}_${randomString}.${ext}`
+  const uploadImage = async (): Promise<string | null> => {
+    if (!imageFile) return null
 
-      const { error: uploadError } = await supabase.storage
-        .from('product-images')
-        .upload(path, file, { cacheControl: '3600', upsert: false })
+    const timestamp = Date.now()
+    const randomString = Math.random().toString(36).substring(2, 8)
+    const ext = imageFile.name.split('.').pop() || 'webp'
+    const path = `${shopId}/social/${timestamp}_${randomString}.${ext}`
 
-      if (uploadError) throw uploadError
+    const { error: uploadError } = await supabase.storage
+      .from('product-images')
+      .upload(path, imageFile, { cacheControl: '3600', upsert: false })
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('product-images')
-        .getPublicUrl(path)
+    if (uploadError) throw uploadError
 
-      urls.push(publicUrl)
-    }
-    return urls
+    const { data: { publicUrl } } = supabase.storage
+      .from('product-images')
+      .getPublicUrl(path)
+
+    return publicUrl
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -112,8 +112,9 @@ export default function CreateShopSocialPostPage() {
     setSubmitting(true)
     try {
       let imageUrls: string[] = []
-      if (images.length > 0) {
-        imageUrls = await uploadImages()
+      if (imageFile) {
+        const uploaded = await uploadImage()
+        imageUrls = uploaded ? [uploaded] : []
       }
 
       const { data: newPost, error } = await supabase
@@ -194,28 +195,27 @@ export default function CreateShopSocialPostPage() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Fotoğraflar ({images.length} seçildi)
+              Fotograf {imageFile ? '(1 secildi)' : ''}
             </label>
             <input
               type="file"
               ref={fileInputRef}
               accept="image/*"
-              multiple
               onChange={handleImageChange}
             />
             <div className="mt-2 flex flex-wrap gap-2">
-              {imagePreviews.map((src, idx) => (
-                <div key={idx} className="relative">
-                  <img src={src} className="w-20 h-20 object-cover rounded" />
+              {imagePreview && (
+                <div className="relative">
+                  <img src={imagePreview} className="w-20 h-20 object-cover rounded" />
                   <button
                     type="button"
-                    onClick={() => removeImage(idx)}
+                    onClick={removeImage}
                     className="absolute top-0 right-0 bg-black bg-opacity-50 text-white rounded-full w-5 h-5 flex items-center justify-center"
                   >
                     ×
                   </button>
                 </div>
-              ))}
+              )}
             </div>
           </div>
 

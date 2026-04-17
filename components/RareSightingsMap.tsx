@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { MapContainer, Marker, Popup, TileLayer, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 import { buildRareSightingPath, buildSocialPath } from '@/lib/sighting-slug'
+import { findCategoryByValue, getCitySlug } from '@/lib/social-categories'
 
 type RareItem = {
   id: string
@@ -391,9 +392,19 @@ export default function RareSightingsMap({ channel = 'physical' }: RareSightings
 
     const base = items.filter((item) => {
       if (filters.country !== 'all' && item.country !== filters.country) return false
-      if (filters.city !== 'all' && item.city !== filters.city) return false
+      if (filters.city !== 'all' && getCitySlug(item.city || '') !== getCitySlug(filters.city)) return false
       if (filters.district !== 'all' && item.district !== filters.district) return false
-      if (filters.category !== 'all' && item.category !== filters.category) return false
+      if (filters.category !== 'all') {
+        const itemCat = findCategoryByValue(item.category)
+        const filterCat = findCategoryByValue(filters.category)
+        if (filterCat) {
+          // alias-aware: her iki tarafı da canonical id'ye çek
+          if (itemCat?.id !== filterCat.id) return false
+        } else {
+          // bilinmeyen kategori — birebir eşleşme
+          if (item.category !== filters.category) return false
+        }
+      }
       if (filters.marketplace !== 'all' && item.marketplace !== filters.marketplace) return false
 
       const hasPhoto = Boolean(item.photo_url || item.image_url || item.link_preview_image)

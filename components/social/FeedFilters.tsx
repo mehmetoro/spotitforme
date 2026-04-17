@@ -6,10 +6,6 @@ export type FilterType =
   | 'following'
   | 'popular'
   | 'category'
-  | 'rare'
-  | 'spots'
-  | 'found'
-  | 'products'
 
 interface FeedFiltersProps {
   activeFilter: FilterType
@@ -24,10 +20,6 @@ export default function FeedFilters({
     { id: 'for-you', label: 'Özel', icon: '🎯' },
     { id: 'following', label: 'Takip', icon: '👥' },
     { id: 'popular', label: 'Popüler', icon: '🔥' },
-    { id: 'rare', label: 'Nadir', icon: '👁️' },
-    { id: 'spots', label: 'Spotlar', icon: '📍' },
-    { id: 'found', label: 'Gördüm', icon: '🔍' },
-    { id: 'products', label: 'Ürünler', icon: '🛍️' },
     { id: 'category', label: 'Kategoriler', icon: '🏷️' }
   ]
 

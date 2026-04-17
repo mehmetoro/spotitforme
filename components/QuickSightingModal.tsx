@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { buildSeoImageFileName, suggestHashtagsFromText } from '@/lib/content-seo'
+import { getImagePreviewDataUrl, optimizeImageFile } from '@/lib/image-processing'
 import { supabase } from '@/lib/supabase'
 import Image from 'next/image'
 import LocationSelector from './LocationSelector'
@@ -210,21 +211,24 @@ export default function QuickSightingModal({
     }
   }
 
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
-      // Max 5MB kontrolü
-      if (file.size > 5 * 1024 * 1024) {
-        alert('Resim boyutu 5MB\'dan küçük olmalıdır')
+      if (file.size > 12 * 1024 * 1024) {
+        alert('Resim boyutu 12MB\'dan kucuk olmalidir')
         return
       }
-      
-      setPhotoFile(file)
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setPhotoPreview(reader.result as string)
+
+      try {
+        const optimizedFile = await optimizeImageFile(file)
+        const preview = await getImagePreviewDataUrl(optimizedFile)
+        setPhotoFile(optimizedFile)
+        setPhotoPreview(preview)
+      } catch {
+        alert('Resim optimize edilirken bir hata olustu')
       }
-      reader.readAsDataURL(file)
+
+      e.target.value = ''
     }
   }
 
@@ -345,7 +349,7 @@ export default function QuickSightingModal({
     }
 
     if (sourceType === 'virtual' && !formData.product_url.trim()) {
-      alert('Sanal nadir paylaşımı için ürün linki zorunlu')
+      alert('Sanal nadir seyahat için ürün linki zorunlu')
       return
     }
 

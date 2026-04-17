@@ -1,4 +1,5 @@
 // app/page.tsx - BASİTLEŞTİRİLMİŞ
+import type { Metadata } from 'next'
 import Hero from '@/components/Hero'
 import Stats from '@/components/Stats'
 import HowItWorks from '@/components/HowItWorks'
@@ -10,6 +11,23 @@ import Leaderboard from '@/components/Leaderboard'
 import DailyChallenges from '@/components/DailyChallenges'
 import QuickSightingButton from '@/components/QuickSightingButton'
 import ResponsiveAd from '@/components/ResponsiveAd'
+
+export const metadata: Metadata = {
+  title: 'Nadir Seyahat ve Spot Kesifleri',
+  description:
+    'Toplulugun paylastigi nadir seyahat rotalarini, mekan onerilerini ve spot kesiflerini tek platformda inceleyin.',
+  alternates: {
+    canonical: '/',
+  },
+  openGraph: {
+    title: 'SpotItForMe – Nadir Seyahat ve Spot Kesifleri',
+    description:
+      'Toplulugun paylastigi nadir seyahat rotalarini, mekan onerilerini ve spot kesiflerini tek platformda inceleyin.',
+    url: '/',
+    type: 'website',
+    locale: 'tr_TR',
+  },
+}
 
 export default function HomePage() {
   return (

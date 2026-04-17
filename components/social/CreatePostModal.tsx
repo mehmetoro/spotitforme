@@ -3,8 +3,22 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { buildSeoImageFileName, suggestHashtagsFromText } from '@/lib/content-seo'
+import { getImagePreviewDataUrl, optimizeImageFile } from '@/lib/image-processing'
+import { SOCIAL_CATEGORIES } from '@/lib/social-categories'
 import { supabase } from '@/lib/supabase'
 import LocationSelector from '../LocationSelector'
+
+export type TripPostModalPayload = {
+  title: string
+  description: string | null
+  imageUrl: string | null
+  category: string | null
+  locationName: string | null
+  city: string | null
+  latitude: number | null
+  longitude: number | null
+  hashtags: string[]
+}
 
 interface CreatePostModalProps {
   isOpen: boolean
@@ -12,40 +26,22 @@ interface CreatePostModalProps {
   onPostCreated: () => void
   initialType?: 'rare_sight' | 'spot' | 'found' | 'product'
   parentSpotId?: string
+  mode?: 'social' | 'trip_only'
+  headerTitle?: string
+  submitLabel?: string
+  onTripPostCreated?: (payload: TripPostModalPayload) => Promise<void> | void
 }
-
-
-// Kategoriler
-const CATEGORIES = [
-  { id: 'Antika ve Koleksiyon', name: 'Antika ve Koleksiyon', icon: '🗝️' },
-  { id: 'Vintage ve Retro', name: 'Vintage ve Retro', icon: '📻' },
-  { id: 'Kitap ve Plak', name: 'Kitap ve Plak', icon: '📚' },
-  { id: 'Oyuncak ve Figür', name: 'Oyuncak ve Figür', icon: '🧸' },
-  { id: 'Saat ve Takı', name: 'Saat ve Takı', icon: '⌚' },
-  { id: 'Dekorasyon ve Ev', name: 'Dekorasyon ve Ev', icon: '🏺' },
-  { id: 'Mutfak ve Zanaat', name: 'Mutfak ve Zanaat', icon: '🍽️' },
-  { id: 'Giyim ve Aksesuar', name: 'Giyim ve Aksesuar', icon: '🧥' },
-  { id: 'Pazar ve Bit Pazarı', name: 'Pazar ve Bit Pazarı', icon: '🛒' },
-  { id: 'Sahaf ve Plakçı', name: 'Sahaf ve Plakçı', icon: '📖' },
-  { id: 'Müzayede ve Mezat', name: 'Müzayede ve Mezat', icon: '🏛️' },
-  { id: 'Müze ve Sergi', name: 'Müze ve Sergi', icon: '🖼️' },
-  { id: 'Tarihi Çarşı ve Han', name: 'Tarihi Çarşı ve Han', icon: '🏚️' },
-  { id: 'Yerel Dükkan ve Atölye', name: 'Yerel Dükkan ve Atölye', icon: '🧰' },
-  { id: 'Rota Üstü Durak', name: 'Rota Üstü Durak', icon: '🧭' },
-  { id: 'Gizli Mekan', name: 'Gizli Mekan', icon: '🕵️' },
-  { id: 'Fotoğraflık Nokta', name: 'Fotoğraflık Nokta', icon: '📸' },
-  { id: 'Etkinlik ve Festival', name: 'Etkinlik ve Festival', icon: '🎪' },
-  { id: 'Kafe ve Mola Noktası', name: 'Kafe ve Mola Noktası', icon: '☕' },
-  { id: 'Diğer', name: 'Diğer', icon: '🔍' }
-]
-
 
 export default function CreatePostModal({ 
   isOpen, 
   onClose, 
   onPostCreated,
   initialType,
-  parentSpotId
+  parentSpotId,
+  mode = 'social',
+  headerTitle,
+  submitLabel,
+  onTripPostCreated,
 }: CreatePostModalProps) {
   const [loading, setLoading] = useState(false)
   const [title, setTitle] = useState('')
@@ -59,13 +55,13 @@ export default function CreatePostModal({
   const [category, setCategory] = useState<string>('') // Kategori
   const [hashtags, setHashtags] = useState<string[]>([])
   const [hashtagInput, setHashtagInput] = useState('')
-  const [images, setImages] = useState<File[]>([])
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
   // Yeni tipler: rare_sight | spot | found | product
   const [postType, setPostType] = useState<'rare_sight' | 'spot' | 'found' | 'product'>(initialType || 'rare_sight')
   const [rewardAmount, setRewardAmount] = useState<number | ''>('')
   const [isPublicPost, setIsPublicPost] = useState(true) // yalnızca "found" tipi için geçerli
   const [hasIsPublicColumn, setHasIsPublicColumn] = useState<boolean>(true)
-  const [uploadedImageUrls, setUploadedImageUrls] = useState<string[]>([])
   const normalizedTitle = title.trim()
   const normalizedContent = content.trim()
   const isTitleDetailedEnough = normalizedTitle.length >= 12
@@ -87,14 +83,24 @@ export default function CreatePostModal({
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const newImages = Array.from(e.target.files)
-      setImages(prev => [...prev, ...newImages])
+    const selectedFile = e.target.files?.[0]
+    if (!selectedFile) return
+
+    try {
+      const optimizedFile = await optimizeImageFile(selectedFile)
+      const preview = await getImagePreviewDataUrl(optimizedFile)
+      setImageFile(optimizedFile)
+      setImagePreview(preview)
+    } catch {
+      alert('Resim optimize edilirken bir hata olustu.')
     }
+
+    e.target.value = ''
   }
 
-  const removeImage = (index: number) => {
-    setImages(prev => prev.filter((_, i) => i !== index))
+  const removeImage = () => {
+    setImageFile(null)
+    setImagePreview(null)
   }
 
   const addHashtag = () => {
@@ -116,48 +122,48 @@ export default function CreatePostModal({
     }
   }
 
-  const uploadImages = async (userId: string): Promise<string[]> => {
-    const urls: string[] = []
-    
-    for (let i = 0; i < images.length; i++) {
-      const file = images[i]
-      const fileName = buildSeoImageFileName({
-        folder: 'social',
-        userId,
-        title: title || content,
-        originalName: file.name,
-        index: i,
-      })
-      
-      const { error: uploadError } = await supabase.storage
-        .from('spot-images')
-        .upload(fileName, file)
+  const uploadImage = async (userId: string): Promise<string | null> => {
+    if (!imageFile) return null
 
-      if (uploadError) throw uploadError
+    const fileName = buildSeoImageFileName({
+      folder: 'social',
+      userId,
+      title: title || content,
+      originalName: imageFile.name,
+      index: 0,
+    })
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('spot-images')
-        .getPublicUrl(fileName)
+    const { error: uploadError } = await supabase.storage
+      .from('spot-images')
+      .upload(fileName, imageFile)
 
-      urls.push(publicUrl)
-    }
-    
-    return urls
+    if (uploadError) throw uploadError
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('spot-images')
+      .getPublicUrl(fileName)
+
+    return publicUrl
   }
 
   const handleSubmit = async () => {
 
-    if (!isTitleDetailedEnough) {
+    if (mode === 'social' && !isTitleDetailedEnough) {
       alert('Başlık en az 12 karakter olmalı. Ürün adı, seri veya ayırt edici ifade ekleyin.')
       return
     }
 
-    if (!isContentDetailedEnough) {
+    if (mode === 'trip_only' && normalizedTitle.length < 3) {
+      alert('Başlık en az 3 karakter olmalı.')
+      return
+    }
+
+    if (mode === 'social' && !isContentDetailedEnough) {
       alert('Açıklama en az 40 karakter olmalı. Neyi, nerede ve neden paylaştığınızı daha detaylı yazın.')
       return
     }
 
-    if (hashtags.length === 0) {
+    if (mode === 'social' && hashtags.length === 0) {
       alert('En az 1 etiket ekleyin. Etiketler paylaşımınızın keşfedilmesini kolaylaştırır.')
       return
     }
@@ -186,10 +192,95 @@ export default function CreatePostModal({
       }
 
       // 1. Resimleri yükle
-      let imageUrls: string[] = []
-      if (images.length > 0) {
-        imageUrls = await uploadImages(user.id)
-        console.log('Yüklenen resim URLleri:', imageUrls)
+      let imageUrl: string | null = null
+      if (imageFile) {
+        imageUrl = await uploadImage(user.id)
+        console.log('Yuklenen resim URL:', imageUrl)
+      }
+
+      if (mode === 'trip_only') {
+        if (!onTripPostCreated) {
+          throw new Error('Trip post kaydetme fonksiyonu eksik')
+        }
+
+        let selectedAddress = (locationData?.address || locationData?.name || '').trim()
+        let resolvedLatitude =
+          locationData?.latitude != null
+            ? Number(locationData.latitude)
+            : locationData?.lat != null
+              ? Number(locationData.lat)
+              : null
+        let resolvedLongitude =
+          locationData?.longitude != null
+            ? Number(locationData.longitude)
+            : locationData?.lng != null
+              ? Number(locationData.lng)
+              : null
+        let resolvedCity = (locationData?.city || city || '').trim() || null
+
+        // Kullanici metni elle girdiyse, adres + koordinati arka planda otomatik tamamla.
+        if ((!selectedAddress || resolvedLatitude == null || resolvedLongitude == null) && location.trim()) {
+          try {
+            const res = await fetch(
+              `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${encodeURIComponent(location)}&accept-language=tr`,
+              { headers: { 'User-Agent': 'spotitforme/1.0' } },
+            )
+            const rows = await res.json()
+            if (Array.isArray(rows) && rows.length > 0) {
+              const first = rows[0] as any
+              selectedAddress = String(first?.display_name || location).trim()
+              resolvedLatitude = first?.lat != null ? Number(first.lat) : resolvedLatitude
+              resolvedLongitude = first?.lon != null ? Number(first.lon) : resolvedLongitude
+              if (!resolvedCity) {
+                resolvedCity =
+                  first?.address?.city ||
+                  first?.address?.town ||
+                  first?.address?.province ||
+                  null
+              }
+            }
+          } catch {
+            // Geocode basarisizsa asagida tek ve net hata verilir.
+          }
+        }
+
+        if (!selectedAddress || resolvedLatitude == null || resolvedLongitude == null) {
+          alert('Konum dogrulanamadi. Lutfen adresi daha net yazin veya mevcut konumu kullanin.')
+          setLoading(false)
+          return
+        }
+
+        await onTripPostCreated({
+          title: normalizedTitle,
+          description: normalizedContent || null,
+          imageUrl,
+          category: category || null,
+          locationName: selectedAddress,
+          city: resolvedCity,
+          latitude: resolvedLatitude,
+          longitude: resolvedLongitude,
+          hashtags,
+        })
+
+        alert('✅ Durak paylaşımı eklendi!')
+
+        setTitle('')
+        setContent('')
+        setLocation('')
+        setCategory('')
+        setHashtags([])
+        setHashtagInput('')
+        setImageFile(null)
+        setImagePreview(null)
+        setPostType('rare_sight')
+        setRewardAmount('')
+        setIsPublicPost(true)
+        setCity('')
+        setLocationData(null)
+
+        onPostCreated()
+        onClose()
+        return
       }
 
       // 2. Post verilerini hazırla
@@ -212,8 +303,8 @@ export default function CreatePostModal({
       }
 
       // Array alanlarını ekle (boş array göndermemeye dikkat et)
-      if (imageUrls.length > 0) {
-        postData.images = imageUrls
+      if (imageUrl) {
+        postData.images = [imageUrl]
       }
 
       if (hashtags.length > 0) {
@@ -279,6 +370,34 @@ export default function CreatePostModal({
         console.log('social_posts insert başarılı, user_id:', postData.user_id);
       }
 
+      // 3a. Canlı seyahat planına otomatik ekle (aktif session varsa)
+      if (mode === 'social' && newPost?.id && locationData?.latitude != null && locationData?.longitude != null) {
+        try {
+          const {
+            data: { session },
+          } = await supabase.auth.getSession()
+          const token = session?.access_token
+          if (!token) {
+            throw new Error('Canli plan token bulunamadi')
+          }
+
+          await fetch('/api/rare-travel-plan/live/add-post', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              postId: newPost.id,
+              latitude: locationData.latitude,
+              longitude: locationData.longitude,
+            }),
+          })
+        } catch (err) {
+          console.warn('Canlı plan otomatik ekleme başarısız:', err)
+        }
+      }
+
       // 3b. spot bulunan postunu bildirim gönder (sadece 'found' tipi ve parent_spot_id varsa)
       if (postType === 'found' && parentSpotId) {
         try {
@@ -312,8 +431,8 @@ export default function CreatePostModal({
       setCategory('')
       setHashtags([])
       setHashtagInput('')
-      setImages([])
-      setUploadedImageUrls([])
+      setImageFile(null)
+      setImagePreview(null)
       setPostType('rare_sight')
       setRewardAmount('')
       setIsPublicPost(true)
@@ -355,12 +474,12 @@ export default function CreatePostModal({
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[2000] p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="sticky top-0 bg-white border-b p-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-gray-900">Nadir Paylaş</h2>
+            <h2 className="text-2xl font-bold text-gray-900">{headerTitle || (mode === 'trip_only' ? 'Seyahat Durağı Ekle' : 'Nadir Seyahat')}</h2>
             <button
               onClick={onClose}
               className="text-gray-500 hover:text-gray-700 text-2xl"
@@ -377,42 +496,43 @@ export default function CreatePostModal({
           {/* Fotoğraf Yükleme */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Fotoğraflar {images.length > 0 && `(${images.length} seçildi)`}
+              Fotograf {imageFile && '(1 secildi)'}
             </label>
             
             <input
               type="file"
               ref={fileInputRef}
-              multiple
               accept="image/*"
               onChange={handleImageUpload}
               className="hidden"
             />
             
             <div className="grid grid-cols-3 gap-4">
-              {images.map((image, index) => (
-                <div key={index} className="relative">
+              {imagePreview && (
+                <div className="relative">
                   <img
-                    src={URL.createObjectURL(image)}
-                    alt={`Preview ${index}`}
+                    src={imagePreview}
+                    alt="Preview"
                     className="w-full h-32 object-cover rounded-lg border"
                   />
                   <button
-                    onClick={() => removeImage(index)}
+                    onClick={removeImage}
                     className="absolute -top-2 -right-2 bg-red-500 text-white w-6 h-6 rounded-full hover:bg-red-600"
                   >
                     ×
                   </button>
                 </div>
-              ))}
+              )}
               
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="h-32 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center hover:border-blue-400 transition"
-              >
-                <span className="text-2xl text-gray-400">+</span>
-                <span className="text-xs text-gray-500 mt-1">Fotoğraf Ekle</span>
-              </button>
+              {!imageFile && (
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="h-32 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center hover:border-blue-400 transition"
+                >
+                  <span className="text-2xl text-gray-400">+</span>
+                  <span className="text-xs text-gray-500 mt-1">Fotograf Ekle</span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -546,7 +666,7 @@ export default function CreatePostModal({
               Kategori
             </label>
             <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
-              {CATEGORIES.map((cat) => (
+              {SOCIAL_CATEGORIES.map((cat) => (
                 <button
                   key={cat.id}
                   onClick={() => setCategory(cat.id)}
@@ -594,12 +714,12 @@ export default function CreatePostModal({
                 <p className="font-medium text-green-800">🎉 Kazanacağın Puan</p>
                 <p className="text-sm text-green-600">
                   • Paylaşım: 10 puan<br />
-                  • Fotoğraf: +{images.length * 5} puan<br />
+                  • Fotograf: +{(imageFile ? 1 : 0) * 5} puan<br />
                   • Hashtag: +{hashtags.length * 2} puan
                 </p>
               </div>
               <div className="text-3xl font-bold text-green-700">
-                {10 + (images.length * 5) + (hashtags.length * 2)}
+                {10 + ((imageFile ? 1 : 0) * 5) + (hashtags.length * 2)}
               </div>
             </div>
           </div>
@@ -622,10 +742,10 @@ export default function CreatePostModal({
               {loading ? (
                 <span className="flex items-center">
                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                  Paylaşılıyor...
+                  {mode === 'trip_only' ? 'Ekleniyor...' : 'Paylaşılıyor...'}
                 </span>
               ) : (
-                'Paylaş'
+                submitLabel || (mode === 'trip_only' ? 'Duraga Ekle' : 'Paylaş')
               )}
             </button>
           </div>

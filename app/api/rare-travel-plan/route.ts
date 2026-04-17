@@ -181,6 +181,32 @@ function scorePost(sortBy: string, likes: number, shares: number, routeDistanceK
   return likes + shares * 2
 }
 
+function orderByNearestFromStart(from: LatLng, posts: any[]): any[] {
+  const remaining = [...posts]
+  const ordered: any[] = []
+  let current = { ...from }
+
+  while (remaining.length > 0) {
+    let bestIndex = 0
+    let bestDistance = Number.POSITIVE_INFINITY
+
+    for (let i = 0; i < remaining.length; i += 1) {
+      const candidate = remaining[i]
+      const distance = haversineKm(current, { lat: candidate.latitude, lng: candidate.longitude })
+      if (distance < bestDistance) {
+        bestDistance = distance
+        bestIndex = i
+      }
+    }
+
+    const [picked] = remaining.splice(bestIndex, 1)
+    ordered.push(picked)
+    current = { lat: picked.latitude, lng: picked.longitude }
+  }
+
+  return ordered
+}
+
 function buildStraightLineRoute(from: LatLng, to: LatLng, steps = 24): LatLng[] {
   const points: LatLng[] = []
   for (let i = 0; i <= steps; i += 1) {
@@ -261,6 +287,47 @@ async function fetchRouteWithFallback(from: LatLng, to: LatLng): Promise<Routing
   }
 }
 
+async function fetchRouteThroughPoints(points: LatLng[]): Promise<RoutingResult> {
+  if (points.length < 2) {
+    return {
+      points,
+      distanceKm: 0,
+      durationMin: 0,
+      provider: 'single-point',
+      isFallback: true,
+    }
+  }
+
+  let mergedPoints: LatLng[] = []
+  let totalDistanceKm = 0
+  let totalDurationMin = 0
+  let providerLabel = 'segment-mixed'
+  let hasFallback = false
+
+  for (let i = 0; i < points.length - 1; i += 1) {
+    const segment = await fetchRouteWithFallback(points[i], points[i + 1])
+    totalDistanceKm += segment.distanceKm
+    totalDurationMin += segment.durationMin
+    providerLabel = segment.provider
+    if (segment.isFallback) hasFallback = true
+
+    if (mergedPoints.length === 0) {
+      mergedPoints = [...segment.points]
+    } else {
+      // Segmentleri birlestirirken ilk noktayi atarak tekrarli koseyi engelle.
+      mergedPoints = [...mergedPoints, ...segment.points.slice(1)]
+    }
+  }
+
+  return {
+    points: downsampleRoutePoints(mergedPoints),
+    distanceKm: Number(totalDistanceKm.toFixed(1)),
+    durationMin: Math.round(totalDurationMin),
+    provider: providerLabel,
+    isFallback: hasFallback,
+  }
+}
+
 function extractMissingColumnName(errorMessage: string): string | null {
   const match = errorMessage.match(/social_posts\.([a-zA-Z0-9_]+)/i)
   return match?.[1] || null
@@ -277,6 +344,33 @@ async function fetchSocialPostsSchemaSafe(supabase: any): Promise<SocialFetchRes
       .select(selectExpr)
       .order('created_at', { ascending: false })
       .limit(300)
+
+    if (!error) {
+      return { rows: data || [], removedColumns, error: null }
+    }
+
+    const missing = extractMissingColumnName(String(error?.message || ''))
+    if (!missing || !columns.includes(missing)) {
+      return { rows: [], removedColumns, error }
+    }
+
+    columns = columns.filter((col) => col !== missing)
+    removedColumns.push(missing)
+  }
+
+  return { rows: [], removedColumns, error: new Error('social_posts icin okunabilir kolon kalmadi') }
+}
+
+async function fetchSocialPostsByIdsSchemaSafe(supabase: any, ids: string[]): Promise<SocialFetchResult> {
+  let columns = [...SOCIAL_POST_SELECT_COLUMNS]
+  const removedColumns: string[] = []
+
+  while (columns.length > 0) {
+    const selectExpr = columns.join(', ')
+    const { data, error } = await supabase
+      .from('social_posts')
+      .select(selectExpr)
+      .in('id', ids)
 
     if (!error) {
       return { rows: data || [], removedColumns, error: null }
@@ -311,6 +405,8 @@ export async function GET(request: NextRequest) {
     const toText = searchParams.get('to')
 
     const stops = Math.max(1, Math.min(12, Number(searchParams.get('stops') || 5)))
+    // Kullanici tarafindan secilmis post ID'leri (secim sayfasindan gelir)
+    const selectedPostIds = searchParams.getAll('postId').filter(Boolean)
     const categories = searchParams
       .getAll('category')
       .map((item) => item.trim())
@@ -340,6 +436,157 @@ export async function GET(request: NextRequest) {
 
     if (!fromCoords) fromCoords = parseLatLngText(fromText) || (fromText ? await geocodeLocation(fromText) : null)
     if (!toCoords) toCoords = parseLatLngText(toText) || (toText ? await geocodeLocation(toText) : null)
+
+    // Secili postlar varsa sadece onlari kullan — geri kalan filtreleme atlaniyor
+    if (selectedPostIds.length > 0) {
+      if (!fromCoords) {
+        return NextResponse.json(
+          { error: 'Secili paylasimlarla plan icin baslangic konumu gerekli.' },
+          { status: 400 },
+        )
+      }
+
+      // ID'lere gore postlari schema-safe cek (kolon uyumsuzluklarinda hata vermesin)
+      const selectedFetch = await fetchSocialPostsByIdsSchemaSafe(supabase, selectedPostIds)
+      if (selectedFetch.error) {
+        return NextResponse.json({ error: selectedFetch.error.message }, { status: 500 })
+      }
+      if (selectedFetch.removedColumns.length > 0) {
+        console.warn('rare-travel-plan selected schema-safe social_posts select removed columns:', selectedFetch.removedColumns)
+      }
+
+      const selectedRows = selectedFetch.rows
+
+      const resolvedSelected = await Promise.all(
+        (selectedRows || []).map(async (row: any) => {
+          const latitude = toFiniteNumber(row.latitude ?? row.lat)
+          const longitude = toFiniteNumber(row.longitude ?? row.lng)
+          if (latitude != null && longitude != null) return { ...row, latitude, longitude }
+          const geocodeQuery = String(row.location || row.city || '').trim()
+          if (!geocodeQuery) return null
+          const resolved = await geocodeLocation(geocodeQuery)
+          if (!resolved) return null
+          return { ...row, latitude: resolved.lat, longitude: resolved.lng }
+        }),
+      )
+
+      const validSelected = resolvedSelected.filter(Boolean) as any[]
+
+      if (validSelected.length === 0) {
+        return NextResponse.json(
+          { error: 'Secili paylasimlar icin konum bilgisi bulunamadi.' },
+          { status: 400 },
+        )
+      }
+
+      // Baslangica gore en yakin komsu rotasi: varis noktasi en son secilen paylasim olur.
+      const orderedByTrip = orderByNearestFromStart(fromCoords, validSelected).slice(0, stops)
+      if (!toCoords && orderedByTrip.length > 0) {
+        const last = orderedByTrip[orderedByTrip.length - 1]
+        toCoords = { lat: last.latitude, lng: last.longitude }
+      }
+      if (!toCoords) toCoords = fromCoords
+
+      const routeWaypoints: LatLng[] = [
+        fromCoords,
+        ...orderedByTrip.map((p: any) => ({ lat: p.latitude, lng: p.longitude })),
+      ]
+
+      const lastWaypoint = routeWaypoints[routeWaypoints.length - 1]
+      if (!lastWaypoint || lastWaypoint.lat !== toCoords.lat || lastWaypoint.lng !== toCoords.lng) {
+        routeWaypoints.push(toCoords)
+      }
+
+      const routing = await fetchRouteThroughPoints(routeWaypoints)
+      const routePoints = routing.points
+
+      const postIds = validSelected.map((p: any) => p.id)
+      const likeCountMap = new Map<string, number>()
+      if (postIds.length > 0) {
+        const { data: likeRows } = await supabase.from('social_likes').select('post_id').in('post_id', postIds)
+        for (const row of likeRows || []) {
+          const key = String((row as any).post_id)
+          likeCountMap.set(key, (likeCountMap.get(key) || 0) + 1)
+        }
+      }
+
+      const scoredSelected = orderedByTrip.map((p: any) => {
+        const routeDistance = distanceToRouteKm({ lat: p.latitude, lng: p.longitude }, routePoints)
+        const likes = likeCountMap.get(String(p.id)) || 0
+        const shares = toFiniteNumber(p.share_count) || toFiniteNumber(p.shares_count) || 0
+        return {
+          ...p,
+          likes_count: likes,
+          shares_count: shares,
+          distance_to_route_km: Number(routeDistance.km.toFixed(2)),
+          nearest_route_index: routeDistance.nearestIndex,
+          score: scorePost(sortBy, likes, shares, routeDistance.km, p.created_at),
+        }
+      })
+
+      const finalPosts = scoredSelected.slice(0, stops).map((p: any, i: number) => {
+        const firstImage = Array.isArray(p.images) && p.images.length > 0
+          ? p.images[0]
+          : Array.isArray(p.image_urls) && p.image_urls.length > 0
+            ? p.image_urls[0]
+            : null
+        return {
+          id: p.id,
+          stop_index: i + 1,
+          title: p.title || p.content || null,
+          description: p.description || p.content || null,
+          category: p.category || null,
+          location_name: p.location_name || p.location || null,
+          city: p.city || null,
+          district: p.district || null,
+          country: p.country || null,
+          latitude: p.latitude,
+          longitude: p.longitude,
+          likes_count: p.likes_count,
+          shares_count: p.shares_count,
+          distance_to_route_km: p.distance_to_route_km,
+          image_url: firstImage,
+          created_at: p.created_at,
+        }
+      })
+
+      const lastStop = finalPosts[finalPosts.length - 1]
+      const lastStopLabel = lastStop
+        ? (lastStop.location_name || [lastStop.district, lastStop.city, lastStop.country].filter(Boolean).join(', ') || lastStop.title || 'Son durak')
+        : 'Secili konumlar'
+
+      const categoryOptions = Array.from(
+        new Set(finalPosts.map((p: any) => String(p.category || '').trim()).filter(Boolean)),
+      ).sort((a, b) => a.localeCompare(b, 'tr'))
+
+      return NextResponse.json({
+        meta: {
+          from: fromText || 'Secili konumlar',
+          to: (toText || '').trim() || lastStopLabel,
+          sortBy,
+          category: categories.length > 0 ? categories : null,
+          query: query || null,
+          nearbyOnly: false,
+          nearRadiusKm,
+          corridorKm,
+          stops: finalPosts.length,
+          routeDistanceKm: routing.distanceKm,
+          routeDurationMin: routing.durationMin,
+          routingProvider: routing.provider,
+          routeIsFallback: routing.isFallback,
+          foundPosts: finalPosts.length,
+          mode: 'selected_posts',
+        },
+        route: {
+          from: fromCoords,
+          to: toCoords,
+          geometry: routePoints,
+        },
+        stops: finalPosts,
+        categoryOptions,
+        posts: finalPosts,
+      })
+    }
 
     if (!fromCoords || !toCoords) {
       return NextResponse.json(

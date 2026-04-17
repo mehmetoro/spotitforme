@@ -4,6 +4,7 @@ import { useEffect, useState, type ChangeEvent } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { buildSeoImageAlt, buildSeoImageFileName } from '@/lib/content-seo'
+import { getImagePreviewDataUrl, optimizeImageFile } from '@/lib/image-processing'
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/hooks/useToast'
 import { extractSightingIdFromParam } from '@/lib/sighting-slug'
@@ -219,17 +220,24 @@ export default function CollectionDetailClient() {
     }
   }
 
-  const handleEditPhotoUpload = (e: ChangeEvent<HTMLInputElement>) => {
+  const handleEditPhotoUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Fotoğraf 5MB\'dan küçük olmalıdır')
+    if (file.size > 12 * 1024 * 1024) {
+      toast.error('Fotograf 12MB\'dan kucuk olmalidir')
       return
     }
-    setEditPhotoFile(file)
-    const reader = new FileReader()
-    reader.onloadend = () => setEditPhotoPreview(reader.result as string)
-    reader.readAsDataURL(file)
+
+    try {
+      const optimizedFile = await optimizeImageFile(file)
+      const preview = await getImagePreviewDataUrl(optimizedFile)
+      setEditPhotoFile(optimizedFile)
+      setEditPhotoPreview(preview)
+    } catch {
+      toast.error('Resim optimize edilirken bir hata olustu')
+    }
+
+    e.target.value = ''
   }
 
   const handleDelete = async () => {

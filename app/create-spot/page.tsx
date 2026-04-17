@@ -4,6 +4,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { buildSeoImageFileName, suggestHashtagsFromText } from '@/lib/content-seo'
+import { getImagePreviewDataUrl, optimizeImageFile } from '@/lib/image-processing'
 import { supabase } from '@/lib/supabase'
 import { buildSpotPath } from '@/lib/sighting-slug'
 // Header ve Footer import'larını KALDIRIYORUZ - Layout'ta zaten var
@@ -49,19 +50,24 @@ export default function CreateSpotPage() {
     'Yurt Dışı'
   ]
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
-      if (file.size > 5 * 1024 * 1024) { // 5MB limit
-        setError('Resim boyutu 5MB\'dan küçük olmalıdır')
+      if (file.size > 12 * 1024 * 1024) {
+        setError('Resim boyutu 12MB\'dan kucuk olmalidir')
         return
       }
-      setImageFile(file)
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string)
+
+      try {
+        const optimizedFile = await optimizeImageFile(file)
+        const preview = await getImagePreviewDataUrl(optimizedFile)
+        setImageFile(optimizedFile)
+        setImagePreview(preview)
+      } catch {
+        setError('Resim optimize edilirken hata olustu')
       }
-      reader.readAsDataURL(file)
+
+      e.target.value = ''
     }
   }
 

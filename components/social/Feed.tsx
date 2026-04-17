@@ -12,6 +12,10 @@ import CreatePostModal from './CreatePostModal'
 import SearchBar from './SearchBar'
 import StoriesBar from './StoriesBar'
 import { useInView } from 'react-intersection-observer'
+import { getCategoryMatchValues } from '@/lib/social-categories'
+
+export type PopularWindow = '24h' | '3d' | '7d' | '30d' | 'all'
+export type PopularSort = 'engagement' | 'likes' | 'comments' | 'saves' | 'recent'
 
 interface FeedProps {
   initialUserId?: string
@@ -19,9 +23,11 @@ interface FeedProps {
   category?: string // Kategori filtresi için
   city?: string // Şehir filtresi için
   initialSearch?: string // Arama sorgusu için
+  popularWindow?: PopularWindow
+  popularSort?: PopularSort
 }
 
-export default function Feed({ initialUserId, type, category, city, initialSearch }: FeedProps) {
+export default function Feed({ initialUserId, type, category, city, initialSearch, popularWindow = '7d', popularSort = 'engagement' }: FeedProps) {
   const router = useRouter()
   const [posts, setPosts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -33,7 +39,6 @@ export default function Feed({ initialUserId, type, category, city, initialSearc
   const [showFoundModal, setShowFoundModal] = useState(false)
   const [hasIsPublicColumn, setHasIsPublicColumn] = useState<boolean | null>(null)
   const [searchQuery, setSearchQuery] = useState(initialSearch || '')
-  const [searchPostType, setSearchPostType] = useState('all')
 
   const { ref, inView } = useInView()
   const PAGE_SIZE = 10
@@ -119,23 +124,21 @@ export default function Feed({ initialUserId, type, category, city, initialSearc
           break
 
         case 'popular':
-          // TODO: like_count sütunu eklendikten sonra bunu düzelt
-          // Şimdilik en son paylaşımlara sorted (en yeni en popüler kabul)
+          // En güncel havuzdan çekip etkileşim skoruna göre aşağıda sıralıyoruz.
+          if (popularWindow !== 'all') {
+            const start = new Date()
+            if (popularWindow === '24h') {
+              start.setHours(start.getHours() - 24)
+            } else if (popularWindow === '3d') {
+              start.setDate(start.getDate() - 3)
+            } else if (popularWindow === '7d') {
+              start.setDate(start.getDate() - 7)
+            } else {
+              start.setDate(start.getDate() - 30)
+            }
+            query = query.gte('created_at', start.toISOString())
+          }
           query = query.order('created_at', { ascending: false })
-          break
-
-        // post type filtreleri
-        case 'rare':
-          query = query.eq('post_type', 'rare_sight')
-          break
-        case 'spots':
-          query = query.eq('post_type', 'spot')
-          break
-        case 'found':
-          query = query.eq('post_type', 'found')
-          break
-        case 'products':
-          query = query.eq('post_type', 'product')
           break
 
         default:
@@ -146,7 +149,16 @@ export default function Feed({ initialUserId, type, category, city, initialSearc
 
       // Kategori filtresi varsa uygula
       if (category && category !== 'all') {
-        query = query.eq('category', category)
+        const categoryValues = getCategoryMatchValues(category)
+        const categoryConditions = categoryValues
+          .map((value) => `category.ilike.${value.replace(/,/g, '\\,')}`)
+          .join(',')
+
+        if (categoryConditions) {
+          query = query.or(categoryConditions)
+        } else {
+          query = query.eq('category', category)
+        }
       }
 
       // Şehir filtresi varsa uygula (artık normalize edilerek kaydediliyor, doğrudan eşleşme yeterli)
@@ -270,10 +282,39 @@ export default function Feed({ initialUserId, type, category, city, initialSearc
           })
         )
 
+        const normalizedPosts =
+          activeFilter === 'popular'
+            ? [...postsWithUsers].sort((a, b) => {
+                const scoreByMode = (post: any) => {
+                  switch (popularSort) {
+                    case 'likes':
+                      return post.like_count || 0
+                    case 'comments':
+                      return post.comment_count || 0
+                    case 'saves':
+                      return post.save_count || 0
+                    case 'recent':
+                      return new Date(post.created_at).getTime()
+                    default:
+                      return (post.like_count || 0) * 2 + (post.comment_count || 0) * 1.5 + (post.save_count || 0)
+                  }
+                }
+
+                const aScore = scoreByMode(a)
+                const bScore = scoreByMode(b)
+
+                if (bScore !== aScore) {
+                  return bScore - aScore
+                }
+
+                return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+              })
+            : postsWithUsers
+
         if (refresh) {
-          setPosts(postsWithUsers)
+          setPosts(normalizedPosts)
         } else {
-          setPosts(prev => [...prev, ...postsWithUsers])
+          setPosts(prev => [...prev, ...normalizedPosts])
         }
         
         setHasMore(data.length === PAGE_SIZE)
@@ -291,7 +332,7 @@ export default function Feed({ initialUserId, type, category, city, initialSearc
       setLoading(false)
     }
     // Şehir filtresi uygula kodu kaldırıldı, bu filtre fetchPosts fonksiyonu içinde zaten uygulanıyor
-  }, [activeFilter, initialUserId, category, city])
+  }, [activeFilter, initialUserId, category, city, popularWindow, popularSort])
 
   // Infinite scroll
   useEffect(() => {
@@ -447,9 +488,8 @@ export default function Feed({ initialUserId, type, category, city, initialSearc
 
       {/* Search & Filter Bar */}
       {!initialUserId && (
-        <SearchBar 
+        <SearchBar
           onSearch={setSearchQuery}
-          onPostTypeFilter={setSearchPostType}
           initialValue={searchQuery}
         />
       )}
@@ -483,13 +523,6 @@ export default function Feed({ initialUserId, type, category, city, initialSearc
               const title = (post.title || '').toLowerCase()
               const content = (post.content || '').toLowerCase()
               if (!title.includes(query) && !content.includes(query)) {
-                return false
-              }
-            }
-
-            // Post type filtresi
-            if (searchPostType !== 'all') {
-              if (post.post_type !== searchPostType && post.type !== searchPostType) {
                 return false
               }
             }

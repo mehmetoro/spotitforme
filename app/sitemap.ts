@@ -2,6 +2,9 @@ import { createClient } from '@supabase/supabase-js'
 import type { MetadataRoute } from 'next'
 
 import { buildCollectionPath, buildRareSightingPath, buildSightingPath, buildSocialPath, buildSpotPath } from '@/lib/sighting-slug'
+import { SOCIAL_CATEGORIES, findCategoryByValue, getCategorySlug, getCitySlug } from '@/lib/social-categories'
+
+export const revalidate = 3600
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://spotitforme.com'
 const FALLBACK_SUPABASE_URL = 'https://gobzxreumkbgaohvzoef.supabase.co'
@@ -36,7 +39,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const socialWithTitle = await supabase
     .from('social_posts')
-    .select('id, title, content, description, location, created_at, updated_at')
+    .select('id, title, content, description, location, category, city, created_at, updated_at')
     .order('created_at', { ascending: false })
     .limit(5000)
 
@@ -46,6 +49,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     content: string | null
     description: string | null
     location: string | null
+    category?: string | null
+    city?: string | null
     created_at: string | null
     updated_at: string | null
   }> = []
@@ -53,7 +58,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   if (socialWithTitle.error?.message?.includes('title')) {
     const fallback = await supabase
       .from('social_posts')
-      .select('id, content, description, location, created_at, updated_at')
+      .select('id, content, description, location, category, city, created_at, updated_at')
       .order('created_at', { ascending: false })
       .limit(5000)
 
@@ -67,6 +72,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const staticEntries: MetadataRoute.Sitemap = [
     { url: absoluteUrl('/'), changeFrequency: 'daily', priority: 1 },
+    { url: absoluteUrl('/discovery'), changeFrequency: 'hourly', priority: 0.92 },
     { url: absoluteUrl('/spots'), changeFrequency: 'hourly', priority: 0.9 },
     { url: absoluteUrl('/sightings'), changeFrequency: 'hourly', priority: 0.9 },
     { url: absoluteUrl('/virtual-sightings'), changeFrequency: 'hourly', priority: 0.9 },
@@ -74,6 +80,26 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: absoluteUrl('/collection'), changeFrequency: 'daily', priority: 0.8 },
     { url: absoluteUrl('/museum'), changeFrequency: 'daily', priority: 0.7 },
   ]
+
+  const categoryEntries: MetadataRoute.Sitemap = SOCIAL_CATEGORIES.map((category) => ({
+    url: absoluteUrl(`/kategori/${getCategorySlug(category.id)}`),
+    changeFrequency: 'daily',
+    priority: 0.78,
+  }))
+
+  const categoryCitySet = new Set<string>()
+  socialItems.forEach((item) => {
+    const matchedCategory = findCategoryByValue(item.category)
+    const city = item.city?.trim()
+    if (!matchedCategory || !city) return
+    categoryCitySet.add(`/kategori/${getCategorySlug(matchedCategory.id)}/${getCitySlug(city)}`)
+  })
+
+  const categoryCityEntries: MetadataRoute.Sitemap = Array.from(categoryCitySet).map((path) => ({
+    url: absoluteUrl(path),
+    changeFrequency: 'daily',
+    priority: 0.72,
+  }))
 
   const spotEntries = (spotsResult.data || []).map((spot) => ({
     url: absoluteUrl(buildSpotPath(spot.id, spot.title)),
@@ -110,5 +136,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.75,
   }))
 
-  return [...staticEntries, ...spotEntries, ...sightingEntries, ...rareEntries, ...socialEntries, ...collectionEntries]
+  return [...staticEntries, ...categoryEntries, ...categoryCityEntries, ...spotEntries, ...sightingEntries, ...rareEntries, ...socialEntries, ...collectionEntries]
 }

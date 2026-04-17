@@ -8,7 +8,7 @@ export default function NadirPage() {
         <div className="max-w-3xl mx-auto bg-white rounded-2xl shadow-lg p-8">
           <h1 className="text-4xl font-bold text-center text-yellow-700 mb-6">Nadir Keşifler</h1>
           <p className="text-lg text-gray-700 text-center mb-8">
-            Topluluğun en nadir, en ilginç ve en az bulunan spotlarını burada keşfet! Her gün güncellenen nadir paylaşımlar, koleksiyoncular ve meraklılar için özel olarak listelenir.
+            Topluluğun en nadir, en ilginç ve en az bulunan spotlarını burada keşfet! Her gün güncellenen nadir seyahatler, koleksiyoncular ve meraklılar için özel olarak listelenir.
           </p>
           <div className="bg-yellow-50 border-l-4 border-yellow-400 p-6 rounded-xl mb-8">
             <h2 className="text-2xl font-bold text-yellow-800 mb-2">Nadirlik Neye Göre?</h2>

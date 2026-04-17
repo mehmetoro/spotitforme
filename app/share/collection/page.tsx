@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { buildSeoImageFileName, suggestHashtagsFromText } from '@/lib/content-seo'
+import { getImagePreviewDataUrl, optimizeImageFile } from '@/lib/image-processing'
 import { supabase } from '@/lib/supabase'
 import { buildCollectionPath } from '@/lib/sighting-slug'
 
@@ -89,21 +90,25 @@ export default function ShareCollectionPage() {
     router.push('/collection')
   }
 
-  const handlePhotoUpload = (e: ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
-    if (file.size > 5 * 1024 * 1024) {
-      alert('Koleksiyon fotoğrafı 5MB\'dan küçük olmalıdır.')
+    if (file.size > 12 * 1024 * 1024) {
+      alert('Koleksiyon fotografi 12MB\'dan kucuk olmalidir.')
       return
     }
 
-    setPhotoFile(file)
-    const reader = new FileReader()
-    reader.onloadend = () => {
-      setPhotoPreview(reader.result as string)
+    try {
+      const optimizedFile = await optimizeImageFile(file)
+      const preview = await getImagePreviewDataUrl(optimizedFile)
+      setPhotoFile(optimizedFile)
+      setPhotoPreview(preview)
+    } catch {
+      alert('Resim optimize edilirken bir hata olustu.')
     }
-    reader.readAsDataURL(file)
+
+    e.target.value = ''
   }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {

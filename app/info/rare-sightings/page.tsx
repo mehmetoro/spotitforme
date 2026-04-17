@@ -152,7 +152,7 @@ export default function RareSightingsPage() {
                 </div>
                 <div className="flex gap-2">
                   <span className="text-xl">🏆</span>
-                  <p className="text-sm text-gray-700"><strong>Rozet & Puanlar</strong> - Nadir paylaşımlar için özel ödüller kazan</p>
+                  <p className="text-sm text-gray-700"><strong>Rozet & Puanlar</strong> - Nadir seyahatler için özel ödüller kazan</p>
                 </div>
                 <div className="flex gap-2">
                   <span className="text-xl">🌍</span>

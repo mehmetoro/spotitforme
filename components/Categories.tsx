@@ -2,17 +2,9 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { SOCIAL_CATEGORIES, findCategoryByValue, getCategorySlug } from '@/lib/social-categories';
 
-const CATEGORY_LIST = [
-  { key: 'elektronik', label: 'Elektronik', icon: '📱', color: 'bg-blue-100 text-blue-800' },
-  { key: 'giyim', label: 'Giyim & Aksesuar', icon: '👕', color: 'bg-green-100 text-green-800' },
-  { key: 'ev', label: 'Ev & Dekorasyon', icon: '🏠', color: 'bg-yellow-100 text-yellow-800' },
-  { key: 'koleksiyon', label: 'Koleksiyon', icon: '🎨', color: 'bg-purple-100 text-purple-800' },
-  { key: 'kitap', label: 'Kitap & Müzik', icon: '📚', color: 'bg-red-100 text-red-800' },
-  { key: 'oyuncak', label: 'Oyuncak & Oyun', icon: '🎮', color: 'bg-indigo-100 text-indigo-800' },
-  { key: 'spor', label: 'Spor & Outdoor', icon: '⚽', color: 'bg-pink-100 text-pink-800' },
-  { key: 'arac', label: 'Araç & Parça', icon: '🚗', color: 'bg-gray-100 text-gray-800' },
-];
+const CATEGORY_LIST = SOCIAL_CATEGORIES;
 
 const CITY_LIST = [
   'İstanbul', 'Ankara', 'İzmir', 'Bursa', 'Antalya', 'Adana', 'Konya', 'Trabzon', 'Yalova'
@@ -26,14 +18,25 @@ export default function Categories() {
   useEffect(() => {
     // Kategorilere göre aktif paylaşım sayısı (social_posts tablosu)
     (async () => {
-      const counts: Record<string, number> = {};
-      for (const category of CATEGORY_LIST) {
-        const { count } = await supabase
-          .from('social_posts')
-          .select('id', { count: 'exact', head: true })
-          .eq('category', category.key);
-        counts[category.key] = count || 0;
+      const counts: Record<string, number> = Object.fromEntries(
+        CATEGORY_LIST.map((category) => [category.id, 0])
+      );
+
+      const { data, error } = await supabase
+        .from('social_posts')
+        .select('category');
+
+      if (error) {
+        setCategoryCounts(counts);
+        return;
       }
+
+      (data || []).forEach((row: { category: string | null }) => {
+        const matchedCategory = findCategoryByValue(row.category);
+        if (!matchedCategory) return;
+        counts[matchedCategory.id] = (counts[matchedCategory.id] || 0) + 1;
+      });
+
       setCategoryCounts(counts);
     })();
 
@@ -77,17 +80,17 @@ export default function Categories() {
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {CATEGORY_LIST.map((category, i) => (
+          {CATEGORY_LIST.map((category) => (
             <div
-              key={category.key}
+              key={category.id}
               className="border border-gray-200 rounded-xl p-6 text-center hover:border-blue-300 hover:shadow-md transition duration-200 cursor-pointer"
-              onClick={() => router.push(`/discovery?category=${encodeURIComponent(category.key)}`)}
+              onClick={() => router.push(`/kategori/${getCategorySlug(category.id)}`)}
             >
-              <div className={`w-16 h-16 ${category.color.split(' ')[0]} rounded-full flex items-center justify-center text-2xl mx-auto mb-4`}>
+              <div className={`w-16 h-16 ${category.badgeColor.split(' ')[0]} rounded-full flex items-center justify-center text-2xl mx-auto mb-4`}>
                 {category.icon}
               </div>
-              <h3 className="font-bold text-gray-900 mb-1">{category.label}</h3>
-              <p className="text-gray-500 text-sm">{categoryCounts[category.key] || 0} paylaşım</p>
+              <h3 className="font-bold text-gray-900 mb-1">{category.name}</h3>
+              <p className="text-gray-500 text-sm">{categoryCounts[category.id] || 0} paylaşım</p>
             </div>
           ))}
         </div>

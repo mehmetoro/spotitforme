@@ -2,6 +2,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
+import { getImagePreviewDataUrl, optimizeImageFile } from '@/lib/image-processing'
 
 interface ImageUploadProps {
   onImagesSelected: (files: File[]) => void
@@ -10,26 +11,30 @@ interface ImageUploadProps {
 
 export default function ImageUpload({ 
   onImagesSelected, 
-  maxImages = 10 
+  maxImages = 1 
 }: ImageUploadProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [previews, setPreviews] = useState<string[]>([])
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || [])
-    const validFiles = files.slice(0, maxImages - previews.length)
-    
-    if (validFiles.length === 0) return
-    
-    // Preview oluştur
-    const newPreviews = validFiles.map(file => URL.createObjectURL(file))
-    setPreviews(prev => [...prev, ...newPreviews])
-    
-    onImagesSelected(validFiles)
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0]
+    if (!selectedFile) return
+
+    try {
+      const optimizedFile = await optimizeImageFile(selectedFile)
+      const preview = await getImagePreviewDataUrl(optimizedFile)
+      setPreviews([preview])
+      onImagesSelected([optimizedFile])
+    } catch {
+      alert('Resim optimize edilirken bir hata olustu.')
+    }
+
+    e.target.value = ''
   }
 
-  const removeImage = (index: number) => {
-    setPreviews(prev => prev.filter((_, i) => i !== index))
+  const removeImage = () => {
+    setPreviews([])
+    onImagesSelected([])
   }
 
   return (
@@ -37,7 +42,6 @@ export default function ImageUpload({
       <input
         type="file"
         ref={fileInputRef}
-        multiple
         accept="image/*"
         onChange={handleFileSelect}
         className="hidden"
@@ -53,7 +57,7 @@ export default function ImageUpload({
             />
             <button
               type="button"
-              onClick={() => removeImage(index)}
+              onClick={removeImage}
               className="absolute top-1 right-1 bg-red-500 text-white w-6 h-6 rounded-full text-sm"
             >
               ×
