@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import LocationSelector from './LocationSelector'
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { MapContainer, Marker, TileLayer, Polyline, Popup, useMap } from 'react-leaflet'
@@ -281,10 +282,8 @@ export default function RareTravelPlanner() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
-  const [from, setFrom] = useState('Istanbul')
-  const [fromCoords, setFromCoords] = useState<LatLng | null>(null)
-  const [to, setTo] = useState('Ankara')
-  const [toCoords, setToCoords] = useState<LatLng | null>(null)
+  const [fromLocation, setFromLocation] = useState<{ name: string; latitude: number | null; longitude: number | null; city: string } | null>({ name: 'Istanbul', latitude: null, longitude: null, city: '' })
+  const [toLocation, setToLocation] = useState<{ name: string; latitude: number | null; longitude: number | null; city: string } | null>({ name: 'Ankara', latitude: null, longitude: null, city: '' })
   const [stops, setStops] = useState(5)
   const [sortBy, setSortBy] = useState<string>('likes_shares')
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
@@ -357,15 +356,15 @@ export default function RareTravelPlanner() {
 
   const buildPlannerParams = () => {
     const params = new URLSearchParams()
-    params.set('from', from)
-    if (to.trim()) params.set('to', to)
-    if (fromCoords) {
-      params.set('fromLat', String(fromCoords.lat))
-      params.set('fromLng', String(fromCoords.lng))
+    params.set('from', fromLocation?.name || '')
+    if (toLocation?.name) params.set('to', toLocation.name)
+    if (fromLocation?.latitude != null && fromLocation?.longitude != null) {
+      params.set('fromLat', String(fromLocation.latitude))
+      params.set('fromLng', String(fromLocation.longitude))
     }
-    if (toCoords) {
-      params.set('toLat', String(toCoords.lat))
-      params.set('toLng', String(toCoords.lng))
+    if (toLocation?.latitude != null && toLocation?.longitude != null) {
+      params.set('toLat', String(toLocation.latitude))
+      params.set('toLng', String(toLocation.longitude))
     }
     params.set('stops', String(stops))
     params.set('sortBy', sortBy)
@@ -553,14 +552,18 @@ export default function RareTravelPlanner() {
 
     // --- Secim sayfasindan gelme (postId var): query aynen korunur ---
     if (fromParam && postIdsFromQuery.length > 0) {
-      setFrom(fromParam)
-      setTo(toParam || '')
-      const spFromLat = Number(searchParams.get('fromLat'))
-      const spFromLng = Number(searchParams.get('fromLng'))
-      const spToLat = Number(searchParams.get('toLat'))
-      const spToLng = Number(searchParams.get('toLng'))
-      if (Number.isFinite(spFromLat) && spFromLat !== 0) setFromCoords({ lat: spFromLat, lng: spFromLng })
-      if (Number.isFinite(spToLat) && spToLat !== 0) setToCoords({ lat: spToLat, lng: spToLng })
+      setFromLocation({
+        name: fromParam,
+        latitude: Number(searchParams.get('fromLat')) || null,
+        longitude: Number(searchParams.get('fromLng')) || null,
+        city: '',
+      })
+      setToLocation({
+        name: toParam || '',
+        latitude: Number(searchParams.get('toLat')) || null,
+        longitude: Number(searchParams.get('toLng')) || null,
+        city: '',
+      })
       setStops(Math.max(1, Math.min(12, Number(searchParams.get('stops') || 5))))
       setSortBy(searchParams.get('sortBy') || 'likes_shares')
       setCorridorKm(Math.max(1, Math.min(40, Number(searchParams.get('corridorKm') || 12))))
@@ -580,14 +583,18 @@ export default function RareTravelPlanner() {
 
     // --- Tam URL (from + to var): normal akış ---
     if (fromParam && toParam) {
-      setFrom(fromParam)
-      setTo(toParam)
-      const spFromLat = Number(searchParams.get('fromLat'))
-      const spFromLng = Number(searchParams.get('fromLng'))
-      const spToLat = Number(searchParams.get('toLat'))
-      const spToLng = Number(searchParams.get('toLng'))
-      if (Number.isFinite(spFromLat) && spFromLat !== 0) setFromCoords({ lat: spFromLat, lng: spFromLng })
-      if (Number.isFinite(spToLat) && spToLat !== 0) setToCoords({ lat: spToLat, lng: spToLng })
+      setFromLocation({
+        name: fromParam,
+        latitude: Number(searchParams.get('fromLat')) || null,
+        longitude: Number(searchParams.get('fromLng')) || null,
+        city: '',
+      })
+      setToLocation({
+        name: toParam,
+        latitude: Number(searchParams.get('toLat')) || null,
+        longitude: Number(searchParams.get('toLng')) || null,
+        city: '',
+      })
       setStops(Math.max(1, Math.min(12, Number(searchParams.get('stops') || 5))))
       setSortBy(searchParams.get('sortBy') || 'likes_shares')
       setCorridorKm(Math.max(1, Math.min(40, Number(searchParams.get('corridorKm') || 12))))
@@ -612,7 +619,12 @@ export default function RareTravelPlanner() {
       if (categoryParam) {
         setSelectedCategories([categoryParam])
       }
-      setFrom(fromParam)
+      setFromLocation({
+        name: fromParam,
+        latitude: Number(searchParams.get('fromLat')) || null,
+        longitude: Number(searchParams.get('fromLng')) || null,
+        city: '',
+      })
 
       const geocodeAndRun = async () => {
         setLoading(true)
@@ -730,6 +742,12 @@ export default function RareTravelPlanner() {
     setSaveMessage('')
 
     try {
+      // fromLocation ve toLocation kontrolü
+      if (!fromLocation?.name?.trim() || !toLocation?.name?.trim()) {
+        setError('Başlangıç ve varış konumu gerekli. Metin veya enlem,boylam girebilirsin.')
+        setLoading(false)
+        return
+      }
       const params = buildPlannerParams()
       const query = params.toString()
       setActiveQuery(query)
@@ -744,7 +762,12 @@ export default function RareTravelPlanner() {
         setSelectedCategories([])
       }
     } catch (err: any) {
-      setError(err?.message || 'Plan olusturulamadi')
+      // Backend "Başlangıç ve varış konumu gerekli" diyorsa, kullanıcıya metinle de plan oluşturulabileceğini belirt
+      if (err?.message?.includes('Baslangic ve varis konumu gerekli')) {
+        setError('Başlangıç ve varış konumu gerekli. Metin veya enlem,boylam girebilirsin.')
+      } else {
+        setError(err?.message || 'Plan olusturulamadi')
+      }
     } finally {
       setLoading(false)
     }
@@ -755,8 +778,8 @@ export default function RareTravelPlanner() {
     setSavingPlan(true)
     try {
       const params = buildPlannerParams().toString()
-      const fromInput = from.trim()
-      const toInput = to.trim()
+      const fromInput = fromLocation?.name?.trim() || ''
+      const toInput = toLocation?.name?.trim() || ''
       const fromLabel = (fromInput && !isLatLngLike(fromInput) ? fromInput : (result?.meta?.from || fromInput || 'Baslangic'))
       const lastStopLabel = getLastStopLabel(result)
       const toLabel =
@@ -805,12 +828,8 @@ export default function RareTravelPlanner() {
     }
   }
 
-  const startLiveSession = async () => {
-    if (!result) {
-      setError('Plan olusturulmalı.')
-      return
-    }
-
+  // Duraksız (boş) canlı plan başlat
+  const startLiveSessionEmpty = async () => {
     const {
       data: { user },
     } = await supabase.auth.getUser()
@@ -818,23 +837,18 @@ export default function RareTravelPlanner() {
       setError('Canli plan baslatmak icin giris yapmalısiniz.')
       return
     }
-
     setLiveSessionStarting(true)
     setSaveMessage('')
     try {
-      // Önce planı kaydet
       const params = buildPlannerParams().toString()
-      const fromInput = from.trim()
-      const toInput = to.trim()
-      const fromLabel =
-        fromInput && !isLatLngLike(fromInput)
-          ? fromInput
-          : result?.meta?.from || fromInput || 'Baslangic'
-      const lastStopLabel = getLastStopLabel(result)
-      const toLabel =
-        toInput && !isLatLngLike(toInput)
-          ? toInput
-          : result?.meta?.to || lastStopLabel || toInput || 'Son durak'
+      const fromInput = fromLocation?.name?.trim() || ''
+      const toInput = toLocation?.name?.trim() || ''
+      const fromLabel = fromInput && !isLatLngLike(fromInput)
+        ? fromInput
+        : 'Baslangic'
+      const toLabel = toInput && !isLatLngLike(toInput)
+        ? toInput
+        : 'Son durak'
       const title = `${fromLabel} -> ${toLabel}`
 
       const { data: planData, error: planErr } = await supabase
@@ -848,10 +862,8 @@ export default function RareTravelPlanner() {
         })
         .select('id')
         .single()
-
       if (planErr) throw planErr
 
-      // Sonra live session başlat
       const { data: sessionData, error: sessionErr } = await supabase
         .from('live_travel_sessions')
         .insert({
@@ -861,15 +873,97 @@ export default function RareTravelPlanner() {
         })
         .select('id')
         .single()
-
       if (sessionErr) throw sessionErr
 
       setLiveSessionId(sessionData.id)
       setLiveSessionActive(true)
       setSaveMessage('Canli plan baslatildi!')
       await loadSavedPlans()
+      setTimeout(() => {
+        router.push(`/rare-travel-plan/live/${sessionData.id}`)
+      }, 800)
+    } catch (err: any) {
+      setError(err?.message || 'Canli plan baslatılamadı.')
+    } finally {
+      setLiveSessionStarting(false)
+    }
+  }
 
-      // Canlı plan sayfasına yönlendir
+  // Planlı (duraklı) canlı plan başlat
+  const startLiveSessionWithStops = async () => {
+    if (!result) return
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) {
+      setError('Canli plan baslatmak icin giris yapmalısiniz.')
+      return
+    }
+    setLiveSessionStarting(true)
+    setSaveMessage('')
+    try {
+      const params = buildPlannerParams().toString()
+      const fromInput = fromLocation?.name?.trim() || ''
+      const toInput = toLocation?.name?.trim() || ''
+      const fromLabel = fromInput && !isLatLngLike(fromInput)
+        ? fromInput
+        : result?.meta?.from || fromInput || 'Baslangic'
+      const lastStopLabel = getLastStopLabel(result)
+      const toLabel = toInput && !isLatLngLike(toInput)
+        ? toInput
+        : result?.meta?.to || lastStopLabel || toInput || 'Son durak'
+      const title = `${fromLabel} -> ${toLabel}`
+
+      // Önce planı kaydet
+      const { data: planData, error: planErr } = await supabase
+        .from('rare_travel_plans')
+        .insert({
+          user_id: user.id,
+          title,
+          from_location: fromLabel,
+          to_location: toLabel,
+          query_params: params,
+        })
+        .select('id')
+        .single()
+      if (planErr) throw planErr
+
+      // Sonra canlı oturumu başlat
+      const { data: sessionData, error: sessionErr } = await supabase
+        .from('live_travel_sessions')
+        .insert({
+          user_id: user.id,
+          plan_id: planData.id,
+          status: 'active',
+        })
+        .select('id')
+        .single()
+      if (sessionErr) throw sessionErr
+
+      // Durakları canlı oturumun session_id'si ile ekle
+      for (const post of result.posts) {
+        await supabase.from('live_trip_posts').insert({
+          session_id: sessionData.id,
+          user_id: user.id,
+          source_social_post_id: post.id,
+          title: post.title,
+          description: post.description,
+          image_url: post.image_url,
+          category: post.category,
+          location_name: post.location_name,
+          city: post.city,
+          latitude: post.latitude,
+          longitude: post.longitude,
+          visit_time: null,
+          visibility: 'followers',
+          sort_order: post.stop_index,
+        })
+      }
+
+      setLiveSessionId(sessionData.id)
+      setLiveSessionActive(true)
+      setSaveMessage('Canli plan baslatildi!')
+      await loadSavedPlans()
       setTimeout(() => {
         router.push(`/rare-travel-plan/live/${sessionData.id}`)
       }, 800)
@@ -902,54 +996,33 @@ export default function RareTravelPlanner() {
 
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           <div>
-            <p className="text-sm font-medium text-gray-700 mb-0.5">Baslangic</p>
-            <LocationAutocomplete
-              value={from}
-              onChange={(v) => { setFrom(v); setFromCoords(null) }}
-              onSelect={(display, lat, lng) => { setFrom(display); setFromCoords({ lat, lng }) }}
-              placeholder="Sehir veya adres ara..."
-              showCurrentLocation
-              onCurrentLocation={() => {
-                if (!navigator.geolocation) return
-                navigator.geolocation.getCurrentPosition(
-                  async (pos) => {
-                    const lat = pos.coords.latitude
-                    const lng = pos.coords.longitude
-                    setFromCoords({ lat, lng })
-                    try {
-                      const res = await fetch(
-                        `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&accept-language=tr`,
-                        { headers: { 'User-Agent': 'spotitforme/1.0' } },
-                      )
-                      const data = await res.json()
-                      const city = data?.address?.city || data?.address?.town || data?.address?.province || ''
-                      const country = data?.address?.country || ''
-                      setFrom([city, country].filter(Boolean).join(', ') || `${lat.toFixed(4)}, ${lng.toFixed(4)}`)
-                    } catch {
-                      setFrom(`${lat.toFixed(4)}, ${lng.toFixed(4)}`)
-                    }
-                  },
-                  () => setError('Konum alinamadi.'),
-                  { enableHighAccuracy: true, timeout: 8000 },
-                )
-              }}
+            <LocationSelector
+              onLocationSelect={(loc) => setFromLocation({
+                name: loc.address || loc.name,
+                latitude: loc.latitude,
+                longitude: loc.longitude,
+                city: loc.city || ''
+              })}
+              initialLocation={fromLocation?.name || ''}
+              required
+              // Başlangıç için otomatik konum ve öneri aktif
+              showQuickLocations={false}
             />
-            {fromCoords && (
-              <p className="mt-0.5 text-xs text-emerald-600">✓ Konum secildi ({fromCoords.lat.toFixed(4)}, {fromCoords.lng.toFixed(4)})</p>
-            )}
           </div>
-
           <div>
-            <p className="text-sm font-medium text-gray-700 mb-0.5">Varis</p>
-            <LocationAutocomplete
-              value={to}
-              onChange={(v) => { setTo(v); setToCoords(null) }}
-              onSelect={(display, lat, lng) => { setTo(display); setToCoords({ lat, lng }) }}
-              placeholder="Sehir veya adres ara..."
+            <LocationSelector
+              onLocationSelect={(loc) => setToLocation({
+                name: loc.address || loc.name,
+                latitude: loc.latitude,
+                longitude: loc.longitude,
+                city: loc.city || ''
+              })}
+              initialLocation={toLocation?.name || ''}
+              required
+              // Varış için otomatik konum ve örnek girişler kapalı, sadece tamamlama
+              showCurrentLocation={false}
+              showQuickLocations={false}
             />
-            {toCoords && (
-              <p className="mt-0.5 text-xs text-emerald-600">✓ Konum secildi ({toCoords.lat.toFixed(4)}, {toCoords.lng.toFixed(4)})</p>
-            )}
           </div>
         </div>
 
@@ -1135,11 +1208,22 @@ export default function RareTravelPlanner() {
             {savingPlan ? 'Kaydediliyor...' : 'Plani kaydet'}
           </button>
 
+          {/* Plan yoksa üstte, plan varsa aşağıda buton */}
+          {!result && (
+            <button
+              type="button"
+              onClick={startLiveSessionEmpty}
+              disabled={liveSessionStarting}
+              className="rounded-xl border border-red-300 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:opacity-60"
+            >
+              {liveSessionStarting ? 'Baslatiliyor...' : '🔴 Canli Plan Başlat'}
+            </button>
+          )}
           {result && (
             <button
               type="button"
-              onClick={startLiveSession}
-              disabled={liveSessionStarting || !result}
+              onClick={startLiveSessionWithStops}
+              disabled={liveSessionStarting}
               className="rounded-xl border border-red-300 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:opacity-60"
             >
               {liveSessionStarting ? 'Baslatiliyor...' : '🔴 Canli Plan Başlat'}

@@ -28,6 +28,8 @@ interface LocationSelectorProps {
   onLocationSelect: (location: SelectedLocation) => void
   initialLocation?: string
   required?: boolean
+  showCurrentLocation?: boolean
+  showQuickLocations?: boolean
 }
 
 interface DatabaseLocation {
@@ -55,7 +57,9 @@ interface OSMResult {
 export default function LocationSelector({ 
   onLocationSelect, 
   initialLocation = '',
-  required = true
+  required = true,
+  showCurrentLocation = true,
+  showQuickLocations = true
 }: LocationSelectorProps) {
   const [location, setLocation] = useState(initialLocation)
   const [suggestions, setSuggestions] = useState<LocationSuggestion[]>([])
@@ -241,14 +245,16 @@ export default function LocationSelector({
             />
           </div>
           
-          <button
-            type="button"
-            onClick={useCurrentLocation}
-            className="ml-2 p-3 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition"
-            title="Mevcut konumumu kullan"
-          >
-            <Navigation className="w-5 h-5" />
-          </button>
+          {showCurrentLocation && (
+            <button
+              type="button"
+              onClick={useCurrentLocation}
+              className="ml-2 p-3 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition"
+              title="Mevcut konumumu kullan"
+            >
+              <Navigation className="w-5 h-5" />
+            </button>
+          )}
         </div>
 
         {/* Öneriler */}
@@ -284,21 +290,23 @@ export default function LocationSelector({
       </div>
 
       {/* Hızlı konum butonları */}
-      <div className="flex flex-wrap gap-2">
-        {quickLocations.map((quickLocation) => (
-          <button
-            key={quickLocation}
-            type="button"
-            onClick={() => {
-              setLocation(quickLocation)
-              searchLocation(quickLocation)
-            }}
-            className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-full text-sm transition"
-          >
-            {quickLocation}
-          </button>
-        ))}
-      </div>
+      {showQuickLocations && (
+        <div className="flex flex-wrap gap-2">
+          {quickLocations.map((quickLocation) => (
+            <button
+              key={quickLocation}
+              type="button"
+              onClick={() => {
+                setLocation(quickLocation)
+                searchLocation(quickLocation)
+              }}
+              className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-full text-sm transition"
+            >
+              {quickLocation}
+            </button>
+          ))}
+        </div>
+      )}
 
       <p className="text-xs text-gray-500">
         ✓ Konum bilgisi ürünün daha hızlı bulunmasını sağlar<br />

@@ -827,11 +827,11 @@ export default function LiveTravelSessionPage() {
           return
         }
 
+
         const { data: sessionData, error: sessionErr } = await supabase
           .from('live_travel_sessions')
           .select('*')
           .eq('id', sessionId)
-          .eq('user_id', user.id)
           .single()
 
         if (sessionErr || !sessionData) {
@@ -840,10 +840,20 @@ export default function LiveTravelSessionPage() {
           return
         }
 
-        setSession(sessionData as LiveTravelSession)
+        // Erişim kontrolü
         const normalizedVisibility = sessionData.visibility === 'friends' ? 'followers' : sessionData.visibility
-        setVisibility((normalizedVisibility as 'private' | 'followers' | 'public') || 'followers')
+        const sessionVisibility = (normalizedVisibility as 'private' | 'followers' | 'public') || 'followers'
+        setSession(sessionData as LiveTravelSession)
+        setVisibility(sessionVisibility)
         setTimeMapDraft((sessionData.post_time_map || {}) as Record<string, string>)
+
+        // Eğer private ise sadece sahibi görebilir
+        if (sessionVisibility === 'private' && sessionData.user_id !== user.id) {
+          setError('Bu rota sadece sahibi tarafından görüntülenebilir.')
+          setLoading(false)
+          return
+        }
+        // followers ise, ek kontrol eklenebilir (ör: takipçi mi?)
 
         const { data: planData, error: planErr } = await supabase
           .from('rare_travel_plans')
