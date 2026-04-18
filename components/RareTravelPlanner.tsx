@@ -643,9 +643,18 @@ export default function RareTravelPlanner() {
           const lat = Number(geoData[0].lat)
           const lng = Number(geoData[0].lon)
 
-          setFromCoords({ lat, lng })
-          setToCoords({ lat, lng })
-          setTo(fromParam)
+          setFromLocation({
+            name: fromParam,
+            latitude: lat,
+            longitude: lng,
+            city: '',
+          })
+          setToLocation({
+            name: fromParam,
+            latitude: lat,
+            longitude: lng,
+            city: '',
+          })
           setCurrentLocation({ lat, lng })
           setNearbyOnly(true)
           setNearRadiusKm(30)

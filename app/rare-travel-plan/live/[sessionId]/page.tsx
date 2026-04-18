@@ -1024,7 +1024,9 @@ export default function LiveTravelSessionPage() {
     )
   }
 
-  const elapsedTime = Math.floor((Date.now() - new Date(session.started_at).getTime()) / 1000)
+  // Seyahat tamamlandıysa süre completed_at'e kadar, aktifse şimdiye kadar
+  const endTime = session.status === 'completed' && session.completed_at ? new Date(session.completed_at).getTime() : Date.now()
+  const elapsedTime = Math.floor((endTime - new Date(session.started_at).getTime()) / 1000)
   const hours = Math.floor(elapsedTime / 3600)
   const minutes = Math.floor((elapsedTime % 3600) / 60)
 
@@ -1210,26 +1212,14 @@ export default function LiveTravelSessionPage() {
                 <p className="line-clamp-1 text-sm font-semibold text-gray-900">{post.title}</p>
                 <p className="text-xs text-gray-500">{[post.location_name, post.city].filter(Boolean).join(' · ') || 'Konum yok'}</p>
               </div>
+              {/* Durak saatini sadece toplu plan eklemede manuel, diğer her durumda otomatik göster */}
               <input
                 type="time"
-                value={timeMapDraft[post.id] || post.visit_time || ''}
-                onChange={(e) => setTimeMapDraft((prev) => ({ ...prev, [post.id]: e.target.value }))}
-                className="rounded-md border border-gray-300 px-2 py-1 text-xs"
+                value={post.visit_time || ''}
+                readOnly
+                className="rounded-md border border-gray-300 px-2 py-1 text-xs bg-gray-100 text-gray-500 cursor-not-allowed"
+                tabIndex={-1}
               />
-              <select
-                value={postVisibilityDraft[post.id] || post.visibility}
-                onChange={(e) =>
-                  setPostVisibilityDraft((prev) => ({
-                    ...prev,
-                    [post.id]: e.target.value as 'private' | 'followers' | 'public',
-                  }))
-                }
-                className="rounded-md border border-gray-300 px-2 py-1 text-xs"
-              >
-                <option value="private">Ozel</option>
-                <option value="followers">Takip</option>
-                <option value="public">Genel</option>
-              </select>
               {canEditSession && (
                 <>
                   <button
@@ -1267,8 +1257,7 @@ export default function LiveTravelSessionPage() {
             {orderedTripPosts.length === 0 && <p className="text-sm text-gray-500">Gosterilecek paylasim yok.</p>}
             {orderedTripPosts.map((post, idx) => {
               const locationLine = [post.location_name, post.city].filter(Boolean).join(' · ') || 'Konum yok'
-              const shownTime = timeMapDraft[post.id] || post.visit_time || '--:--'
-              const visibilityLabel = postVisibilityDraft[post.id] || post.visibility
+              const shownTime = post.visit_time || '--:--'
 
               return (
                 <article
@@ -1287,7 +1276,6 @@ export default function LiveTravelSessionPage() {
                     </div>
                     <div className="text-right">
                       <span className="block text-xs font-semibold text-emerald-700">{shownTime}</span>
-                      <span className="text-[11px] text-gray-500 capitalize">{visibilityLabel}</span>
                     </div>
                   </div>
 

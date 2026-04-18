@@ -5,6 +5,43 @@ import { useEffect, useState } from 'react'
 
 // Tüm tanıtım kategorileri
 const PROMO_CATEGORIES = [
+  // YENİ HARİTA TANITIMLARI
+  {
+    id: 'quick-maps',
+    icon: '⚡',
+    title: 'Hızlı Haritalar',
+    description: 'Çevrendeki nadir ürünleri, seyahat noktalarını ve sosyal paylaşımları anında haritada gör!',
+    link: '/info/quick-maps',
+    colors: 'from-emerald-500 to-emerald-700 hover:from-emerald-600 hover:to-emerald-800',
+    buttonColor: 'text-emerald-700'
+  },
+  {
+    id: 'rare-product-map',
+    icon: '🗺️',
+    title: 'Nadir Ürün Haritası',
+    description: 'Fiziksel nadir ürünlerin topluluk tarafından paylaşıldığı harita. Gerçek dünyadaki nadirleri bul!',
+    link: '/info/rare-product-map',
+    colors: 'from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700',
+    buttonColor: 'text-amber-700'
+  },
+  {
+    id: 'rare-travel-map',
+    icon: '🌍',
+    title: 'Nadir Seyahat Haritası',
+    description: 'Topluluğun paylaştığı nadir seyahat noktalarını ve deneyimlerini haritada keşfet!',
+    link: '/info/rare-travel-map',
+    colors: 'from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800',
+    buttonColor: 'text-blue-700'
+  },
+  {
+    id: 'rare-travel-plan',
+    icon: '🧭',
+    title: 'Nadir Seyahat Planı',
+    description: 'Kendi nadir seyahat rotanı oluştur, duraklarını seç, toplulukla paylaş!',
+    link: '/info/rare-travel-plan',
+    colors: 'from-emerald-400 to-emerald-600 hover:from-emerald-500 hover:to-emerald-700',
+    buttonColor: 'text-emerald-600'
+  },
   // SOSYAL PAYLAŞIM - Nadir Gördüm Teması
   {
     id: 'rare-sightings',
