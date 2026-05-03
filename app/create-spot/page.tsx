@@ -7,10 +7,76 @@ import { buildSeoImageFileName, suggestHashtagsFromText } from '@/lib/content-se
 import { getImagePreviewDataUrl, optimizeImageFile } from '@/lib/image-processing'
 import { supabase } from '@/lib/supabase'
 import { buildSpotPath } from '@/lib/sighting-slug'
+import { useCurrentLocale } from '@/hooks/useCurrentLocale'
 // Header ve Footer import'larını KALDIRIYORUZ - Layout'ta zaten var
+
+const uiText = {
+  tr: {
+    pageTitle: 'Yeni Spot Olustur',
+    pageDesc: 'Aradiginiz urunu toplulugumuzla paylasin, binlerce goz sizin icin arasin',
+    titleTooShort: 'Baslik en az 12 karakter olmali. Marka, model veya urun tipi ekleyin.',
+    descTooShort: 'Aciklama en az 40 karakter olmali. Renk, kondisyon, yil veya ayirt edici detay ekleyin.',
+    loginRequired: 'Lutfen once giris yapin',
+    createLoading: 'Olusturuluyor...',
+    createButton: "Spot'u Olustur ve Paylas",
+    cancel: 'Iptal',
+  },
+  en: {
+    pageTitle: 'Create New Spot',
+    pageDesc: 'Share what you are searching for with the community.',
+    titleTooShort: 'Title must be at least 12 characters. Add brand, model or item type.',
+    descTooShort: 'Description must be at least 40 characters. Add color, condition or distinct details.',
+    loginRequired: 'Please sign in first',
+    createLoading: 'Creating...',
+    createButton: 'Create and Share Spot',
+    cancel: 'Cancel',
+  },
+  de: {
+    pageTitle: 'Neuen Spot erstellen',
+    pageDesc: 'Teile mit der Community, wonach du suchst.',
+    titleTooShort: 'Titel muss mindestens 12 Zeichen haben.',
+    descTooShort: 'Beschreibung muss mindestens 40 Zeichen haben.',
+    loginRequired: 'Bitte zuerst anmelden',
+    createLoading: 'Wird erstellt...',
+    createButton: 'Spot erstellen und teilen',
+    cancel: 'Abbrechen',
+  },
+  fr: {
+    pageTitle: 'Creer un nouveau spot',
+    pageDesc: 'Partagez avec la communaute ce que vous recherchez.',
+    titleTooShort: 'Le titre doit contenir au moins 12 caracteres.',
+    descTooShort: 'La description doit contenir au moins 40 caracteres.',
+    loginRequired: 'Veuillez vous connecter',
+    createLoading: 'Creation...',
+    createButton: 'Creer et partager le spot',
+    cancel: 'Annuler',
+  },
+  es: {
+    pageTitle: 'Crear nuevo spot',
+    pageDesc: 'Comparte con la comunidad lo que estas buscando.',
+    titleTooShort: 'El titulo debe tener al menos 12 caracteres.',
+    descTooShort: 'La descripcion debe tener al menos 40 caracteres.',
+    loginRequired: 'Inicia sesion primero',
+    createLoading: 'Creando...',
+    createButton: 'Crear y compartir spot',
+    cancel: 'Cancelar',
+  },
+  ru: {
+    pageTitle: 'Sozdat novyy spot',
+    pageDesc: 'Podelites s soobshchestvom tem, chto vy ishchete.',
+    titleTooShort: 'Zagolovok dolzhen byt ne menee 12 simvolov.',
+    descTooShort: 'Opisanie dolzhno byt ne menee 40 simvolov.',
+    loginRequired: 'Snachala voydite v akkaunt',
+    createLoading: 'Sozdaetsya...',
+    createButton: 'Sozdat i opublikovat spot',
+    cancel: 'Otmena',
+  },
+} as const
 
 export default function CreateSpotPage() {
   const router = useRouter()
+  const locale = useCurrentLocale()
+  const t = uiText[locale]
   
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -77,13 +143,13 @@ export default function CreateSpotPage() {
     setError('')
 
     if (!isTitleDetailedEnough) {
-      setError('Başlık en az 12 karakter olmalı. Marka, model veya ürün tipi ekleyin.')
+      setError(t.titleTooShort)
       setLoading(false)
       return
     }
 
     if (!isDescriptionDetailedEnough) {
-      setError('Açıklama en az 40 karakter olmalı. Renk, kondisyon, yıl veya ayırt edici detay ekleyin.')
+      setError(t.descTooShort)
       setLoading(false)
       return
     }
@@ -92,7 +158,7 @@ export default function CreateSpotPage() {
       // 1. Kullanıcı kontrolü
       const { data: { user }, error: userError } = await supabase.auth.getUser()
       if (userError || !user) {
-        throw new Error('Lütfen önce giriş yapın')
+        throw new Error(t.loginRequired)
       }
 
       console.log('👤 Kullanıcı:', user.id)
@@ -157,6 +223,7 @@ export default function CreateSpotPage() {
 
       // 3. Spot'u database'e kaydet - SADECE VAR OLAN KOLONLARI KULLAN
       console.log('💾 Database\'e kaydediliyor...')
+      const originalLanguage = locale
       
       const spotData = {
         user_id: user.id,
@@ -168,6 +235,7 @@ export default function CreateSpotPage() {
         status: 'active',
         views: 0,
         total_helps: 0,
+        original_language: originalLanguage,
         created_at: new Date().toISOString()
       }
 
@@ -185,7 +253,27 @@ export default function CreateSpotPage() {
         throw new Error(`Spot kaydedilemedi: ${spotError.message}`)
       }
 
-      // 4. BAŞARILI
+      // 4. 6 dil ceviri kaydi (arka planda, hata olursa spot kaydini etkilemez)
+      if (spotDataResult && spotDataResult[0]) {
+        const createdSpot = spotDataResult[0]
+        try {
+          await fetch('/api/save-translations', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              entity: 'spot',
+              recordId: createdSpot.id,
+              sourceLanguage: originalLanguage,
+              title: createdSpot.title,
+              description: createdSpot.description,
+            }),
+          })
+        } catch {
+          // Spot kaydini engelleme; ceviri sonraki akista tekrar alinabilir.
+        }
+      }
+
+      // 5. BAŞARILI
       console.log('🎉 Spot başarıyla oluşturuldu!')
       
       if (imageUrl) {
@@ -218,11 +306,17 @@ export default function CreateSpotPage() {
           {/* Başlık */}
           <div className="text-center mb-8 md:mb-10">
             <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 mb-3 md:mb-4">
-              Yeni Spot Oluştur
+              {t.pageTitle}
             </h1>
             <p className="text-gray-600 text-sm md:text-base">
-              Aradığınız ürünü topluluğumuzla paylaşın, binlerce göz sizin için arasın
+              {t.pageDesc}
             </p>
+          </div>
+
+          <div className="mb-6 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+            <p className="font-semibold">Bu form ne icin?</p>
+            <p className="mt-1">Bu sayfa, aradigin urunu topluluga duyurman icin kullanilir.</p>
+            <p className="mt-1">Bir urunu gorduysen yardim paylasimi icin <a href="/sightings" className="font-semibold underline">Fiziki Yardimlar</a> veya <a href="/virtual-sightings" className="font-semibold underline">Sanal Yardimlar</a> sayfasini kullan.</p>
           </div>
 
           {/* Form */}
@@ -411,10 +505,10 @@ export default function CreateSpotPage() {
                 {loading ? (
                   <>
                     <span className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></span>
-                    Oluşturuluyor...
+                    {t.createLoading}
                   </>
                 ) : (
-                  'Spot\'u Oluştur ve Paylaş'
+                  t.createButton
                 )}
               </button>
               
@@ -423,7 +517,7 @@ export default function CreateSpotPage() {
                 onClick={() => router.push('/')}
                 className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 md:py-3 rounded-lg text-sm md:text-base"
               >
-                İptal
+                {t.cancel}
               </button>
             </div>
 

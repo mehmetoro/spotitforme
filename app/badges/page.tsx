@@ -3,6 +3,16 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
+import { useCurrentLocale } from '@/hooks/useCurrentLocale'
+
+const badgesText = {
+  tr: { title: '🎖️ Rozetlerim', subtitle: 'Zorlukları tamamlayarak rozetler kazanın ve topluluğta gösterin', earned: '✨ Kazanılan Rozetler', available: (n: number) => `🔒 Elde Edilebilir Rozetler (${n})`, earnedAt: 'Kazanıldı', noTitle: 'Henüz rozetiniz yok', noBtn: 'Listeye katıl ve rozetler kazan', tips: '💡 Rozet Kazanma İpuçları', tipsList: ['Günlük görevleri tamamlayarak puan ve seri kazanın', 'Sosyal paylaşımlar yaparak topluluğa katılın', 'Spot\'ları bularak keşif görevlerini tamamlayın', '7+ gün arka arkaya aktif kalarak seri rozeti kazanın'] },
+  en: { title: '🎖️ My Badges', subtitle: 'Complete challenges to earn badges and show them in the community', earned: '✨ Earned Badges', available: (n: number) => `🔒 Available Badges (${n})`, earnedAt: 'Earned', noTitle: 'No badges yet', noBtn: 'Join the leaderboard and earn badges', tips: '💡 Tips to Earn Badges', tipsList: ['Complete daily tasks to earn points and streaks', 'Join the community with social posts', 'Complete discovery missions by finding spots', 'Stay active 7+ days in a row to earn streak badges'] },
+  de: { title: '🎖️ Meine Abzeichen', subtitle: 'Schließe Herausforderungen ab, um Abzeichen zu verdienen', earned: '✨ Verdiente Abzeichen', available: (n: number) => `🔒 Verfügbare Abzeichen (${n})`, earnedAt: 'Verdient', noTitle: 'Noch keine Abzeichen', noBtn: 'Rangliste beitreten und Abzeichen verdienen', tips: '💡 Tipps zum Verdienen von Abzeichen', tipsList: ['Tägliche Aufgaben abschließen', 'Mit sozialen Beiträgen der Community beitreten', 'Entdeckungsmissionen durch das Finden von Spots abschließen', '7+ Tage hintereinander aktiv bleiben'] },
+  fr: { title: '🎖️ Mes Badges', subtitle: 'Complétez des défis pour gagner des badges et les montrer dans la communauté', earned: '✨ Badges Obtenus', available: (n: number) => `🔒 Badges Disponibles (${n})`, earnedAt: 'Obtenu', noTitle: 'Pas encore de badges', noBtn: 'Rejoindre le classement et gagner des badges', tips: '💡 Conseils pour gagner des badges', tipsList: ['Complétez les tâches quotidiennes', 'Participez à la communauté avec des publications', 'Complétez les missions de découverte', 'Restez actif 7+ jours de suite'] },
+  es: { title: '🎖️ Mis Insignias', subtitle: 'Completa desafíos para ganar insignias y mostrarlas en la comunidad', earned: '✨ Insignias Ganadas', available: (n: number) => `🔒 Insignias Disponibles (${n})`, earnedAt: 'Ganada', noTitle: 'Aún no hay insignias', noBtn: 'Únete a la tabla de líderes y gana insignias', tips: '💡 Consejos para ganar insignias', tipsList: ['Completa tareas diarias para ganar puntos', 'Únete a la comunidad con publicaciones sociales', 'Completa misiones de descubrimiento', 'Mantente activo 7+ días seguidos'] },
+  ru: { title: '🎖️ Мои Значки', subtitle: 'Выполняйте испытания, чтобы зарабатывать значки и показывать их в сообществе', earned: '✨ Полученные Значки', available: (n: number) => `🔒 Доступные Значки (${n})`, earnedAt: 'Получен', noTitle: 'Значков пока нет', noBtn: 'Присоединяйтесь к рейтингу и зарабатывайте значки', tips: '💡 Советы по получению значков', tipsList: ['Выполняйте ежедневные задания для очков', 'Присоединяйтесь к сообществу через публикации', 'Завершайте миссии открытий', 'Оставайтесь активными 7+ дней подряд'] },
+} as const
 
 interface Badge {
   type: string
@@ -90,6 +100,8 @@ const BADGE_DEFINITIONS: { [key: string]: Badge } = {
 }
 
 export default function BadgesPage() {
+  const locale = useCurrentLocale()
+  const t = badgesText[locale as keyof typeof badgesText] ?? badgesText.tr
   const [userBadges, setUserBadges] = useState<UserBadges>({ earned: [], available: [] })
   const [loading, setLoading] = useState(true)
   const [userId, setUserId] = useState<string | null>(null)
@@ -162,18 +174,17 @@ export default function BadgesPage() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
-      {/* Başlık */}
       <div className="mb-12">
-        <h1 className="text-4xl font-bold text-gray-900 mb-2">🎖️ Rozetlerim</h1>
+        <h1 className="text-4xl font-bold text-gray-900 mb-2">{t.title}</h1>
         <p className="text-gray-600">
-          Zorlukları tamamlayarak rozetler kazanın ve topluluğta gösterin
+          {t.subtitle}
         </p>
       </div>
 
       {/* Kazanılan Rozetler */}
       {userBadges.earned.length > 0 && (
         <div className="mb-12">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">✨ Kazanılan Rozetler</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">{t.earned}</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {userBadges.earned.map(badge => (
               <div
@@ -184,7 +195,7 @@ export default function BadgesPage() {
                 <h3 className="font-bold text-white text-sm mb-1">{badge.name}</h3>
                 <p className="text-xs text-white opacity-90 mb-3">{badge.description}</p>
                 <p className="text-xs text-white opacity-75">
-                  Kazanıldı: {new Date(badge.earned_at).toLocaleDateString('tr-TR')}
+                  {t.earnedAt}: {new Date(badge.earned_at).toLocaleDateString(locale === 'tr' ? 'tr-TR' : locale === 'de' ? 'de-DE' : locale === 'fr' ? 'fr-FR' : locale === 'es' ? 'es-ES' : locale === 'ru' ? 'ru-RU' : 'en-US')}
                 </p>
               </div>
             ))}
@@ -196,7 +207,7 @@ export default function BadgesPage() {
       {userBadges.available.length > 0 && (
         <div>
           <h2 className="text-2xl font-bold text-gray-900 mb-6">
-            🔒 Elde Edilebilir Rozetler ({userBadges.available.length})
+            {t.available(userBadges.available.length)}
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {userBadges.available.map(badge => (
@@ -220,25 +231,22 @@ export default function BadgesPage() {
       {userBadges.earned.length === 0 && userBadges.available.length === 0 && (
         <div className="text-center py-12">
           <div className="text-5xl mb-4">🎖️</div>
-          <p className="text-gray-600 mb-6">Henüz rozetiniz yok</p>
+          <p className="text-gray-600 mb-6">{t.noTitle}</p>
           <Link
             href="/leaderboard"
             className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition"
           >
-            Sírala katıl ve rozetler kazan
+            {t.noBtn}
           </Link>
         </div>
       )}
 
-      {/* İlerleme Tipsinden */}
+      {/* İpuçları */}
       {userBadges.available.length > 0 && (
         <div className="mt-12 p-6 bg-blue-50 border border-blue-200 rounded-lg">
-          <h3 className="font-bold text-blue-900 mb-2">💡 Rozet Kazanma İpuçları</h3>
+          <h3 className="font-bold text-blue-900 mb-2">{t.tips}</h3>
           <ul className="text-sm text-blue-800 space-y-1">
-            <li>✓ Günlük görevleri tamamlayarak puan ve seri kazanın</li>
-            <li>✓ Sosyal paylaşımlar yaparak topluluğa katılın</li>
-            <li>✓ Spot'ları bularak keşif görevlerini tamamlayın</li>
-            <li>✓ 7+ gün arka arkaya aktif kalarak seri rozeti kazanın</li>
+            {t.tipsList.map((tip, i) => <li key={i}>✓ {tip}</li>)}
           </ul>
         </div>
       )}

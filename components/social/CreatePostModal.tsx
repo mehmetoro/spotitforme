@@ -7,6 +7,7 @@ import { getImagePreviewDataUrl, optimizeImageFile } from '@/lib/image-processin
 import { SOCIAL_CATEGORIES } from '@/lib/social-categories'
 import { supabase } from '@/lib/supabase'
 import LocationSelector from '../LocationSelector'
+import { useCurrentLocale } from '@/hooks/useCurrentLocale'
 
 export type TripPostModalPayload = {
   title: string
@@ -43,6 +44,7 @@ export default function CreatePostModal({
   submitLabel,
   onTripPostCreated,
 }: CreatePostModalProps) {
+  const locale = useCurrentLocale()
   const [loading, setLoading] = useState(false)
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
@@ -368,6 +370,30 @@ export default function CreatePostModal({
         throw postError
       } else {
         console.log('social_posts insert başarılı, user_id:', postData.user_id);
+      }
+
+      // Social post çevirilerini kaydet
+      if (newPost?.id) {
+        try {
+          const translateResponse = await fetch('/api/save-translations', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              entity: 'social_post',
+              recordId: newPost.id,
+              sourceLanguage: locale,
+              title: normalizedTitle || postData.title || 'Social Post',
+              description: normalizedContent || postData.content || normalizedTitle || 'Social content',
+            }),
+          })
+
+          if (!translateResponse.ok) {
+            const translateError = await translateResponse.text().catch(() => 'unknown')
+            console.error('Social post translation save failed:', translateError)
+          }
+        } catch {
+          // Ana akış başarılıysa çeviri hatası paylaşımı durdurmaz.
+        }
       }
 
       // 3a. Canlı seyahat planına otomatik ekle (aktif session varsa)

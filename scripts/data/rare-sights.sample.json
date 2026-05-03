@@ -1,0 +1,30 @@
+[
+  {
+    "id": "11111111-1111-1111-1111-111111111111",
+    "user_id": "00000000-0000-0000-0000-000000000000",
+    "title": "Kapadokya Yer Alti Sehri",
+    "description": "Tarihi tunelleri ve kaya oymalari ile bilinen nadir gezi noktasi.",
+    "image_urls": [
+      "https://example.com/images/kapadokya-1.jpg"
+    ],
+    "location": "Nevsehir, Turkiye",
+    "latitude": 38.6266,
+    "longitude": 34.7194,
+    "tags": ["tarihi", "kultur", "gezi"],
+    "is_public": true
+  },
+  {
+    "id": "22222222-2222-2222-2222-222222222222",
+    "user_id": "00000000-0000-0000-0000-000000000000",
+    "title": "Sagalassos Antik Kenti",
+    "description": "Roma doneminden kalma kalintilariyla dikkat ceken antik kent.",
+    "image_urls": [
+      "https://example.com/images/sagalassos-1.jpg"
+    ],
+    "location": "Burdur, Turkiye",
+    "latitude": 37.609,
+    "longitude": 30.511,
+    "tags": ["antik", "roma", "arkeoloji"],
+    "is_public": true
+  }
+]

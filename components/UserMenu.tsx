@@ -4,6 +4,100 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import AuthModal from './AuthModal'
 import { useNotificationCount } from '@/hooks/useNotificationCount'
+import { useCurrentLocale } from '@/hooks/useCurrentLocale'
+
+const userMenuText = {
+  tr: {
+    login: 'Giriş',
+    loginFull: 'Giriş Yap / Kayıt Ol',
+    user: 'Kullanıcı',
+    profile: 'Profilim',
+    editProfile: 'Profil Düzenle',
+    leaderboard: 'Sırala',
+    badges: 'Rozetlerim',
+    notifications: 'Bildirimler',
+    messages: 'Mesajlar',
+    mySpots: "Spot'larım",
+    myHelps: 'Yardımlarım',
+    settings: 'Ayarlar',
+    logout: 'Çıkış Yap',
+  },
+  en: {
+    login: 'Login',
+    loginFull: 'Login / Sign Up',
+    user: 'User',
+    profile: 'My Profile',
+    editProfile: 'Edit Profile',
+    leaderboard: 'Leaderboard',
+    badges: 'My Badges',
+    notifications: 'Notifications',
+    messages: 'Messages',
+    mySpots: 'My Spots',
+    myHelps: 'My Helps',
+    settings: 'Settings',
+    logout: 'Log Out',
+  },
+  de: {
+    login: 'Anmelden',
+    loginFull: 'Anmelden / Registrieren',
+    user: 'Benutzer',
+    profile: 'Mein Profil',
+    editProfile: 'Profil bearbeiten',
+    leaderboard: 'Rangliste',
+    badges: 'Meine Abzeichen',
+    notifications: 'Benachrichtigungen',
+    messages: 'Nachrichten',
+    mySpots: 'Meine Spots',
+    myHelps: 'Meine Hilfen',
+    settings: 'Einstellungen',
+    logout: 'Abmelden',
+  },
+  fr: {
+    login: 'Connexion',
+    loginFull: 'Connexion / Inscription',
+    user: 'Utilisateur',
+    profile: 'Mon profil',
+    editProfile: 'Modifier le profil',
+    leaderboard: 'Classement',
+    badges: 'Mes badges',
+    notifications: 'Notifications',
+    messages: 'Messages',
+    mySpots: 'Mes Spots',
+    myHelps: 'Mes aides',
+    settings: 'Parametres',
+    logout: 'Se deconnecter',
+  },
+  es: {
+    login: 'Entrar',
+    loginFull: 'Entrar / Registrarse',
+    user: 'Usuario',
+    profile: 'Mi perfil',
+    editProfile: 'Editar perfil',
+    leaderboard: 'Clasificacion',
+    badges: 'Mis insignias',
+    notifications: 'Notificaciones',
+    messages: 'Mensajes',
+    mySpots: 'Mis Spots',
+    myHelps: 'Mis ayudas',
+    settings: 'Configuracion',
+    logout: 'Cerrar sesion',
+  },
+  ru: {
+    login: 'Vkhod',
+    loginFull: 'Vkhod / Registratsiya',
+    user: 'Polzovatel',
+    profile: 'Moy profil',
+    editProfile: 'Redaktirovat profil',
+    leaderboard: 'Reyting',
+    badges: 'Moi znachki',
+    notifications: 'Uvedomleniya',
+    messages: 'Soobshcheniya',
+    mySpots: 'Moi Spoty',
+    myHelps: 'Moya pomoshch',
+    settings: 'Nastroyki',
+    logout: 'Vyyti',
+  },
+} as const
 
 interface User {
   id: string
@@ -12,6 +106,8 @@ interface User {
 }
 
 export default function UserMenu() {
+  const locale = useCurrentLocale()
+  const t = userMenuText[locale]
   const [user, setUser] = useState<User | null>(null)
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [showDropdown, setShowDropdown] = useState(false)
@@ -68,8 +164,8 @@ export default function UserMenu() {
           onClick={() => setShowAuthModal(true)}
           className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-3 sm:px-6 rounded-lg transition duration-200 text-sm sm:text-base whitespace-nowrap"
         >
-          <span className="sm:hidden">Giriş</span>
-          <span className="hidden sm:inline">Giriş Yap / Kayıt Ol</span>
+          <span className="sm:hidden">{t.login}</span>
+          <span className="hidden sm:inline">{t.loginFull}</span>
         </button>
         
         <AuthModal
@@ -106,7 +202,7 @@ export default function UserMenu() {
             {user.name?.[0]?.toUpperCase() || user.email[0].toUpperCase()}
           </div>
           <div className="text-left hidden md:block">
-            <p className="font-medium text-sm">{user.name || 'Kullanıcı'}</p>
+            <p className="font-medium text-sm">{user.name || t.user}</p>
             <p className="text-xs text-gray-500 truncate max-w-[120px]">{user.email}</p>
           </div>
         </button>
@@ -115,7 +211,7 @@ export default function UserMenu() {
       {showDropdown && (
         <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-lg border z-50">
           <div className="p-4 border-b">
-            <p className="font-medium">{user.name || 'Kullanıcı'}</p>
+            <p className="font-medium">{user.name || t.user}</p>
             <p className="text-sm text-gray-500 truncate">{user.email}</p>
           </div>
           
@@ -125,63 +221,63 @@ export default function UserMenu() {
               className="flex items-center space-x-3 px-4 py-3 hover:bg-gray-50 rounded-lg"
             >
               <span>👤</span>
-              <span>Profilim</span>
+              <span>{t.profile}</span>
             </a>
             <a
               href="/profile/edit"
               className="flex items-center space-x-3 px-4 py-3 hover:bg-gray-50 rounded-lg"
             >
               <span>✏️</span>
-              <span>Profil Düzenle</span>
+              <span>{t.editProfile}</span>
             </a>
             <a
               href="/leaderboard"
               className="flex items-center space-x-3 px-4 py-3 hover:bg-gray-50 rounded-lg"
             >
               <span>🏆</span>
-              <span>Sırala</span>
+              <span>{t.leaderboard}</span>
             </a>
             <a
               href="/badges"
               className="flex items-center space-x-3 px-4 py-3 hover:bg-gray-50 rounded-lg"
             >
               <span>🎖️</span>
-              <span>Rozetlerim</span>
+              <span>{t.badges}</span>
             </a>
             <a
               href="/notifications"
               className="flex items-center space-x-3 px-4 py-3 hover:bg-gray-50 rounded-lg"
             >
               <span>🔔</span>
-              <span>Bildirimler</span>
+              <span>{t.notifications}</span>
             </a>
             <a
               href="/messages"
               className="flex items-center space-x-3 px-4 py-3 hover:bg-gray-50 rounded-lg"
             >
               <span>💬</span>
-              <span>Mesajlar</span>
+              <span>{t.messages}</span>
             </a>
             <a
               href="/my-spots"
               className="flex items-center space-x-3 px-4 py-3 hover:bg-gray-50 rounded-lg"
             >
               <span>📝</span>
-              <span>Spot'larım</span>
+              <span>{t.mySpots}</span>
             </a>
             <a
               href="/help-given"
               className="flex items-center space-x-3 px-4 py-3 hover:bg-gray-50 rounded-lg"
             >
               <span>🤝</span>
-              <span>Yardımlarım</span>
+              <span>{t.myHelps}</span>
             </a>
             <a
               href="/settings"
               className="flex items-center space-x-3 px-4 py-3 hover:bg-gray-50 rounded-lg"
             >
               <span>⚙️</span>
-              <span>Ayarlar</span>
+              <span>{t.settings}</span>
             </a>
           </div>
           
@@ -191,7 +287,7 @@ export default function UserMenu() {
               className="flex items-center space-x-3 px-4 py-3 text-red-600 hover:bg-red-50 w-full rounded-lg"
             >
               <span>🚪</span>
-              <span>Çıkış Yap</span>
+              <span>{t.logout}</span>
             </button>
           </div>
         </div>

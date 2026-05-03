@@ -5,14 +5,20 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import SpotCard from './SpotCard';
 import NativeAd from './NativeAd';
+import { useCurrentLocale } from '@/hooks/useCurrentLocale';
 
 export default function RecentSpots() {
+  const locale = useCurrentLocale();
+  const t = {
+    title: locale === 'tr' ? "Yeni Eklenen Spot'lar" : locale === 'en' ? 'Recently Added Spots' : locale === 'de' ? 'Neu hinzugefugte Spots' : locale === 'fr' ? 'Spots recemment ajoutes' : locale === 'es' ? 'Spots agregados recientemente' : 'Nedavno dobavlennye spoty',
+    seeAll: locale === 'tr' ? 'Tumunu Gor' : locale === 'en' ? 'See All' : locale === 'de' ? 'Alle ansehen' : locale === 'fr' ? 'Voir tout' : locale === 'es' ? 'Ver todo' : 'Smotret vse',
+  };
   const [spots, setSpots] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadSpots();
-  }, []);
+  }, [locale]);
 
   const loadSpots = async () => {
     const { data, error } = await supabase
@@ -27,7 +33,38 @@ export default function RecentSpots() {
       return;
     }
 
-    setSpots(data || []);
+    let rows = data || [];
+
+    if (locale !== 'tr' && rows.length > 0) {
+      const spotIds = rows.map((s: any) => s.id);
+      const { data: translations } = await supabase
+        .from('spot_translations')
+        .select('spot_id, title, description')
+        .in('spot_id', spotIds)
+        .eq('language', locale);
+
+      if (translations && translations.length > 0) {
+        const translationMap: Record<string, { title: string; description: string }> = {};
+        translations.forEach((tr: any) => {
+          translationMap[tr.spot_id] = {
+            title: tr.title,
+            description: tr.description,
+          };
+        });
+
+        rows = rows.map((spot: any) => {
+          const tr = translationMap[spot.id];
+          if (!tr) return spot;
+          return {
+            ...spot,
+            title: tr.title || spot.title,
+            description: tr.description || spot.description,
+          };
+        });
+      }
+    }
+
+    setSpots(rows);
     setLoading(false);
   };
 
@@ -89,13 +126,13 @@ export default function RecentSpots() {
     <section className="py-12">
       <div className="flex justify-between items-center mb-8">
         <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
-          Yeni Eklenen Spot'lar
+          {t.title}
         </h2>
         <a
           href="/spots"
           className="text-blue-600 hover:text-blue-800 font-medium"
         >
-          Tümünü Gör →
+          {t.seeAll} →
         </a>
       </div>
 

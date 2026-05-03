@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import PromoCard, { PromoBanner } from '@/components/PromoCard';
+import { useCurrentLocale } from '@/hooks/useCurrentLocale';
 
 interface AdUnitProps {
   placement: string; // 'header', 'sidebar', 'inline', 'popup'
@@ -11,6 +12,13 @@ interface AdUnitProps {
 }
 
 export default function AdUnit({ placement, className = '' }: AdUnitProps) {
+  const locale = useCurrentLocale();
+  const t = {
+    adLoading: locale === 'tr' ? 'Reklam yukleniyor...' : locale === 'en' ? 'Loading ad...' : locale === 'de' ? 'Anzeige wird geladen...' : locale === 'fr' ? 'Chargement de la pub...' : locale === 'es' ? 'Cargando anuncio...' : 'Zagruzka reklamy...',
+    adArea: locale === 'tr' ? 'Reklam Alani' : locale === 'en' ? 'Ad Area' : locale === 'de' ? 'Werbeflache' : locale === 'fr' ? 'Espace publicitaire' : locale === 'es' ? 'Area publicitaria' : 'Reklamnaya zona',
+    size: locale === 'tr' ? 'Boyut' : locale === 'en' ? 'Size' : locale === 'de' ? 'Groesse' : locale === 'fr' ? 'Taille' : locale === 'es' ? 'Tamano' : 'Razmer',
+    impressions: locale === 'tr' ? 'Gosterim' : locale === 'en' ? 'Impressions' : locale === 'de' ? 'Impressionen' : locale === 'fr' ? 'Impressions' : locale === 'es' ? 'Impresiones' : 'Pokazy',
+  }
   const [adData, setAdData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [adType, setAdType] = useState<'adsense' | 'manual' | 'placeholder'>('placeholder');
@@ -73,7 +81,7 @@ export default function AdUnit({ placement, className = '' }: AdUnitProps) {
     return (
       <div className={`bg-gray-100 animate-pulse rounded-lg ${className}`}>
         <div className="w-full h-full flex items-center justify-center">
-          <span className="text-gray-400">Reklam yükleniyor...</span>
+          <span className="text-gray-400">{t.adLoading}</span>
         </div>
       </div>
     );
@@ -122,9 +130,9 @@ export default function AdUnit({ placement, className = '' }: AdUnitProps) {
             <div className="border-2 border-dashed border-blue-300 bg-blue-50 p-4 rounded-lg">
               <div className="text-center">
                 <div className="font-semibold text-blue-700">{adData.advertiser_name}</div>
-                <div className="text-sm text-blue-600">Reklam Alanı</div>
+                <div className="text-sm text-blue-600">{t.adArea}</div>
                 <div className="text-xs text-gray-500 mt-2">
-                  Boyut: {adData.size} | Gösterim: {adData.impressions || 0}
+                  {t.size}: {adData.size} | {t.impressions}: {adData.impressions || 0}
                 </div>
               </div>
             </div>

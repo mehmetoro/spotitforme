@@ -1,0 +1,20 @@
+{
+  "common": {
+    "appName": "SpotItForMe",
+    "language": "Langue",
+    "save": "Enregistrer"
+  },
+  "nav": {
+    "home": "Accueil",
+    "spots": "Spots",
+    "createSpot": "Creer un spot"
+  },
+  "home": {
+    "title": "Trouvez des produits rares avec la communaute",
+    "subtitle": "Partager, decouvrir, aider"
+  },
+  "createSpot": {
+    "title": "Creer un nouveau spot",
+    "description": "Partagez ce que vous cherchez avec la communaute."
+  }
+}

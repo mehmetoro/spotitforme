@@ -1,0 +1,20 @@
+{
+  "common": {
+    "appName": "SpotItForMe",
+    "language": "Dil",
+    "save": "Kaydet"
+  },
+  "nav": {
+    "home": "Anasayfa",
+    "spots": "Spotlar",
+    "createSpot": "Spot Olustur"
+  },
+  "home": {
+    "title": "Nadir urunleri toplulukla bul",
+    "subtitle": "Paylas, kesfet, yardimlas"
+  },
+  "createSpot": {
+    "title": "Yeni Spot Olustur",
+    "description": "Aradigin urunu toplulukla paylas."
+  }
+}

@@ -4,6 +4,52 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 import QuickSightingModal from '@/components/QuickSightingModal'
+import { useCurrentLocale } from '@/hooks/useCurrentLocale'
+
+const shareRareText = {
+  tr: {
+    pageTitle: 'Nadir Seyahat Paylaşımı',
+    pageDesc: 'Nadir seyahat formu açıldı. Formu kapatırsanız Nadir Görülenler akışına dönersiniz.',
+    detectedLink: 'Paylaşılan link algılandı:',
+    reopenBtn: 'Formu Yeniden Aç',
+    backLink: 'Nadir Akışına Dön',
+  },
+  en: {
+    pageTitle: 'Rare Travel Share',
+    pageDesc: 'Rare sighting form opened. Closing the form will take you back to the Rare Feed.',
+    detectedLink: 'Shared link detected:',
+    reopenBtn: 'Reopen Form',
+    backLink: 'Back to Rare Feed',
+  },
+  de: {
+    pageTitle: 'Seltene Reise teilen',
+    pageDesc: 'Formular für seltene Sichtung geöffnet. Schließen führt zurück zum Seltener Feed.',
+    detectedLink: 'Freigegebener Link erkannt:',
+    reopenBtn: 'Formular erneut öffnen',
+    backLink: 'Zurück zum Seltener Feed',
+  },
+  fr: {
+    pageTitle: 'Partage de voyage rare',
+    pageDesc: 'Formulaire de signalement ouvert. Fermer retourne au flux rare.',
+    detectedLink: 'Lien partagé détecté:',
+    reopenBtn: 'Rouvrir le formulaire',
+    backLink: 'Retour au flux rare',
+  },
+  es: {
+    pageTitle: 'Compartir viaje raro',
+    pageDesc: 'Formulario de avistamiento abierto. Cerrarlo te llevará de regreso al feed raro.',
+    detectedLink: 'Enlace compartido detectado:',
+    reopenBtn: 'Reabrir formulario',
+    backLink: 'Volver al feed raro',
+  },
+  ru: {
+    pageTitle: 'Поделиться редкой находкой',
+    pageDesc: 'Форма редкой находки открыта. Закрытие вернёт вас в ленту редкостей.',
+    detectedLink: 'Обнаружена общая ссылка:',
+    reopenBtn: 'Открыть форму снова',
+    backLink: 'Вернуться к ленте редкостей',
+  },
+} as const
 
 function extractFirstUrl(input: string) {
   const match = input.match(/https?:\/\/[^\s<>"]+/i)
@@ -13,6 +59,8 @@ function extractFirstUrl(input: string) {
 export default function ShareRarePage() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const locale = useCurrentLocale()
+  const t = shareRareText[locale as keyof typeof shareRareText] ?? shareRareText.tr
   const [modalOpen, setModalOpen] = useState(true)
   const rawSharedUrl = searchParams.get('url') || ''
   const sharedTitle = searchParams.get('title') || ''
@@ -37,13 +85,13 @@ export default function ShareRarePage() {
       />
 
       <div className="max-w-2xl mx-auto rounded-2xl border border-purple-100 bg-white p-6 shadow-sm">
-        <h1 className="text-2xl font-bold text-gray-900">Nadir Seyahat Paylaşımı</h1>
+        <h1 className="text-2xl font-bold text-gray-900">{t.pageTitle}</h1>
         <p className="mt-2 text-sm text-gray-600">
-          Nadir seyahat formu açıldı. Formu kapatırsanız Nadir Görülenler akışına dönersiniz.
+          {t.pageDesc}
         </p>
         {sharedUrl && (
           <p className="mt-2 text-xs text-emerald-700 break-all">
-            Paylaşılan link algılandı: {sharedUrl}
+            {t.detectedLink} {sharedUrl}
           </p>
         )}
 
@@ -52,13 +100,13 @@ export default function ShareRarePage() {
             onClick={() => setModalOpen(true)}
             className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-700"
           >
-            Formu Yeniden Aç
+            {t.reopenBtn}
           </button>
           <Link
             href="/sightings?tab=rare"
             className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200"
           >
-            Nadir Akışına Dön
+            {t.backLink}
           </Link>
         </div>
       </div>

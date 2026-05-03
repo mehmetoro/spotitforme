@@ -20,7 +20,8 @@ export default function PostHeader({ user: author, post, onFollow, onReport }: P
     // başlangıçta takip durumunu kontrol et
     const checkFollow = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser()
+        const { data: { session } } = await supabase.auth.getSession()
+        const user = session?.user ?? null
         if (!user || !author?.id) return
 
         const { data: follow } = await supabase
@@ -40,7 +41,8 @@ export default function PostHeader({ user: author, post, onFollow, onReport }: P
 
   const handleFollow = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
+      const { data: { session } } = await supabase.auth.getSession()
+      const user = session?.user ?? null
       if (!user) return
 
       if (isFollowing) {

@@ -9,11 +9,16 @@ import {
 } from 'lucide-react'
 import BrandMark from './BrandMark'
 import UserMenu from './UserMenu'
+import LanguageSwitcher from './LanguageSwitcher'
 import { navSections } from '@/components/navigation/navItems'
+import { navLocaleText } from '@/components/navigation/navLocalization'
+import { useCurrentLocale } from '@/hooks/useCurrentLocale'
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
 
 export default function Header() {
+  const locale = useCurrentLocale()
+  const navText = navLocaleText[locale]
   const [mobileOpen, setMobileOpen] = useState(false)
   const [drawerDragOffset, setDrawerDragOffset] = useState(0)
   const [isDrawerDragging, setIsDrawerDragging] = useState(false)
@@ -193,12 +198,20 @@ export default function Header() {
 
           <div className="hidden lg:flex flex-1 px-6">
             <div className="rounded-full border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-500">
-              Menü solda. Paylasim, Kesif, Ticaret ve Hesap olarak grupladik.
+              {locale === 'tr' ? 'Menu solda. Paylasim, Kesif, Ticaret ve Hesap olarak grupladik.' :
+                locale === 'en' ? 'Menu is on the left. Grouped as Share, Discover, Commerce and Account.' :
+                locale === 'de' ? 'Das Menu ist links. Als Teilen, Entdecken, Handel und Konto gruppiert.' :
+                locale === 'fr' ? 'Le menu est a gauche. Regroupe en Partager, Decouvrir, Commerce et Compte.' :
+                locale === 'es' ? 'El menu esta a la izquierda. Agrupado en Compartir, Descubrir, Comercio y Cuenta.' :
+                'Menyu sleva. Razdely: Podelitsya, Issledovat, Torgovlya i Akkount.'}
             </div>
           </div>
 
           {/* ── Sağ Butonlar ── */}
           <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="hidden md:block">
+              <LanguageSwitcher />
+            </div>
             <UserMenu />
 
             <Link
@@ -206,14 +219,16 @@ export default function Header() {
               className="hidden md:flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl font-semibold text-sm transition-colors shadow-sm"
             >
               <Plus className="w-4 h-4" />
-              <span>Spot Oluştur</span>
+              <span>{navText.pinnedActionLabel}</span>
             </Link>
 
             {/* Hamburger — lg altında görünür */}
             <button
               className="lg:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"
               onClick={() => setMobileOpen((o) => !o)}
-              aria-label={mobileOpen ? 'Menüyü kapat' : 'Menüyü aç'}
+              aria-label={mobileOpen
+                ? (locale === 'tr' ? 'Menuyu kapat' : locale === 'en' ? 'Close menu' : locale === 'de' ? 'Menu schliessen' : locale === 'fr' ? 'Fermer le menu' : locale === 'es' ? 'Cerrar menu' : 'Zakryt menyu')
+                : (locale === 'tr' ? 'Menuyu ac' : locale === 'en' ? 'Open menu' : locale === 'de' ? 'Menu offnen' : locale === 'fr' ? 'Ouvrir le menu' : locale === 'es' ? 'Abrir menu' : 'Otkryt menyu')}
             >
               {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
@@ -240,7 +255,7 @@ export default function Header() {
       >
         <button
           type="button"
-          aria-label="Menüyü kapat"
+          aria-label={locale === 'tr' ? 'Menuyu kapat' : locale === 'en' ? 'Close menu' : locale === 'de' ? 'Menu schliessen' : locale === 'fr' ? 'Fermer le menu' : locale === 'es' ? 'Cerrar menu' : 'Zakryt menyu'}
           onClick={() => setMobileOpen(false)}
           className="absolute inset-0"
           style={{ backgroundColor: `rgba(2, 6, 23, ${drawerVisible ? overlayOpacity : 0})` }}
@@ -260,14 +275,14 @@ export default function Header() {
         >
           <div className="sticky top-0 bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">Menü</p>
-              <p className="text-sm font-bold text-gray-900">Navigasyon</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">{locale === 'tr' ? 'Menu' : locale === 'en' ? 'Menu' : locale === 'de' ? 'Menu' : locale === 'fr' ? 'Menu' : locale === 'es' ? 'Menu' : 'Menyu'}</p>
+              <p className="text-sm font-bold text-gray-900">{locale === 'tr' ? 'Navigasyon' : locale === 'en' ? 'Navigation' : locale === 'de' ? 'Navigation' : locale === 'fr' ? 'Navigation' : locale === 'es' ? 'Navegacion' : 'Navigatsiya'}</p>
             </div>
             <button
               type="button"
               onClick={() => setMobileOpen(false)}
               className="p-2 rounded-lg text-gray-600 hover:bg-gray-100"
-              aria-label="Menüyü kapat"
+              aria-label={locale === 'tr' ? 'Menuyu kapat' : locale === 'en' ? 'Close menu' : locale === 'de' ? 'Menu schliessen' : locale === 'fr' ? 'Fermer le menu' : locale === 'es' ? 'Cerrar menu' : 'Zakryt menyu'}
             >
               <X className="w-5 h-5" />
             </button>
@@ -277,10 +292,12 @@ export default function Header() {
             {pinnedShareItems.length > 0 && (
               <div className="rounded-2xl border border-blue-100 bg-gradient-to-b from-blue-50 to-white p-2">
                 <p className="px-2 pb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-blue-500">
-                  Hızlı Paylaşım
+                  {navText.quickShare}
                 </p>
                 <div className="space-y-1">
-                  {pinnedShareItems.map(({ href, icon: Icon, label, description }) => (
+                  {pinnedShareItems.map(({ href, icon: Icon, label, description }) => {
+                    const localized = navText.itemByHref[href]
+                    return (
                     <Link
                       key={href}
                       href={href}
@@ -289,13 +306,14 @@ export default function Header() {
                     >
                       <div className="flex items-center gap-2 text-sm font-semibold">
                         <Icon className="w-4 h-4 text-blue-500 flex-shrink-0" />
-                        {label}
+                        {localized?.label || label}
                       </div>
-                      {description && (
-                        <p className="mt-1 pl-6 text-xs text-gray-500">{description}</p>
+                      {(localized?.description || description) && (
+                        <p className="mt-1 pl-6 text-xs text-gray-500">{localized?.description || description}</p>
                       )}
                     </Link>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
             )}
@@ -303,11 +321,12 @@ export default function Header() {
             {mobileSections.map((section) => (
               <div key={section.title} className="space-y-2">
                 <p className="px-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">
-                  {section.title}
+                  {navText.sections[section.title] || section.title}
                 </p>
                 <div className="grid grid-cols-2 gap-1">
                   {section.items.map(({ href, icon: Icon, label, description }, index, items) => {
                     const shouldSpanFullRow = section.title === 'Haritalar' && items.length % 2 === 1 && index === items.length - 1
+                    const localized = navText.itemByHref[href]
 
                     return (
                     <Link
@@ -320,10 +339,10 @@ export default function Header() {
                     >
                       <div className="flex items-center gap-2 text-sm font-medium">
                         <Icon className="w-4 h-4 text-blue-500 flex-shrink-0" />
-                        {label}
+                        {localized?.label || label}
                       </div>
-                      {description && (
-                        <p className="text-xs text-gray-500">{description}</p>
+                      {(localized?.description || description) && (
+                        <p className="text-xs text-gray-500">{localized?.description || description}</p>
                       )}
                     </Link>
                     )

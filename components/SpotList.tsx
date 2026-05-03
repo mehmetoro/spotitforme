@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import SpotCard from './SpotCard';
 import NativeAd from './NativeAd';
+import { useCurrentLocale } from '@/hooks/useCurrentLocale';
 
 interface SpotListProps {
   searchQuery?: string;
@@ -19,6 +20,7 @@ export default function SpotList({
   location, 
   status 
 }: SpotListProps) {
+  const locale = useCurrentLocale();
   const [spots, setSpots] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -54,6 +56,7 @@ export default function SpotList({
     }
 
     // Kullanıcı bilgilerini ayrıca getir
+    let enrichedData: any[] = [];
     if (data && data.length > 0) {
       const userIds = Array.from(new Set(data.map(spot => spot.user_id)));
       const { data: users } = await supabase
@@ -62,22 +65,36 @@ export default function SpotList({
         .in('id', userIds);
       
       const userMap = new Map(users?.map(u => [u.id, u]) || []);
-      const spotsWithUsers = data.map(spot => ({
+      enrichedData = data.map(spot => ({
         ...spot,
         user: userMap.get(spot.user_id) ? { full_name: userMap.get(spot.user_id)?.full_name } : null
       }));
-      
-      if (pageNum === 1) {
-        setSpots(spotsWithUsers);
-      } else {
-        setSpots(prev => [...prev, ...spotsWithUsers]);
-      }
     } else {
-      if (pageNum === 1) {
-        setSpots(data || []);
-      } else {
-        setSpots(prev => [...prev, ...(data || [])]);
+      enrichedData = data || [];
+    }
+
+    // Çevirileri uygula (TR dışı dillerde)
+    if (locale !== 'tr' && enrichedData.length > 0) {
+      const spotIds = enrichedData.map(s => s.id);
+      const { data: translations } = await supabase
+        .from('spot_translations')
+        .select('spot_id, title, description')
+        .in('spot_id', spotIds)
+        .eq('language', locale);
+      if (translations && translations.length > 0) {
+        const transMap = new Map(translations.map(t => [t.spot_id, t]));
+        enrichedData = enrichedData.map(spot => {
+          const tr = transMap.get(spot.id);
+          if (tr) return { ...spot, title: tr.title || spot.title, description: tr.description || spot.description };
+          return spot;
+        });
       }
+    }
+
+    if (pageNum === 1) {
+      setSpots(enrichedData);
+    } else {
+      setSpots(prev => [...prev, ...enrichedData]);
     }
 
     setHasMore((data?.length || 0) === 12);
@@ -87,7 +104,7 @@ export default function SpotList({
   useEffect(() => {
     loadSpots(1);
     setPage(1);
-  }, [searchQuery, category, location, status]);
+  }, [searchQuery, category, location, status, locale]);
 
   const loadMore = () => {
     const nextPage = page + 1;

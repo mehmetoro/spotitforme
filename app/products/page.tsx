@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import ShopProductCard from '@/components/ShopProductCard';
 import { Search, Filter, Loader2 } from 'lucide-react';
+import { useCurrentLocale } from '@/hooks/useCurrentLocale';
 
 // Type tanımlamaları
 interface Product {
@@ -25,6 +26,7 @@ interface CategoryItem {
 }
 
 export default function ProductsPage() {
+  const locale = useCurrentLocale();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -33,7 +35,7 @@ export default function ProductsPage() {
 
   useEffect(() => {
     loadProducts();
-  }, []);
+  }, [locale, searchQuery, categoryFilter]);
 
   const loadProducts = async () => {
     try {
@@ -56,7 +58,28 @@ export default function ProductsPage() {
       const { data, error } = await query;
 
       if (error) throw error;
-      setProducts(data || []);
+
+      let productList: Product[] = data || [];
+
+      // Çevirileri uygula (TR dışı dillerde)
+      if (locale !== 'tr' && productList.length > 0) {
+        const productIds = productList.map((p) => p.id);
+        const { data: translations } = await supabase
+          .from('shop_inventory_translations')
+          .select('shop_inventory_id, title, description')
+          .in('shop_inventory_id', productIds)
+          .eq('language', locale);
+        if (translations && translations.length > 0) {
+          const transMap = new Map(translations.map((t: any) => [t.shop_inventory_id, t]));
+          productList = productList.map((p) => {
+            const tr = transMap.get(p.id);
+            if (tr) return { ...p, title: (tr as any).title || p.title, description: (tr as any).description || p.description };
+            return p;
+          });
+        }
+      }
+
+      setProducts(productList);
 
       // Kategorileri al
       const { data: categoriesData } = await supabase

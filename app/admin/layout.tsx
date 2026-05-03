@@ -30,7 +30,7 @@ export default function AdminLayout({
       
       if (authError || !user) {
         setDebugInfo('Kullanıcı giriş yapmamış')
-        router.push('/login?redirect=/admin')
+        router.push('/auth?mode=login&redirect=/admin')
         return
       }
 

@@ -1,5 +1,6 @@
 // app/page.tsx - BASİTLEŞTİRİLMİŞ
 import type { Metadata } from 'next'
+import { cookies, headers } from 'next/headers'
 import Hero from '@/components/Hero'
 import Stats from '@/components/Stats'
 import HowItWorks from '@/components/HowItWorks'
@@ -12,21 +13,64 @@ import DailyChallenges from '@/components/DailyChallenges'
 import QuickSightingButton from '@/components/QuickSightingButton'
 import ResponsiveAd from '@/components/ResponsiveAd'
 
-export const metadata: Metadata = {
-  title: 'Nadir Seyahat ve Spot Kesifleri',
-  description:
-    'Toplulugun paylastigi nadir seyahat rotalarini, mekan onerilerini ve spot kesiflerini tek platformda inceleyin.',
-  alternates: {
-    canonical: '/',
+const homeMetaByLocale: Record<string, { title: string; description: string; ogLocale: string }> = {
+  tr: {
+    title: 'Nadir Seyahat ve Spot Kesifleri',
+    description: 'Toplulugun paylastigi nadir seyahat rotalarini, mekan onerilerini ve spot kesiflerini tek platformda inceleyin.',
+    ogLocale: 'tr_TR',
   },
-  openGraph: {
-    title: 'SpotItForMe – Nadir Seyahat ve Spot Kesifleri',
-    description:
-      'Toplulugun paylastigi nadir seyahat rotalarini, mekan onerilerini ve spot kesiflerini tek platformda inceleyin.',
-    url: '/',
-    type: 'website',
-    locale: 'tr_TR',
+  en: {
+    title: 'Rare Travel and Spot Discoveries',
+    description: 'Explore rare travel routes, local recommendations and spot discoveries shared by the community.',
+    ogLocale: 'en_US',
   },
+  de: {
+    title: 'Seltene Reisen und Spot-Entdeckungen',
+    description: 'Entdecke seltene Reiserouten, lokale Empfehlungen und Spot-Entdeckungen aus der Community.',
+    ogLocale: 'de_DE',
+  },
+  fr: {
+    title: 'Voyages Rares et Decouvertes Spot',
+    description: 'Decouvrez des itineraires rares, des recommandations locales et des spots partages par la communaute.',
+    ogLocale: 'fr_FR',
+  },
+  es: {
+    title: 'Viajes Raros y Descubrimientos Spot',
+    description: 'Explora rutas de viaje raras, recomendaciones locales y descubrimientos spot compartidos por la comunidad.',
+    ogLocale: 'es_ES',
+  },
+  ru: {
+    title: 'Redkie Puteshestviya i Spot-Otkrytiya',
+    description: 'Izuchayte redkie marshruty, lokalnye rekomendatsii i spot-otkrytiya ot soobshchestva.',
+    ogLocale: 'ru_RU',
+  },
+}
+
+export function generateMetadata(): Metadata {
+  const localeFromHeader = headers().get('x-locale')
+  const localeCookie = cookies().get('NEXT_LOCALE')?.value
+  const locale = (localeFromHeader && homeMetaByLocale[localeFromHeader])
+    ? localeFromHeader
+    : (localeCookie && homeMetaByLocale[localeCookie])
+      ? localeCookie
+      : 'tr'
+
+  const text = homeMetaByLocale[locale]
+
+  return {
+    title: text.title,
+    description: text.description,
+    alternates: {
+      canonical: `/${locale}`,
+    },
+    openGraph: {
+      title: `SpotItForMe - ${text.title}`,
+      description: text.description,
+      url: `/${locale}`,
+      type: 'website',
+      locale: text.ogLocale,
+    },
+  }
 }
 
 export default function HomePage() {

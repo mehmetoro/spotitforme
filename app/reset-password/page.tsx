@@ -5,10 +5,22 @@ import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
+import { useCurrentLocale } from '@/hooks/useCurrentLocale'
+
+const rpText = {
+  tr: { checking: 'Kontrol ediliyor...', invalidTitle: 'Geçersiz veya Süresi Dolmuş Link', invalidDesc: 'Bu şifre sıfırlama linki geçersiz veya süresi dolmuş.', requestNew: 'Yeni Şifre Sıfırlama Linki İste', backLogin: 'Giriş Sayfasına Dön', title: 'Yeni Şifre Belirleyin', desc: 'Yeni şifrenizi belirleyin ve hesabınıza giriş yapın', successTitle: 'Şifreniz başarıyla güncellendi!', successDesc: 'Yeni şifrenizle giriş yapabilirsiniz. 3 saniye içinde yönlendirileceksiniz.', newPwd: 'Yeni Şifre *', pwdHint: 'Güçlü bir şifre seçin', confirmPwd: 'Şifreyi Tekrar Girin *', confirmHint: 'Şifrenizi doğrulamak için tekrar girin', updating: 'Güncelleniyor...', submitBtn: 'Şifremi Güncelle', securityNote: '⚠️ Şifrenizi kimseyle paylaşmayın.', backToLogin: '← Giriş sayfasına dön', tipsTitle: '💡 Güçlü Şifre İpuçları', tips: ['En az 8 karakter kullanın', 'Büyük ve küçük harf karışımı kullanın', 'Rakam ve özel karakter ekleyin', 'Kişisel bilgilerinizi kullanmayın', 'Farklı hesaplar için farklı şifreler kullanın'], errShort: 'Şifre en az 6 karakter olmalıdır', errNoMatch: 'Şifreler eşleşmiyor', errPwdFmt: 'Geçersiz şifre formatı', errSession: 'Oturum süresi doldu. Lütfen yeni bir şifre sıfırlama linki talep edin.', errGeneric: 'Bir hata oluştu' },
+  en: { checking: 'Checking...', invalidTitle: 'Invalid or Expired Link', invalidDesc: 'This password reset link is invalid or expired. Please request a new one.', requestNew: 'Request New Reset Link', backLogin: 'Back to Login', title: 'Set New Password', desc: 'Set your new password and log into your account', successTitle: 'Password updated successfully!', successDesc: 'You can now log in with your new password. You will be redirected in 3 seconds.', newPwd: 'New Password *', pwdHint: 'Choose a strong password', confirmPwd: 'Confirm Password *', confirmHint: 'Enter your password again to confirm', updating: 'Updating...', submitBtn: 'Update Password', securityNote: '⚠️ Never share your password with anyone.', backToLogin: '← Back to login', tipsTitle: '💡 Strong Password Tips', tips: ['Use at least 8 characters', 'Mix uppercase and lowercase letters', 'Add numbers and special characters', 'Avoid personal information', 'Use different passwords for different accounts'], errShort: 'Password must be at least 6 characters', errNoMatch: 'Passwords do not match', errPwdFmt: 'Invalid password format', errSession: 'Session expired. Please request a new password reset link.', errGeneric: 'An error occurred' },
+  de: { checking: 'Wird überprüft...', invalidTitle: 'Ungültiger oder abgelaufener Link', invalidDesc: 'Dieser Passwort-Reset-Link ist ungültig oder abgelaufen.', requestNew: 'Neuen Reset-Link anfordern', backLogin: 'Zur Anmeldung', title: 'Neues Passwort festlegen', desc: 'Legen Sie Ihr neues Passwort fest', successTitle: 'Passwort erfolgreich aktualisiert!', successDesc: 'Sie können sich jetzt mit Ihrem neuen Passwort anmelden.', newPwd: 'Neues Passwort *', pwdHint: 'Wählen Sie ein sicheres Passwort', confirmPwd: 'Passwort bestätigen *', confirmHint: 'Passwort erneut eingeben', updating: 'Wird aktualisiert...', submitBtn: 'Passwort aktualisieren', securityNote: '⚠️ Teilen Sie Ihr Passwort niemals mit anderen.', backToLogin: '← Zurück zur Anmeldung', tipsTitle: '💡 Tipps für starke Passwörter', tips: ['Mindestens 8 Zeichen verwenden', 'Groß- und Kleinbuchstaben mischen', 'Zahlen und Sonderzeichen hinzufügen', 'Keine persönlichen Informationen verwenden', 'Verschiedene Passwörter für verschiedene Konten'], errShort: 'Passwort muss mindestens 6 Zeichen lang sein', errNoMatch: 'Passwörter stimmen nicht überein', errPwdFmt: 'Ungültiges Passwortformat', errSession: 'Sitzung abgelaufen. Bitte fordern Sie einen neuen Link an.', errGeneric: 'Ein Fehler ist aufgetreten' },
+  fr: { checking: 'Vérification...', invalidTitle: 'Lien invalide ou expiré', invalidDesc: 'Ce lien de réinitialisation est invalide ou expiré.', requestNew: 'Demander un nouveau lien', backLogin: 'Retour à la connexion', title: 'Définir un nouveau mot de passe', desc: 'Définissez votre nouveau mot de passe', successTitle: 'Mot de passe mis à jour avec succès !', successDesc: 'Vous pouvez maintenant vous connecter avec votre nouveau mot de passe.', newPwd: 'Nouveau mot de passe *', pwdHint: 'Choisissez un mot de passe fort', confirmPwd: 'Confirmer le mot de passe *', confirmHint: 'Entrez à nouveau votre mot de passe', updating: 'Mise à jour...', submitBtn: 'Mettre à jour le mot de passe', securityNote: '⚠️ Ne partagez jamais votre mot de passe.', backToLogin: '← Retour à la connexion', tipsTitle: '💡 Conseils pour un mot de passe fort', tips: ['Utilisez au moins 8 caractères', 'Mélangez majuscules et minuscules', 'Ajoutez des chiffres et des caractères spéciaux', 'Évitez les informations personnelles', 'Utilisez des mots de passe différents pour chaque compte'], errShort: 'Le mot de passe doit contenir au moins 6 caractères', errNoMatch: 'Les mots de passe ne correspondent pas', errPwdFmt: 'Format de mot de passe invalide', errSession: 'Session expirée. Veuillez demander un nouveau lien.', errGeneric: 'Une erreur s\'est produite' },
+  es: { checking: 'Verificando...', invalidTitle: 'Enlace inválido o expirado', invalidDesc: 'Este enlace de restablecimiento es inválido o ha expirado.', requestNew: 'Solicitar nuevo enlace', backLogin: 'Volver al inicio', title: 'Establecer nueva contraseña', desc: 'Establece tu nueva contraseña', successTitle: '¡Contraseña actualizada con éxito!', successDesc: 'Ahora puedes iniciar sesión con tu nueva contraseña.', newPwd: 'Nueva contraseña *', pwdHint: 'Elige una contraseña fuerte', confirmPwd: 'Confirmar contraseña *', confirmHint: 'Ingresa tu contraseña nuevamente', updating: 'Actualizando...', submitBtn: 'Actualizar contraseña', securityNote: '⚠️ Nunca compartas tu contraseña.', backToLogin: '← Volver al inicio de sesión', tipsTitle: '💡 Consejos para contraseñas fuertes', tips: ['Usa al menos 8 caracteres', 'Combina mayúsculas y minúsculas', 'Agrega números y caracteres especiales', 'Evita información personal', 'Usa contraseñas diferentes para cada cuenta'], errShort: 'La contraseña debe tener al menos 6 caracteres', errNoMatch: 'Las contraseñas no coinciden', errPwdFmt: 'Formato de contraseña inválido', errSession: 'Sesión expirada. Solicita un nuevo enlace.', errGeneric: 'Ocurrió un error' },
+  ru: { checking: 'Проверка...', invalidTitle: 'Недействительная или истёкшая ссылка', invalidDesc: 'Эта ссылка для сброса пароля недействительна или истекла.', requestNew: 'Запросить новую ссылку', backLogin: 'Вернуться к входу', title: 'Установить новый пароль', desc: 'Установите новый пароль для своего аккаунта', successTitle: 'Пароль успешно обновлён!', successDesc: 'Теперь вы можете войти с новым паролем.', newPwd: 'Новый пароль *', pwdHint: 'Выберите надёжный пароль', confirmPwd: 'Подтвердить пароль *', confirmHint: 'Введите пароль ещё раз', updating: 'Обновление...', submitBtn: 'Обновить пароль', securityNote: '⚠️ Никогда не делитесь паролем.', backToLogin: '← Вернуться к входу', tipsTitle: '💡 Советы для надёжного пароля', tips: ['Используйте не менее 8 символов', 'Смешивайте прописные и строчные буквы', 'Добавляйте цифры и спецсимволы', 'Не используйте личную информацию', 'Используйте разные пароли для разных аккаунтов'], errShort: 'Пароль должен содержать не менее 6 символов', errNoMatch: 'Пароли не совпадают', errPwdFmt: 'Неверный формат пароля', errSession: 'Сессия истекла. Запросите новую ссылку.', errGeneric: 'Произошла ошибка' },
+} as const
 
 export default function ResetPasswordPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const locale = useCurrentLocale()
+  const t = rpText[locale as keyof typeof rpText] ?? rpText.tr
 
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -42,13 +54,13 @@ export default function ResetPasswordPage() {
 
     // Validasyon
     if (password.length < 6) {
-      setError('Şifre en az 6 karakter olmalıdır')
+      setError(t.errShort)
       setLoading(false)
       return
     }
 
     if (password !== confirmPassword) {
-      setError('Şifreler eşleşmiyor')
+      setError(t.errNoMatch)
       setLoading(false)
       return
     }
@@ -71,12 +83,12 @@ export default function ResetPasswordPage() {
     } catch (err: any) {
       console.error('Şifre güncelleme hatası:', err)
       
-      let errorMessage = err.message || 'Bir hata oluştu'
+      let errorMessage = err.message || t.errGeneric
       
       if (errorMessage.includes('password')) {
-        errorMessage = 'Geçersiz şifre formatı'
+        errorMessage = t.errPwdFmt
       } else if (errorMessage.includes('session')) {
-        errorMessage = 'Oturum süresi doldu. Lütfen yeni bir şifre sıfırlama linki talep edin.'
+        errorMessage = t.errSession
       }
       
       setError(errorMessage)
@@ -92,7 +104,7 @@ export default function ResetPasswordPage() {
         <main className="container-custom py-12">
           <div className="max-w-md mx-auto text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Kontrol ediliyor...</p>
+            <p className="mt-4 text-gray-600">{t.checking}</p>
           </div>
         </main>
       </div>
@@ -111,24 +123,17 @@ export default function ResetPasswordPage() {
                 ⚠️
               </div>
               <h1 className="text-2xl font-bold text-gray-900 mb-4">
-                Geçersiz veya Süresi Dolmuş Link
+                {t.invalidTitle}
               </h1>
               <p className="text-gray-600 mb-6">
-                Bu şifre sıfırlama linki geçersiz veya süresi dolmuş.
-                Lütfen yeni bir şifre sıfırlama talebinde bulunun.
+                {t.invalidDesc}
               </p>
               <div className="space-y-3">
-                <Link
-                  href="/forgot-password"
-                  className="block w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-lg"
-                >
-                  Yeni Şifre Sıfırlama Linki İste
+                <Link href="/forgot-password" className="block w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-lg">
+                  {t.requestNew}
                 </Link>
-                <Link
-                  href="/login"
-                  className="block w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-3 rounded-lg"
-                >
-                  Giriş Sayfasına Dön
+                <Link href="/login" className="block w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-3 rounded-lg">
+                  {t.backLogin}
                 </Link>
               </div>
             </div>
@@ -150,11 +155,9 @@ export default function ResetPasswordPage() {
                 🔐
               </div>
               <h1 className="text-2xl font-bold text-gray-900 mb-2">
-                Yeni Şifre Belirleyin
+                {t.title}
               </h1>
-              <p className="text-gray-600">
-                Yeni şifrenizi belirleyin ve hesabınıza giriş yapın
-              </p>
+              <p className="text-gray-600">{t.desc}</p>
             </div>
 
             {/* Başarı Mesajı */}
@@ -163,10 +166,8 @@ export default function ResetPasswordPage() {
                 <div className="flex items-center">
                   <span className="text-green-600 mr-3">✅</span>
                   <div>
-                    <p className="font-medium">Şifreniz başarıyla güncellendi!</p>
-                    <p className="text-sm mt-1">
-                      Yeni şifrenizle giriş yapabilirsiniz. 3 saniye içinde giriş sayfasına yönlendirileceksiniz.
-                    </p>
+                    <p className="font-medium">{t.successTitle}</p>
+                    <p className="text-sm mt-1">{t.successDesc}</p>
                   </div>
                 </div>
               </div>
@@ -188,9 +189,7 @@ export default function ResetPasswordPage() {
             {!success && (
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Yeni Şifre *
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">{t.newPwd}</label>
                   <input
                     type="password"
                     value={password}
@@ -201,28 +200,22 @@ export default function ResetPasswordPage() {
                     minLength={6}
                     disabled={loading}
                   />
-                  <p className="text-gray-500 text-xs mt-2">
-                    Güçlü bir şifre seçin (harf, rakam, özel karakter kombinasyonu)
-                  </p>
+                  <p className="text-gray-500 text-xs mt-2">{t.pwdHint}</p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Şifreyi Tekrar Girin *
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">{t.confirmPwd}</label>
                   <input
                     type="password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Şifreyi tekrar girin"
+                    placeholder={t.confirmHint}
                     required
                     minLength={6}
                     disabled={loading}
                   />
-                  <p className="text-gray-500 text-xs mt-2">
-                    Şifrenizi doğrulamak için tekrar girin
-                  </p>
+                  <p className="text-gray-500 text-xs mt-2">{t.confirmHint}</p>
                 </div>
 
                 <button
@@ -236,10 +229,10 @@ export default function ResetPasswordPage() {
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
-                      Güncelleniyor...
+                      {t.updating}
                     </>
                   ) : (
-                    'Şifremi Güncelle'
+                    t.submitBtn
                   )}
                 </button>
               </form>
@@ -250,17 +243,13 @@ export default function ResetPasswordPage() {
               <div className="space-y-4">
                 <div className="bg-yellow-50 p-4 rounded-lg">
                   <p className="text-sm text-yellow-700">
-                    <span className="font-medium">⚠️ Güvenlik Uyarısı:</span> Şifrenizi kimseyle paylaşmayın. 
-                    Hesabınızda şüpheli bir aktivite görürseniz hemen bizimle iletişime geçin.
+                    <span className="font-medium">{t.securityNote}</span>
                   </p>
                 </div>
 
                 <div className="text-center">
-                  <Link
-                    href="/login"
-                    className="text-blue-600 hover:text-blue-800 font-medium"
-                  >
-                    ← Giriş sayfasına dön
+                  <Link href="/login" className="text-blue-600 hover:text-blue-800 font-medium">
+                    {t.backToLogin}
                   </Link>
                 </div>
               </div>
@@ -270,30 +259,15 @@ export default function ResetPasswordPage() {
           {/* Şifre Önerileri */}
           <div className="mt-8 bg-white rounded-2xl shadow p-6">
             <h3 className="font-bold text-gray-900 mb-4 flex items-center">
-              <span className="text-blue-600 mr-2">💡</span>
-              Güçlü Şifre İpuçları
+              {t.tipsTitle}
             </h3>
             <ul className="space-y-2 text-sm text-gray-600">
-              <li className="flex items-start">
-                <span className="text-green-500 mr-2">✓</span>
-                <span>En az 8 karakter kullanın</span>
-              </li>
-              <li className="flex items-start">
-                <span className="text-green-500 mr-2">✓</span>
-                <span>Büyük ve küçük harf karışımı kullanın</span>
-              </li>
-              <li className="flex items-start">
-                <span className="text-green-500 mr-2">✓</span>
-                <span>Rakam ve özel karakter ekleyin (!@#$%^&*)</span>
-              </li>
-              <li className="flex items-start">
-                <span className="text-green-500 mr-2">✓</span>
-                <span>Kişisel bilgilerinizi (doğum tarihi, isim) kullanmayın</span>
-              </li>
-              <li className="flex items-start">
-                <span className="text-green-500 mr-2">✓</span>
-                <span>Farklı hesaplar için farklı şifreler kullanın</span>
-              </li>
+              {t.tips.map((tip, i) => (
+                <li key={i} className="flex items-start">
+                  <span className="text-green-500 mr-2">✓</span>
+                  <span>{tip}</span>
+                </li>
+              ))}
             </ul>
           </div>
         </div>

@@ -3,6 +3,137 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
+import { useCurrentLocale } from '@/hooks/useCurrentLocale'
+
+const lbText = {
+  tr: {
+    title: '🏆 Sıralama Tablosu',
+    subtitle: 'En aktif kullanıcıları ve en iyi serilerini görüntüleyin',
+    tabs: [
+      { key: 'points' as const, label: '💰 Puanlar' },
+      { key: 'streak' as const, label: '🔥 Seri' },
+      { key: 'weekly' as const, label: '📅 Haftalık' },
+    ],
+    yourRank: 'Senin Sıraman',
+    points: 'Puan',
+    colRank: 'Sıra',
+    colUser: 'Kullanıcı',
+    colPoints: 'Puanlar',
+    colStreak: 'Seri',
+    visitProfile: 'Profilini ziyaret et',
+    pointsUnit: 'puan',
+    daily: 'günlük',
+    best: 'en iyi',
+    gainPoints: (p: number) => `🎯 Puan kazanarak sıralamaya gir! Şu anda ${p} puan var.`,
+    noUsers: 'Henüz kullanıcı yok',
+  },
+  en: {
+    title: '🏆 Leaderboard',
+    subtitle: 'View the most active users and their best streaks',
+    tabs: [
+      { key: 'points' as const, label: '💰 Points' },
+      { key: 'streak' as const, label: '🔥 Streak' },
+      { key: 'weekly' as const, label: '📅 Weekly' },
+    ],
+    yourRank: 'Your Rank',
+    points: 'Points',
+    colRank: 'Rank',
+    colUser: 'User',
+    colPoints: 'Points',
+    colStreak: 'Streak',
+    visitProfile: 'Visit profile',
+    pointsUnit: 'pts',
+    daily: 'daily',
+    best: 'best',
+    gainPoints: (p: number) => `🎯 Earn points to enter the leaderboard! You currently have ${p} points.`,
+    noUsers: 'No users yet',
+  },
+  de: {
+    title: '🏆 Rangliste',
+    subtitle: 'Sieh dir die aktivsten Nutzer und ihre besten Serien an',
+    tabs: [
+      { key: 'points' as const, label: '💰 Punkte' },
+      { key: 'streak' as const, label: '🔥 Serie' },
+      { key: 'weekly' as const, label: '📅 Wöchentlich' },
+    ],
+    yourRank: 'Dein Rang',
+    points: 'Punkte',
+    colRank: 'Rang',
+    colUser: 'Nutzer',
+    colPoints: 'Punkte',
+    colStreak: 'Serie',
+    visitProfile: 'Profil besuchen',
+    pointsUnit: 'Pkt.',
+    daily: 'täglich',
+    best: 'beste',
+    gainPoints: (p: number) => `🎯 Sammle Punkte, um in die Rangliste einzusteigen! Du hast aktuell ${p} Punkte.`,
+    noUsers: 'Noch keine Nutzer',
+  },
+  fr: {
+    title: '🏆 Classement',
+    subtitle: 'Voir les utilisateurs les plus actifs et leurs meilleures séries',
+    tabs: [
+      { key: 'points' as const, label: '💰 Points' },
+      { key: 'streak' as const, label: '🔥 Série' },
+      { key: 'weekly' as const, label: '📅 Hebdo' },
+    ],
+    yourRank: 'Votre Rang',
+    points: 'Points',
+    colRank: 'Rang',
+    colUser: 'Utilisateur',
+    colPoints: 'Points',
+    colStreak: 'Série',
+    visitProfile: 'Voir le profil',
+    pointsUnit: 'pts',
+    daily: 'quotidien',
+    best: 'meilleur',
+    gainPoints: (p: number) => `🎯 Gagnez des points pour entrer dans le classement ! Vous avez actuellement ${p} points.`,
+    noUsers: 'Aucun utilisateur pour l\'instant',
+  },
+  es: {
+    title: '🏆 Tabla de Clasificación',
+    subtitle: 'Ver los usuarios más activos y sus mejores rachas',
+    tabs: [
+      { key: 'points' as const, label: '💰 Puntos' },
+      { key: 'streak' as const, label: '🔥 Racha' },
+      { key: 'weekly' as const, label: '📅 Semanal' },
+    ],
+    yourRank: 'Tu Posición',
+    points: 'Puntos',
+    colRank: 'Pos.',
+    colUser: 'Usuario',
+    colPoints: 'Puntos',
+    colStreak: 'Racha',
+    visitProfile: 'Ver perfil',
+    pointsUnit: 'pts',
+    daily: 'diario',
+    best: 'mejor',
+    gainPoints: (p: number) => `🎯 ¡Gana puntos para entrar en el ranking! Actualmente tienes ${p} puntos.`,
+    noUsers: 'Todavía no hay usuarios',
+  },
+  ru: {
+    title: '🏆 Таблица Лидеров',
+    subtitle: 'Просмотр самых активных пользователей и их лучших серий',
+    tabs: [
+      { key: 'points' as const, label: '💰 Очки' },
+      { key: 'streak' as const, label: '🔥 Серия' },
+      { key: 'weekly' as const, label: '📅 Еженедельно' },
+    ],
+    yourRank: 'Ваш Ранг',
+    points: 'Очки',
+    colRank: 'Место',
+    colUser: 'Пользователь',
+    colPoints: 'Очки',
+    colStreak: 'Серия',
+    visitProfile: 'Просмотр профиля',
+    pointsUnit: 'оч.',
+    daily: 'ежедн.',
+    best: 'лучшая',
+    gainPoints: (p: number) => `🎯 Зарабатывайте очки, чтобы попасть в рейтинг! У вас ${p} очков.`,
+    noUsers: 'Пока нет пользователей',
+  },
+} as const
+type LBLocale = keyof typeof lbText
 
 interface LeaderboardUser {
   id: string
@@ -17,6 +148,8 @@ interface LeaderboardUser {
 type LeaderboardTab = 'points' | 'streak' | 'weekly'
 
 export default function LeaderboardPage() {
+  const locale = useCurrentLocale()
+  const t = lbText[(locale as LBLocale) in lbText ? (locale as LBLocale) : 'tr']
   const [users, setUsers] = useState<LeaderboardUser[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<LeaderboardTab>('points')
@@ -139,17 +272,13 @@ export default function LeaderboardPage() {
     <div className="max-w-4xl mx-auto px-4 py-8">
       {/* Başlık */}
       <div className="mb-8">
-        <h1 className="text-4xl font-bold text-gray-900 mb-2">🏆 Sıralama Tablosu</h1>
-        <p className="text-gray-600">En aktif kullanıcıları ve en iyi serilerini görüntüleyin</p>
+        <h1 className="text-4xl font-bold text-gray-900 mb-2">{t.title}</h1>
+        <p className="text-gray-600">{t.subtitle}</p>
       </div>
 
       {/* Tab Butonları */}
       <div className="flex gap-3 mb-8 bg-white rounded-lg p-2 shadow">
-        {[
-          { key: 'points' as LeaderboardTab, label: '💰 Puanlar', icon: '💰' },
-          { key: 'streak' as LeaderboardTab, label: '🔥 Seri', icon: '🔥' },
-          { key: 'weekly' as LeaderboardTab, label: '📅 Haftalık', icon: '📅' }
-        ].map(tab => (
+        {t.tabs.map(tab => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
@@ -174,12 +303,12 @@ export default function LeaderboardPage() {
               </div>
               <div>
                 <p className="text-lg font-semibold">{currentUserRank.name}</p>
-                <p className="text-blue-100">Senin Sıraman</p>
+                <p className="text-blue-100">{t.yourRank}</p>
               </div>
             </div>
             <div className="text-right">
               <div className="text-3xl font-bold">{currentUserRank.total_points}</div>
-              <div className="text-blue-100">Puan</div>
+              <div className="text-blue-100">{t.points}</div>
             </div>
           </div>
         </div>
@@ -188,10 +317,10 @@ export default function LeaderboardPage() {
       {/* Leaderboard Listesi */}
       <div className="bg-white rounded-xl shadow overflow-hidden">
         <div className="grid grid-cols-12 gap-4 p-4 bg-gray-50 border-b border-gray-200 font-semibold text-gray-700">
-          <div className="col-span-1">Sıra</div>
-          <div className="col-span-6">Kullanıcı</div>
-          <div className="col-span-2">Puanlar</div>
-          <div className="col-span-3">Seri</div>
+          <div className="col-span-1">{t.colRank}</div>
+          <div className="col-span-6">{t.colUser}</div>
+          <div className="col-span-2">{t.colPoints}</div>
+          <div className="col-span-3">{t.colStreak}</div>
         </div>
 
         <div className="divide-y divide-gray-200">
@@ -228,7 +357,7 @@ export default function LeaderboardPage() {
                 </div>
                 <div>
                   <p className="font-medium text-gray-900">{user.name}</p>
-                  <p className="text-sm text-gray-500">Profilini ziyaret et</p>
+                  <p className="text-sm text-gray-500">{t.visitProfile}</p>
                 </div>
               </div>
 
@@ -236,7 +365,7 @@ export default function LeaderboardPage() {
               <div className="col-span-2 flex items-center justify-center">
                 <div className="text-center">
                   <p className="text-xl font-bold text-blue-600">{user.total_points}</p>
-                  <p className="text-xs text-gray-500">puan</p>
+                  <p className="text-xs text-gray-500">{t.pointsUnit}</p>
                 </div>
               </div>
 
@@ -247,14 +376,14 @@ export default function LeaderboardPage() {
                     <span className="text-lg">🔥</span>
                     <span className="font-bold text-lg">{user.current_streak}</span>
                   </div>
-                  <p className="text-xs text-gray-500">günlük</p>
+                  <p className="text-xs text-gray-500">{t.daily}</p>
                 </div>
                 <div className="text-center">
                   <div className="flex items-center justify-center space-x-1">
                     <span className="text-lg">⭐</span>
                     <span className="font-bold text-lg">{user.best_streak}</span>
                   </div>
-                  <p className="text-xs text-gray-500">en iyi</p>
+                  <p className="text-xs text-gray-500">{t.best}</p>
                 </div>
               </div>
             </Link>
@@ -266,7 +395,7 @@ export default function LeaderboardPage() {
       {currentUserRank && currentUserRank.rank === -1 && (
         <div className="mt-8 p-6 bg-yellow-50 border border-yellow-200 rounded-lg text-center">
           <p className="text-yellow-800">
-            🎯 Puan kazanarak sırlamaya gir! Şu anda {currentUserRank.total_points} puan var.
+            {t.gainPoints(currentUserRank.total_points)}
           </p>
         </div>
       )}
@@ -274,7 +403,7 @@ export default function LeaderboardPage() {
       {/* Boş Durum */}
       {users.length === 0 && (
         <div className="text-center py-12">
-          <p className="text-gray-600">Henüz kullanıcı yok</p>
+          <p className="text-gray-600">{t.noUsers}</p>
         </div>
       )}
     </div>

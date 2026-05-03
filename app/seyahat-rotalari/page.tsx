@@ -4,6 +4,16 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { useCurrentLocale } from '@/hooks/useCurrentLocale'
+
+const srText = {
+  tr: { title: 'Seyahat Rotaları', desc: 'Canlı seyahatten üretilen, beğeni/yorum/paylaşımları discovery\'den ayrı akan rota paylaşımları.', tabPrivate: '🎯 Özel', tabFollow: '👥 Takip', tabPopular: '🔥 Popüler', tabCategory: '🏷️ Kategoriler', allCats: 'Tüm kategoriler', loading: 'Rotalar yükleniyor...', noCollage: 'Kolaj hazır değil', defaultCategory: 'Seyahat', private: 'Özel', followers: 'Takip', public: 'Genel', like: '❤️ Beğen', comment: '💬 Yorum', share: '🔁 Paylaş', openPlan: 'Planı aç', noRoutes: 'Bu filtrede rota yok.', promptComment: 'Yorumunu yaz' },
+  en: { title: 'Travel Routes', desc: 'Routes generated from live travel, with likes/comments/shares flowing separately from discovery.', tabPrivate: '🎯 Private', tabFollow: '👥 Following', tabPopular: '🔥 Popular', tabCategory: '🏷️ Categories', allCats: 'All categories', loading: 'Loading routes...', noCollage: 'Collage not ready', defaultCategory: 'Travel', private: 'Private', followers: 'Following', public: 'Public', like: '❤️ Like', comment: '💬 Comment', share: '🔁 Share', openPlan: 'Open plan', noRoutes: 'No routes in this filter.', promptComment: 'Write your comment' },
+  de: { title: 'Reiserouten', desc: 'Aus Live-Reisen generierte Routen mit Likes/Kommentaren/Shares, die separat von der Discovery fließen.', tabPrivate: '🎯 Privat', tabFollow: '👥 Gefolgt', tabPopular: '🔥 Beliebt', tabCategory: '🏷️ Kategorien', allCats: 'Alle Kategorien', loading: 'Routen werden geladen...', noCollage: 'Collage nicht bereit', defaultCategory: 'Reise', private: 'Privat', followers: 'Gefolgt', public: 'Öffentlich', like: '❤️ Gefällt mir', comment: '💬 Kommentar', share: '🔁 Teilen', openPlan: 'Plan öffnen', noRoutes: 'Keine Routen in diesem Filter.', promptComment: 'Schreiben Sie Ihren Kommentar' },
+  fr: { title: 'Itinéraires de voyage', desc: 'Itinéraires générés à partir de voyages en direct, avec likes/commentaires/partages séparés de la découverte.', tabPrivate: '🎯 Privé', tabFollow: '👥 Suivi', tabPopular: '🔥 Populaire', tabCategory: '🏷️ Catégories', allCats: 'Toutes les catégories', loading: 'Chargement des itinéraires...', noCollage: 'Collage non prêt', defaultCategory: 'Voyage', private: 'Privé', followers: 'Suivi', public: 'Public', like: '❤️ J\'aime', comment: '💬 Commenter', share: '🔁 Partager', openPlan: 'Ouvrir le plan', noRoutes: 'Aucun itinéraire dans ce filtre.', promptComment: 'Écrivez votre commentaire' },
+  es: { title: 'Rutas de viaje', desc: 'Rutas generadas desde viajes en vivo, con likes/comentarios/compartidos que fluyen separados del descubrimiento.', tabPrivate: '🎯 Privado', tabFollow: '👥 Siguiendo', tabPopular: '🔥 Popular', tabCategory: '🏷️ Categorías', allCats: 'Todas las categorías', loading: 'Cargando rutas...', noCollage: 'Collage no listo', defaultCategory: 'Viaje', private: 'Privado', followers: 'Siguiendo', public: 'Público', like: '❤️ Me gusta', comment: '💬 Comentar', share: '🔁 Compartir', openPlan: 'Abrir plan', noRoutes: 'No hay rutas en este filtro.', promptComment: 'Escribe tu comentario' },
+  ru: { title: 'Маршруты путешествий', desc: 'Маршруты, созданные из живых путешествий, с лайками/комментариями/репостами, отдельными от ленты открытий.', tabPrivate: '🎯 Личное', tabFollow: '👥 Подписки', tabPopular: '🔥 Популярное', tabCategory: '🏷️ Категории', allCats: 'Все категории', loading: 'Загрузка маршрутов...', noCollage: 'Коллаж не готов', defaultCategory: 'Путешествие', private: 'Личное', followers: 'Подписки', public: 'Публичное', like: '❤️ Нравится', comment: '💬 Комментарий', share: '🔁 Поделиться', openPlan: 'Открыть план', noRoutes: 'Нет маршрутов в этом фильтре.', promptComment: 'Напишите ваш комментарий' },
+} as const
 
 type TravelRoute = {
   id: string
@@ -35,6 +45,8 @@ function score(route: TravelRoute) {
 
 export default function TravelRoutesPage() {
   const router = useRouter()
+  const locale = useCurrentLocale()
+  const t = srText[locale as keyof typeof srText] ?? srText.tr
   const [routes, setRoutes] = useState<TravelRoute[]>([])
   const [previews, setPreviews] = useState<Record<string, RoutePreviewPost[]>>({})
   const [loading, setLoading] = useState(true)
@@ -69,7 +81,26 @@ export default function TravelRoutesPage() {
 
         if (routeErr) throw routeErr
 
-        const routeList = (routeRows || []) as TravelRoute[]
+        let routeList = (routeRows || []) as TravelRoute[]
+
+        // Çevirileri uygula (TR dışı dillerde)
+        if (locale !== 'tr' && routeList.length > 0) {
+          const routeIds = routeList.map((r) => r.id)
+          const { data: translations } = await supabase
+            .from('travel_route_translations')
+            .select('travel_route_id, title')
+            .in('travel_route_id', routeIds)
+            .eq('language', locale)
+          if (translations && translations.length > 0) {
+            const transMap = new Map(translations.map((t: any) => [t.travel_route_id, t]))
+            routeList = routeList.map((r) => {
+              const tr = transMap.get(r.id)
+              if (tr) return { ...r, title: (tr as any).title || r.title }
+              return r
+            })
+          }
+        }
+
         setRoutes(routeList)
 
         const sessionIds = routeList.map((route) => route.session_id).filter(Boolean)
@@ -139,7 +170,7 @@ export default function TravelRoutesPage() {
     return () => {
       channel.unsubscribe()
     }
-  }, [])
+  }, [locale])
 
   const categories = useMemo(() => {
     const unique = Array.from(new Set(routes.map((route) => route.category).filter(Boolean))) as string[]
@@ -230,7 +261,7 @@ export default function TravelRoutesPage() {
 
   const handleComment = async (route: TravelRoute) => {
     if (!currentUserId) return
-    const content = window.prompt('Yorumunu yaz')?.trim()
+    const content = window.prompt(t.promptComment)?.trim()
     if (!content) return
     setBusyRouteId(route.id)
     try {
@@ -248,10 +279,8 @@ export default function TravelRoutesPage() {
   return (
     <section className="space-y-4 p-4 md:p-6">
       <div className="rounded-2xl border border-cyan-200 bg-gradient-to-r from-cyan-50 via-white to-emerald-50 p-4 md:p-5">
-        <h1 className="text-xl font-bold text-gray-900">Seyahat Rotaları</h1>
-        <p className="mt-1 text-sm text-gray-600">
-          Canli seyahatten uretilen, begeni/yorum/paylasimlari discovery'den ayri akan rota paylasimlari.
-        </p>
+        <h1 className="text-xl font-bold text-gray-900">{t.title}</h1>
+        <p className="mt-1 text-sm text-gray-600">{t.desc}</p>
       </div>
 
       <div className="rounded-2xl border border-gray-200 bg-white p-3">
@@ -261,28 +290,28 @@ export default function TravelRoutesPage() {
             onClick={() => setTab('private')}
             className={`rounded-xl px-3 py-1.5 text-sm font-semibold ${tab === 'private' ? 'bg-gray-900 text-white' : 'border border-gray-300 text-gray-700'}`}
           >
-            🎯 Ozel
+            {t.tabPrivate}
           </button>
           <button
             type="button"
             onClick={() => setTab('follow')}
             className={`rounded-xl px-3 py-1.5 text-sm font-semibold ${tab === 'follow' ? 'bg-gray-900 text-white' : 'border border-gray-300 text-gray-700'}`}
           >
-            👥 Takip
+            {t.tabFollow}
           </button>
           <button
             type="button"
             onClick={() => setTab('popular')}
             className={`rounded-xl px-3 py-1.5 text-sm font-semibold ${tab === 'popular' ? 'bg-gray-900 text-white' : 'border border-gray-300 text-gray-700'}`}
           >
-            🔥 Populer
+            {t.tabPopular}
           </button>
           <button
             type="button"
             onClick={() => setTab('category')}
             className={`rounded-xl px-3 py-1.5 text-sm font-semibold ${tab === 'category' ? 'bg-gray-900 text-white' : 'border border-gray-300 text-gray-700'}`}
           >
-            🏷️ Kategoriler
+            {t.tabCategory}
           </button>
           {tab === 'category' && (
             <select
@@ -292,7 +321,7 @@ export default function TravelRoutesPage() {
             >
               {categories.map((item) => (
                 <option key={item} value={item}>
-                  {item === 'all' ? 'Tum kategoriler' : item}
+                  {item === 'all' ? t.allCats : item}
                 </option>
               ))}
             </select>
@@ -302,7 +331,7 @@ export default function TravelRoutesPage() {
 
       {loading && (
         <div className="rounded-2xl border border-gray-200 bg-white p-6 text-sm text-gray-600">
-          Rotalar yukleniyor...
+          {t.loading}
         </div>
       )}
 
@@ -324,7 +353,7 @@ export default function TravelRoutesPage() {
               <div className="grid h-40 grid-cols-3 gap-1 bg-gray-100 p-1">
                 {cards.length === 0 && (
                   <div className="col-span-3 flex items-center justify-center text-xs text-gray-500">
-                    Kolaj hazir degil
+                    {t.noCollage}
                   </div>
                 )}
                 {cards.map((card) => (
@@ -345,10 +374,10 @@ export default function TravelRoutesPage() {
                 <p className="mt-1 text-xs text-gray-500">{route.from_location} {'->'} {route.to_location}</p>
                 <div className="mt-2 flex items-center justify-between">
                   <span className="rounded-md bg-cyan-100 px-2 py-1 text-[10px] font-bold text-cyan-700">
-                    {route.category || 'Seyahat'}
+                  {route.category || t.defaultCategory}
                   </span>
                   <span className="text-[10px] font-semibold text-gray-500">
-                    {route.visibility === 'private' ? 'Ozel' : route.visibility === 'followers' ? 'Takip' : 'Genel'}
+                    {route.visibility === 'private' ? t.private : route.visibility === 'followers' ? t.followers : t.public}
                   </span>
                 </div>
                 <div className="mt-2 text-xs text-gray-600">
@@ -364,7 +393,7 @@ export default function TravelRoutesPage() {
                     disabled={!currentUserId || busyRouteId === route.id}
                     className="rounded-lg border border-rose-300 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-50"
                   >
-                    ❤️ Beğen
+                    {t.like}
                   </button>
                   <button
                     type="button"
@@ -375,7 +404,7 @@ export default function TravelRoutesPage() {
                     disabled={!currentUserId || busyRouteId === route.id}
                     className="rounded-lg border border-indigo-300 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 disabled:opacity-50"
                   >
-                    💬 Yorum
+                    {t.comment}
                   </button>
                   <button
                     type="button"
@@ -386,14 +415,14 @@ export default function TravelRoutesPage() {
                     disabled={!currentUserId || busyRouteId === route.id}
                     className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
                   >
-                    🔁 Paylaş
+                    {t.share}
                   </button>
                   <Link
                     href={`/rare-travel-plan/live/${route.session_id}?mode=route`}
                     onClick={(e) => e.stopPropagation()}
                     className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
                   >
-                    Plani ac
+                    {t.openPlan}
                   </Link>
                 </div>
               </div>
@@ -404,7 +433,7 @@ export default function TravelRoutesPage() {
 
       {!loading && filteredRoutes.length === 0 && (
         <div className="rounded-2xl border border-gray-200 bg-white p-6 text-sm text-gray-600">
-          Bu filtrede rota yok.
+          {t.noRoutes}
         </div>
       )}
     </section>

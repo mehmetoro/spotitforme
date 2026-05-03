@@ -13,6 +13,7 @@ import SearchBar from './SearchBar'
 import StoriesBar from './StoriesBar'
 import { useInView } from 'react-intersection-observer'
 import { getCategoryMatchValues } from '@/lib/social-categories'
+import { useCurrentLocale } from '@/hooks/useCurrentLocale'
 
 export type PopularWindow = '24h' | '3d' | '7d' | '30d' | 'all'
 export type PopularSort = 'engagement' | 'likes' | 'comments' | 'saves' | 'recent'
@@ -29,6 +30,7 @@ interface FeedProps {
 
 export default function Feed({ initialUserId, type, category, city, initialSearch, popularWindow = '7d', popularSort = 'engagement' }: FeedProps) {
   const router = useRouter()
+  const locale = useCurrentLocale()
   const [posts, setPosts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [hasMore, setHasMore] = useState(true)
@@ -50,9 +52,9 @@ export default function Feed({ initialUserId, type, category, city, initialSearc
 
       // Aynı request içinde auth kilit yarışlarını önlemek için user'ı bir kez al
       const {
-        data: { user: currentUser }
-      } = await supabase.auth.getUser()
-      const currentUserId = currentUser?.id || null
+        data: { session }
+      } = await supabase.auth.getSession()
+      const currentUserId = session?.user?.id || null
       
       // ÖNCE: Ana postları getir (ilişkisiz)
       let query = supabase
@@ -186,9 +188,32 @@ export default function Feed({ initialUserId, type, category, city, initialSearc
       }
 
       if (data) {
+        let translationMap: Record<string, { title: string; description: string }> = {}
+
+        if (['tr', 'en', 'de', 'fr', 'es', 'ru'].includes(locale) && data.length > 0) {
+          try {
+            const postIds = data.map((post: any) => post.id).filter(Boolean)
+            const { data: translations } = await supabase
+              .from('social_post_translations')
+              .select('social_post_id, title, description')
+              .in('social_post_id', postIds)
+              .eq('language', locale)
+
+            ;(translations || []).forEach((translation: any) => {
+              translationMap[translation.social_post_id] = {
+                title: translation.title,
+                description: translation.description,
+              }
+            })
+          } catch {
+            // Çeviri tablosu henüz yoksa veya sorgu başarısızsa orijinal içerik kullanılır.
+          }
+        }
+
         // SONRA: Her post için kullanıcı bilgilerini ayrı ayrı getir
         const postsWithUsers = await Promise.all(
           data.map(async (post) => {
+            const translation = translationMap[post.id]
             // Kullanıcı profilini getir
             const { data: userData, error: userError } = await supabase
               .from('user_profiles')
@@ -267,6 +292,9 @@ export default function Feed({ initialUserId, type, category, city, initialSearc
 
             return {
               ...post,
+              title: translation?.title || post.title || '',
+              content: translation?.description || post.content || post.description || '',
+              description: translation?.description || post.description || post.content || '',
               user: userData || {
                 id: post.user_id,
                 full_name: 'Bilinmeyen Kullanıcı',
@@ -332,7 +360,7 @@ export default function Feed({ initialUserId, type, category, city, initialSearc
       setLoading(false)
     }
     // Şehir filtresi uygula kodu kaldırıldı, bu filtre fetchPosts fonksiyonu içinde zaten uygulanıyor
-  }, [activeFilter, initialUserId, category, city, popularWindow, popularSort])
+  }, [activeFilter, initialUserId, category, city, popularWindow, popularSort, locale])
 
   // Infinite scroll
   useEffect(() => {
@@ -383,7 +411,8 @@ export default function Feed({ initialUserId, type, category, city, initialSearc
 
   const handleLike = async (postId: string, liked: boolean): Promise<void> => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
+      const { data: { session } } = await supabase.auth.getSession()
+      const user = session?.user ?? null
       if (!user) {
         alert('Beğenmek için giriş yapmalısınız')
         return
@@ -425,7 +454,8 @@ export default function Feed({ initialUserId, type, category, city, initialSearc
 
   const handleSave = async (postId: string, saved: boolean): Promise<void> => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
+      const { data: { session } } = await supabase.auth.getSession()
+      const user = session?.user ?? null
       if (!user) {
         alert('Kaydetmek için giriş yapmalısınız')
         return

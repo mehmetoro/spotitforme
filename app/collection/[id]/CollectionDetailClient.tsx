@@ -8,6 +8,7 @@ import { getImagePreviewDataUrl, optimizeImageFile } from '@/lib/image-processin
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/hooks/useToast'
 import { extractSightingIdFromParam } from '@/lib/sighting-slug'
+import { useCurrentLocale } from '@/hooks/useCurrentLocale'
 
 interface CollectionDetail {
   id: string
@@ -34,6 +35,7 @@ export default function CollectionDetailClient() {
   const params = useParams()
   const router = useRouter()
   const toast = useToast()
+  const locale = useCurrentLocale()
   const rawId = Array.isArray(params.id) ? params.id[0] : params.id
   const id = rawId ? extractSightingIdFromParam(rawId) : ''
 
@@ -78,7 +80,25 @@ export default function CollectionDetailClient() {
           return
         }
 
-        setItem(data as CollectionDetail)
+        let displayData = data as CollectionDetail
+
+        // Çeviriyi çek
+        const { data: translation } = await supabase
+          .from('collection_post_translations')
+          .select('title, description')
+          .eq('collection_post_id', id)
+          .eq('language', locale)
+          .maybeSingle()
+
+        if (translation) {
+          displayData = {
+            ...displayData,
+            title: translation.title || displayData.title,
+            description: translation.description || displayData.description,
+          }
+        }
+
+        setItem(displayData)
 
         const { data: ownerData } = await supabase
           .from('user_profiles')
@@ -97,7 +117,7 @@ export default function CollectionDetailClient() {
     }
 
     loadPage()
-  }, [id])
+  }, [id, locale])
 
   useEffect(() => {
     if (!item) return

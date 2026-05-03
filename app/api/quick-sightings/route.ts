@@ -58,6 +58,8 @@ export async function GET(request: NextRequest) {
     const hasLocation = searchParams.get('hasLocation')
     const search = searchParams.get('search')
     const channel = searchParams.get('channel')
+    const locale = searchParams.get('locale') || 'tr'
+    const SUPPORTED_LOCALES = ['tr', 'en', 'de', 'fr', 'es', 'ru']
     const normalizedChannel = channel === 'seyahat' ? 'social' : channel
 
     const parseNumber = (value: any) => {
@@ -232,12 +234,31 @@ export async function GET(request: NextRequest) {
 
     const userMap = Object.fromEntries(users.map((u) => [u.id, u]))
 
-    const result = filtered.map((s: any) => ({
-      ...s,
-      user: userMap[s.user_id] || null,
-    }))
+    // Çevirileri uygula (quick_sightings için, social değil)
+    let resultRows = filtered.map((s: any) => ({ ...s, user: userMap[s.user_id] || null }))
 
-    return NextResponse.json(result)
+    if (SUPPORTED_LOCALES.includes(locale) && normalizedChannel !== 'social') {
+      const ids = resultRows.map((s: any) => s.id).filter(Boolean)
+      if (ids.length > 0) {
+        const { data: translations } = await supabase
+          .from('quick_sighting_translations')
+          .select('quick_sighting_id, title, description')
+          .in('quick_sighting_id', ids)
+          .eq('language', locale)
+
+        if (translations && translations.length > 0) {
+          const trMap: Record<string, { title: string; description: string }> = {}
+          translations.forEach((t: any) => { trMap[t.quick_sighting_id] = { title: t.title, description: t.description } })
+          resultRows = resultRows.map((s: any) => {
+            const t = trMap[s.id]
+            if (!t) return s
+            return { ...s, title: t.title || s.title, description: t.description || s.description }
+          })
+        }
+      }
+    }
+
+    return NextResponse.json(resultRows)
   } catch (err: any) {
     console.error('Quick sightings unexpected error:', err)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

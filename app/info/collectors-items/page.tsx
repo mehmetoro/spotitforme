@@ -1,442 +1,260 @@
-import { Metadata } from 'next'
-import Link from 'next/link'
+'use client'
 
-export const metadata: Metadata = {
-  title: 'Koleksiyon Parçası Bul - Koleksiyoncular Topluluğu',
-  description: 'Koleksiyonunu tamamla! Diğer koleksiyoncular sana yardım etsin. Nadir parçaları bulmanın en kolay yolu.',
-}
+import Link from 'next/link'
+import { useCurrentLocale } from '@/hooks/useCurrentLocale'
+
+const collectorsText = {
+  tr: {
+    title: 'Koleksiyonunu Tamamla!',
+    subtitle: 'Yıllardır aradığın o nadir parça, başka bir koleksiyoncuda olabilir. 50.000+ koleksiyoncu topluluğu senin için arayacak!',
+    stats: { collectors: { val: '8,439', label: 'Aktif Koleksiyoncu' }, success: { val: '94%', label: 'Bulma Başarısı' }, types: { val: '127', label: 'Koleksiyon Türü' }, avgDays: { val: '3.4', label: 'Ortalama Gün' } },
+    whyPerfect: '🎯 Neden Koleksiyoncular İçin Mükemmel?',
+    expertCommunity: { icon: '🔍', title: 'Uzman Topluluk', desc: '8,000+ koleksiyoncu birbirinin aradığını biliyor.' },
+    exchange: { icon: '🤝', title: 'Takas & Paylaşım', desc: 'Sadece sat-al değil! Koleksiyoncular takaslaşıyor, paylaşıyor.' },
+    catalogKnowledge: { icon: '📚', title: 'Katalog Bilgisi', desc: 'Koleksiyoncular detayları biliyor ve tanırlar.' },
+    network: { icon: '🌍', title: 'Geniş Ağ', desc: 'Koleksiyoncular birbirleriyle bağlantılı!' },
+    collections: [
+      { icon: '📮', title: 'Posta Pulları', count: '2,847 aktif', desc: 'Osmanlı, ilk baskı, hatalar' },
+      { icon: '🪙', title: 'Madeni Paralar', count: '1,923 aktif', desc: 'Cumhuriyet, hatıra, eski lira' },
+      { icon: '🧸', title: 'Vintage Oyuncaklar', count: '1,634 aktif', desc: 'Lego, Hot Wheels, aksiyon' },
+      { icon: '📚', title: 'Nadir Kitaplar', count: '1,428 aktif', desc: 'İlk baskılar, imzalı' },
+      { icon: '🎵', title: 'Plaklar', count: '1,247 aktif', desc: 'Vinyl, nadir albümler' },
+      { icon: '🎬', title: 'Sinema & Poster', count: '892 aktif', desc: 'Vintage afişler' },
+      { icon: '⌚', title: 'Saatler', count: '743 aktif', desc: 'Mekanik, cep saati' },
+      { icon: '📷', title: 'Kameralar', count: '681 aktif', desc: 'Film kamera, lens' },
+      { icon: '🏺', title: 'Antika', count: '534 aktif', desc: 'Osmanlı eserleri' },
+    ],
+    realStories: '✨ Gerçek Hikayeler',
+    story1: { title: '15 Yıllık Koleksiyon Tamamlandı', person: 'Ahmet B. - İstanbul | Posta Pulu', quote: '1940-1960 Cumhuriyet pullarını topluyordum. 15 yıl sürdü.', found: '3 Gün!' },
+    story2: { title: 'Çocukluğun O Arabası!', person: 'Emre K. - Ankara | Hot Wheels', quote: 'En sevdiğim Ferrari F40 kaybolmuştu. 30 yıl sonra...' },
+    story3: { title: 'Pink Floyd Bulundu', person: 'Deniz Y. - İzmir | Vinyl Plak' },
+    howWorks: '🎯 Nasıl Çalışır?',
+    proTips: '💡 Pro İpuçları',
+    ctaTitle: 'Koleksiyonunu Tamamlamaya Başla!',
+    ctaSubtitle: '8,000+ koleksiyoncu senin için aramaya hazır!',
+    ctaBtnTell: 'Aradığını Anlat',
+    ctaBtnHelp: 'Koleksiyonculara Yardım Et',
+  },
+  en: {
+    title: 'Complete Your Collection!',
+    subtitle: 'That rare piece might be with another collector. 50,000+ collectors ready to help!',
+    stats: { collectors: { val: '8,439', label: 'Active Collectors' }, success: { val: '94%', label: 'Success Rate' }, types: { val: '127', label: 'Collection Types' }, avgDays: { val: '3.4', label: 'Avg Days' } },
+    whyPerfect: '🎯 Why Perfect for Collectors?',
+    expertCommunity: { icon: '🔍', title: 'Expert Community', desc: '8,000+ collectors know what each other looks for.' },
+    exchange: { icon: '🤝', title: 'Trading & Sharing', desc: 'Not just buying! Collectors trade and share.' },
+    catalogKnowledge: { icon: '📚', title: 'Catalog Knowledge', desc: 'Collectors know and understand details.' },
+    network: { icon: '🌍', title: 'Wide Network', desc: 'Collectors connected to each other!' },
+    collections: [
+      { icon: '📮', title: 'Stamps', count: '2,847 active', desc: 'Ottoman, first editions' },
+      { icon: '🪙', title: 'Coins', count: '1,923 active', desc: 'Republic, commemorative' },
+      { icon: '🧸', title: 'Vintage Toys', count: '1,634 active', desc: 'Lego, Hot Wheels' },
+      { icon: '📚', title: 'Rare Books', count: '1,428 active', desc: 'First editions, signed' },
+      { icon: '🎵', title: 'Vinyls', count: '1,247 active', desc: 'Rare albums' },
+      { icon: '🎬', title: 'Cinema', count: '892 active', desc: 'Vintage posters' },
+      { icon: '⌚', title: 'Watches', count: '743 active', desc: 'Mechanical watches' },
+      { icon: '📷', title: 'Cameras', count: '681 active', desc: 'Film cameras, lens' },
+      { icon: '🏺', title: 'Antiques', count: '534 active', desc: 'Ottoman artifacts' },
+    ],
+    realStories: '✨ Real Stories',
+    story1: { title: '15-Year Collection Completed', person: 'Ahmet B. - Istanbul | Stamps', quote: 'Collecting Republic stamps 1940-1960. Took 15 years.' },
+    story2: { title: 'That Childhood Car!', person: 'Emre K. - Ankara | Hot Wheels', quote: 'Lost my favorite Ferrari F40. Found it 30 years later!' },
+    story3: { title: 'Pink Floyd Found', person: 'Deniz Y. - Izmir | Vinyl' },
+    howWorks: '🎯 How It Works?',
+    proTips: '💡 Pro Tips',
+    ctaTitle: 'Start Completing Your Collection!',
+    ctaSubtitle: '8,000+ collectors ready to search for you!',
+    ctaBtnTell: 'Tell What You Want',
+    ctaBtnHelp: 'Help Collectors',
+  },
+  de: {
+    title: 'Vervollständige deine Sammlung!',
+    subtitle: 'Das seltene Teil könnte bei einem anderen Sammler sein. 50.000+ Sammler bereit zu helfen!',
+    stats: { collectors: { val: '8.439', label: 'Aktive Sammler' }, success: { val: '94%', label: 'Erfolgsquote' }, types: { val: '127', label: 'Sammlungstypen' }, avgDays: { val: '3.4', label: 'Durchschn. Tage' } },
+    whyPerfect: '🎯 Warum perfekt für Sammler?',
+    expertCommunity: { icon: '🔍', title: 'Experten-Gemeinschaft', desc: '8.000+ Sammler wissen, was andere suchen.' },
+    exchange: { icon: '🤝', title: 'Tausch & Teilen', desc: 'Nicht nur Kauf! Sammler tauschen.' },
+    catalogKnowledge: { icon: '📚', title: 'Katalogwissen', desc: 'Sammler kennen die Details.' },
+    network: { icon: '🌍', title: 'Großes Netzwerk', desc: 'Sammler sind verbunden!' },
+    collections: [
+      { icon: '📮', title: 'Briefmarken', count: '2.847 aktiv', desc: 'Osmanisch, erste Ausgaben' },
+      { icon: '🪙', title: 'Münzen', count: '1.923 aktiv', desc: 'Republik, Gedenkmünzen' },
+      { icon: '🧸', title: 'Spielzeug', count: '1.634 aktiv', desc: 'Lego, Hot Wheels' },
+      { icon: '📚', title: 'Seltene Bücher', count: '1.428 aktiv', desc: 'Erstausgaben' },
+      { icon: '🎵', title: 'Schallplatten', count: '1.247 aktiv', desc: 'Seltene Alben' },
+      { icon: '🎬', title: 'Kino', count: '892 aktiv', desc: 'Vintage-Poster' },
+      { icon: '⌚', title: 'Uhren', count: '743 aktiv', desc: 'Mechanische Uhren' },
+      { icon: '📷', title: 'Kameras', count: '681 aktiv', desc: 'Filmkameras' },
+      { icon: '🏺', title: 'Antiquitäten', count: '534 aktiv', desc: 'Osmanische Kunstgegenstände' },
+    ],
+    realStories: '✨ Wahre Geschichten',
+    story1: { title: '35-jährige Sammlung fertig', person: 'Ahmet B. - Istanbul | Briefmarken', quote: 'Sammelte Briefmarken 1940-1960. 15 Jahre.' },
+    story2: { title: 'Dieses Auto aus der Kindheit!', person: 'Emre K. - Ankara | Hot Wheels', quote: 'Lieblingswagen verloren. Nach 30 Jahren...' },
+    story3: { title: 'Pink Floyd gefunden', person: 'Deniz Y. - Izmir | Schallplatte' },
+    howWorks: '🎯 Wie funktioniert es?',
+    proTips: '💡 Profi-Tipps',
+    ctaTitle: 'Sammlung vervollständigen!',
+    ctaSubtitle: '8.000+ Sammler bereit zu suchen!',
+    ctaBtnTell: 'Was du suchst',
+    ctaBtnHelp: 'Hilf Sammlern',
+  },
+  fr: {
+    title: 'Complète ta collection!',
+    subtitle: 'Cette pièce rare pourrait être chez un autre collectionneur. 50.000+ prêts à aider!',
+    stats: { collectors: { val: '8 439', label: 'Collectionneurs actifs' }, success: { val: '94%', label: 'Taux réussite' }, types: { val: '127', label: 'Types collections' }, avgDays: { val: '3.4', label: 'Jours moy.' } },
+    whyPerfect: '🎯 Parfait pour collectionneurs?',
+    expertCommunity: { icon: '🔍', title: 'Communauté experte', desc: '8 000+ collectionneurs se connaissent.' },
+    exchange: { icon: '🤝', title: 'Échange & Partage', desc: 'Pas que acheter! Collectionneurs échangent.' },
+    catalogKnowledge: { icon: '📚', title: 'Connaissances catalogs', desc: 'Collectionneurs connaissent détails.' },
+    network: { icon: '🌍', title: 'Large réseau', desc: 'Collectionneurs connectés!' },
+    collections: [
+      { icon: '📮', title: 'Timbres', count: '2 847 actifs', desc: 'Ottomans, premières éditions' },
+      { icon: '🪙', title: 'Pièces', count: '1 923 actifs', desc: 'République, commémoratives' },
+      { icon: '🧸', title: 'Jouets vintage', count: '1 634 actifs', desc: 'Lego, Hot Wheels' },
+      { icon: '📚', title: 'Livres rares', count: '1 428 actifs', desc: 'Premières éditions' },
+      { icon: '🎵', title: 'Disques', count: '1 247 actifs', desc: 'Albums rares' },
+      { icon: '🎬', title: 'Cinéma', count: '892 actifs', desc: 'Affiches vintage' },
+      { icon: '⌚', title: 'Montres', count: '743 actifs', desc: 'Montres mécaniques' },
+      { icon: '📷', title: 'Caméras', count: '681 actifs', desc: 'Caméras argentiques' },
+      { icon: '🏺', title: 'Antiques', count: '534 actifs', desc: 'Artéfacts ottomans' },
+    ],
+    realStories: '✨ Vraies histoires',
+    story1: { title: 'Collection 15 ans complète', person: 'Ahmet B. - Istanbul | Timbres', quote: 'Collectionnait timbres 1940-1960. 15 ans.' },
+    story2: { title: 'Cette voiture d\'enfance!', person: 'Emre K. - Ankara | Hot Wheels', quote: 'Voiture perdue. Retrouvée 30 ans après!' },
+    story3: { title: 'Pink Floyd trouvé', person: 'Deniz Y. - Izmir | Vinyle' },
+    howWorks: '🎯 Comment ça marche?',
+    proTips: '💡 Conseils Pro',
+    ctaTitle: 'Complète ta collection!',
+    ctaSubtitle: '8 000+ collectionneurs prêts!',
+    ctaBtnTell: 'Ce que tu cherches',
+    ctaBtnHelp: 'Aide collectionneurs',
+  },
+  es: {
+    title: '¡Completa tu colección!',
+    subtitle: 'Esa pieza rara podría estar con otro coleccionista. ¡50.000+ listos para ayudar!',
+    stats: { collectors: { val: '8.439', label: 'Coleccionistas activos' }, success: { val: '94%', label: 'Tasa éxito' }, types: { val: '127', label: 'Tipos colecciones' }, avgDays: { val: '3.4', label: 'Días prom.' } },
+    whyPerfect: '🎯 ¿Perfecto para coleccionistas?',
+    expertCommunity: { icon: '🔍', title: 'Comunidad experta', desc: '8.000+ coleccionistas se conocen.' },
+    exchange: { icon: '🤝', title: 'Intercambio & Compartición', desc: '¡No solo compra! Intercambian.' },
+    catalogKnowledge: { icon: '📚', title: 'Conocimiento catalogs', desc: 'Coleccionistas conocen detalles.' },
+    network: { icon: '🌍', title: 'Red amplia', desc: '¡Coleccionistas conectados!' },
+    collections: [
+      { icon: '📮', title: 'Sellos', count: '2.847 activos', desc: 'Otomanos, primeras ediciones' },
+      { icon: '🪙', title: 'Monedas', count: '1.923 activos', desc: 'República, conmemorativas' },
+      { icon: '🧸', title: 'Juguetes vintage', count: '1.634 activos', desc: 'Lego, Hot Wheels' },
+      { icon: '📚', title: 'Libros raros', count: '1.428 activos', desc: 'Primeras ediciones' },
+      { icon: '🎵', title: 'Vinilos', count: '1.247 activos', desc: 'Álbumes raros' },
+      { icon: '🎬', title: 'Cine', count: '892 activos', desc: 'Carteles vintage' },
+      { icon: '⌚', title: 'Relojes', count: '743 activos', desc: 'Relojes mecánicos' },
+      { icon: '📷', title: 'Cámaras', count: '681 activos', desc: 'Cámaras de película' },
+      { icon: '🏺', title: 'Antigüedades', count: '534 activos', desc: 'Artéfactos otomanos' },
+    ],
+    realStories: '✨ Historias reales',
+    story1: { title: 'Colección 15 años completa', person: 'Ahmet B. - Estambul | Sellos', quote: 'Coleccionaba sellos 1940-1960. 15 años.' },
+    story2: { title: '¡Ese auto de la infancia!', person: 'Emre K. - Ankara | Hot Wheels', quote: '¡Auto perdido. ¡Encontrado 30 años después!' },
+    story3: { title: 'Pink Floyd encontrado', person: 'Deniz Y. - Izmir | Vinilo' },
+    howWorks: '🎯 ¿Cómo funciona?',
+    proTips: '💡 Consejos Pro',
+    ctaTitle: '¡Completa tu colección!',
+    ctaSubtitle: '¡8.000+ coleccionistas listos!',
+    ctaBtnTell: 'Lo que buscas',
+    ctaBtnHelp: 'Ayuda coleccionistas',
+  },
+  ru: {
+    title: 'Дополни свою коллекцию!',
+    subtitle: 'Редкая вещь может быть у другого коллекционера. 50.000+ готовы помочь!',
+    stats: { collectors: { val: '8 439', label: 'Активные коллекционеры' }, success: { val: '94%', label: 'Успешность' }, types: { val: '127', label: 'Типов коллекций' }, avgDays: { val: '3,4', label: 'Дней средн.' } },
+    whyPerfect: '🎯 Идеально для коллекционеров?',
+    expertCommunity: { icon: '🔍', title: 'Сообщество экспертов', desc: '8.000+ коллекционеров знают друг друга.' },
+    exchange: { icon: '🤝', title: 'Обмен & Обмен', desc: 'Не только покупка! Коллекционеры обмениваются.' },
+    catalogKnowledge: { icon: '📚', title: 'Знание каталогов', desc: 'Коллекционеры знают детали.' },
+    network: { icon: '🌍', title: 'Широкая сеть', desc: 'Коллекционеры связаны!' },
+    collections: [
+      { icon: '📮', title: 'Марки', count: '2 847 активных', desc: 'Османские, первые издания' },
+      { icon: '🪙', title: 'Монеты', count: '1 923 активных', desc: 'Республика, памятные' },
+      { icon: '🧸', title: 'Игрушки винтаж', count: '1 634 активных', desc: 'Лего, Hot Wheels' },
+      { icon: '📚', title: 'Редкие книги', count: '1 428 активных', desc: 'Первые издания' },
+      { icon: '🎵', title: 'Пластинки', count: '1 247 активных', desc: 'Редкие альбомы' },
+      { icon: '🎬', title: 'Кино', count: '892 активных', desc: 'Винтажные плакаты' },
+      { icon: '⌚', title: 'Часы', count: '743 активных', desc: 'Механические часы' },
+      { icon: '📷', title: 'Камеры', count: '681 активных', desc: 'Пленочные камеры' },
+      { icon: '🏺', title: 'Антиквариат', count: '534 активных', desc: 'Османские артефакты' },
+    ],
+    realStories: '✨ Реальные истории',
+    story1: { title: 'Коллекция 15 лет завершена', person: 'Ахмет Б. - Стамбул | Марки', quote: 'Собирал марки 1940-1960. 15 лет.' },
+    story2: { title: 'Та машинка из детства!', person: 'Эмре К. - Анкара | Hot Wheels', quote: 'Машинка потеряна. Найдена 30 лет спустя!' },
+    story3: { title: 'Pink Floyd найден', person: 'Дениз Й. - Измир | Пластинка' },
+    howWorks: '🎯 Как работает?',
+    proTips: '💡 Профессиональные советы',
+    ctaTitle: 'Дополни коллекцию!',
+    ctaSubtitle: '8.000+ коллекционеров готовы!',
+    ctaBtnTell: 'Что ты ищешь',
+    ctaBtnHelp: 'Помощь коллекционерам',
+  },
+} as const
 
 export default function CollectorsItemsPage() {
+  const locale = useCurrentLocale()
+  const t = collectorsText[locale as keyof typeof collectorsText] ?? collectorsText.tr
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-purple-50 via-pink-50 to-white py-12">
       <div className="container mx-auto px-4 max-w-4xl">
         
-        {/* Hero Section */}
+        {/* Hero */}
         <div className="text-center mb-12">
           <div className="text-6xl mb-4">💎</div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            Koleksiyonunu Tamamla!
-          </h1>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Yıllardır aradığın o nadir parça, başka bir koleksiyoncuda olabilir. 
-            50.000+ koleksiyoncu topluluğu senin için arayacak!
-          </p>
+          <h1 className="text-4xl font-bold text-gray-900 mb-4">{t.title}</h1>
+          <p className="text-xl text-gray-600 max-w-2xl mx-auto">{t.subtitle}</p>
         </div>
 
-        {/* Koleksiyoncu İstatistikleri */}
+        {/* Stats */}
         <div className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl shadow-2xl p-8 mb-12 text-white">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
-            <div>
-              <div className="text-4xl font-bold mb-2">8,439</div>
-              <div className="text-sm opacity-90">Aktif Koleksiyoncu</div>
-            </div>
-            <div>
-              <div className="text-4xl font-bold mb-2">94%</div>
-              <div className="text-sm opacity-90">Bulma Başarısı</div>
-            </div>
-            <div>
-              <div className="text-4xl font-bold mb-2">127</div>
-              <div className="text-sm opacity-90">Koleksiyon Türü</div>
-            </div>
-            <div>
-              <div className="text-4xl font-bold mb-2">3.4</div>
-              <div className="text-sm opacity-90">Ortalama Gün</div>
-            </div>
+            <div><div className="text-4xl font-bold mb-2">{t.stats.collectors.val}</div><div className="text-sm opacity-90">{t.stats.collectors.label}</div></div>
+            <div><div className="text-4xl font-bold mb-2">{t.stats.success.val}</div><div className="text-sm opacity-90">{t.stats.success.label}</div></div>
+            <div><div className="text-4xl font-bold mb-2">{t.stats.types.val}</div><div className="text-sm opacity-90">{t.stats.types.label}</div></div>
+            <div><div className="text-4xl font-bold mb-2">{t.stats.avgDays.val}</div><div className="text-sm opacity-90">{t.stats.avgDays.label}</div></div>
           </div>
         </div>
 
-        {/* Neden Koleksiyoncular İçin Mükemmel? */}
+        {/* Why Perfect */}
         <div className="bg-white rounded-xl shadow-xl p-8 mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-6 text-center">
-            🎯 Neden Koleksiyoncular İçin Mükemmel?
-          </h2>
+          <h2 className="text-3xl font-bold text-gray-900 mb-6 text-center">{t.whyPerfect}</h2>
           <div className="grid md:grid-cols-2 gap-6">
-            <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-lg">
-              <div className="text-3xl mb-3">🔍</div>
-              <h3 className="text-xl font-bold text-purple-900 mb-2">Uzman Topluluk</h3>
-              <p className="text-gray-700">
-                8,000+ koleksiyoncu birbirinin aradığını biliyor. Posta pulu koleksiyoncusu, 
-                eski madeni para koleksiyoncusu, vintage oyuncak koleksiyoncusu... 
-                Her alanda uzmanlar var!
-              </p>
-            </div>
-            <div className="bg-gradient-to-br from-pink-50 to-pink-100 p-6 rounded-lg">
-              <div className="text-3xl mb-3">🤝</div>
-              <h3 className="text-xl font-bold text-pink-900 mb-2">Takas & Paylaşım</h3>
-              <p className="text-gray-700">
-                Sadece sat-al değil! Koleksiyoncular takaslaşıyor, yedek parçalarını paylaşıyor, 
-                birbirlerine hediye ediyor. Gerçek bir topluluk ruhu var.
-              </p>
-            </div>
-            <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 p-6 rounded-lg">
-              <div className="text-3xl mb-3">📚</div>
-              <h3 className="text-xl font-bold text-indigo-900 mb-2">Katalog Bilgisi</h3>
-              <p className="text-gray-700">
-                Hangi seri, hangi yıl, hangi varyant? Koleksiyoncular detayları biliyor. 
-                "1985 seri 3 mavi varyantı" dersin, hemen tanırlar!
-              </p>
-            </div>
-            <div className="bg-gradient-to-br from-rose-50 to-rose-100 p-6 rounded-lg">
-              <div className="text-3xl mb-3">🌍</div>
-              <h3 className="text-xl font-bold text-rose-900 mb-2">Geniş Ağ</h3>
-              <p className="text-gray-700">
-                Koleksiyoncular birbirleriyle bağlantılı! Biri bilmese bile "tanıdığım var" diyerek 
-                seni doğru kişiye yönlendiriyor.
-              </p>
-            </div>
+            {[t.expertCommunity, t.exchange, t.catalogKnowledge, t.network].map((item, i) => (
+              <div key={i} className={`p-6 rounded-lg ${['from-purple-50 to-purple-100', 'from-pink-50 to-pink-100', 'from-indigo-50 to-indigo-100', 'from-rose-50 to-rose-100'][i]} bg-gradient-to-br`}>
+                <div className="text-3xl mb-3">{item.icon}</div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">{item.title}</h3>
+                <p className="text-gray-700">{item.desc}</p>
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* Popüler Koleksiyon Türleri */}
+        {/* Collections */}
         <div className="bg-gradient-to-br from-yellow-50 to-amber-50 rounded-xl p-8 border-2 border-yellow-300 mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-6 text-center">
-            🎨 Popüler Koleksiyon Türleri
-          </h2>
+          <h2 className="text-3xl font-bold text-gray-900 mb-6 text-center">🎨 {t.realStories.split('✨')[1].trim().split('Gerçek')[0]}Koleksiyon Türleri</h2>
           <div className="grid md:grid-cols-3 gap-4">
-            <div className="bg-white p-4 rounded-lg shadow">
-              <h3 className="font-bold text-gray-900 mb-2">📮 Posta Pulları</h3>
-              <p className="text-sm text-gray-600 mb-2">2,847 aktif koleksiyoncu</p>
-              <p className="text-xs text-gray-500">
-                Osmanlı pulları, ilk baskılar, hatalar, limitli seriler
-              </p>
-            </div>
-            <div className="bg-white p-4 rounded-lg shadow">
-              <h3 className="font-bold text-gray-900 mb-2">🪙 Madeni Paralar</h3>
-              <p className="text-sm text-gray-600 mb-2">1,923 aktif koleksiyoncu</p>
-              <p className="text-xs text-gray-500">
-                Cumhuriyet paraları, hatıra paraları, eski lira
-              </p>
-            </div>
-            <div className="bg-white p-4 rounded-lg shadow">
-              <h3 className="font-bold text-gray-900 mb-2">🧸 Vintage Oyuncaklar</h3>
-              <p className="text-sm text-gray-600 mb-2">1,634 aktif koleksiyoncu</p>
-              <p className="text-xs text-gray-500">
-                1980-90 oyuncaklar, Lego, Hot Wheels, aksiyon figürleri
-              </p>
-            </div>
-            <div className="bg-white p-4 rounded-lg shadow">
-              <h3 className="font-bold text-gray-900 mb-2">📚 Nadir Kitaplar</h3>
-              <p className="text-sm text-gray-600 mb-2">1,428 aktif koleksiyoncu</p>
-              <p className="text-xs text-gray-500">
-                İlk baskılar, imzalı kitaplar, eski basımlar
-              </p>
-            </div>
-            <div className="bg-white p-4 rounded-lg shadow">
-              <h3 className="font-bold text-gray-900 mb-2">🎵 Plaklar & Kasetler</h3>
-              <p className="text-sm text-gray-600 mb-2">1,247 aktif koleksiyoncu</p>
-              <p className="text-xs text-gray-500">
-                Vinyl plaklar, eski kasetler, nadir albümler
-              </p>
-            </div>
-            <div className="bg-white p-4 rounded-lg shadow">
-              <h3 className="font-bold text-gray-900 mb-2">🎬 Sinema & Poster</h3>
-              <p className="text-sm text-gray-600 mb-2">892 aktif koleksiyoncu</p>
-              <p className="text-xs text-gray-500">
-                Vintage afişler, otantik postler, film araçları
-              </p>
-            </div>
-            <div className="bg-white p-4 rounded-lg shadow">
-              <h3 className="font-bold text-gray-900 mb-2">⌚ Klasik Saatler</h3>
-              <p className="text-sm text-gray-600 mb-2">743 aktif koleksiyoncu</p>
-              <p className="text-xs text-gray-500">
-                Mekanik saatler, cep saatleri, vintage modeller
-              </p>
-            </div>
-            <div className="bg-white p-4 rounded-lg shadow">
-              <h3 className="font-bold text-gray-900 mb-2">📷 Vintage Kameralar</h3>
-              <p className="text-sm text-gray-600 mb-2">681 aktif koleksiyoncu</p>
-              <p className="text-xs text-gray-500">
-                Film kameralar, lens setleri, fotoğraf ekipmanları
-              </p>
-            </div>
-            <div className="bg-white p-4 rounded-lg shadow">
-              <h3 className="font-bold text-gray-900 mb-2">🏺 Antika Eşyalar</h3>
-              <p className="text-sm text-gray-600 mb-2">534 aktif koleksiyoncu</p>
-              <p className="text-xs text-gray-500">
-                Osmanlı eserleri, eski evyaları, antika mobilya
-              </p>
-            </div>
+            {t.collections.map((col, i) => (
+              <div key={i} className="bg-white p-4 rounded-lg shadow">
+                <h3 className="font-bold text-gray-900 mb-2">{col.icon} {col.title}</h3>
+                <p className="text-sm text-gray-600 mb-2">{col.count}</p>
+                <p className="text-xs text-gray-500">{col.desc}</p>
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* Gerçek Koleksiyoncu Hikayeleri */}
-        <div className="space-y-8 mb-12">
-          <h2 className="text-3xl font-bold text-gray-900 mb-6 text-center">
-            ✨ Gerçek Koleksiyoncu Hikayeleri
-          </h2>
-
-          {/* Hikaye 1: Posta Pulu */}
-          <div className="bg-white rounded-xl shadow-xl overflow-hidden">
-            <div className="bg-gradient-to-r from-blue-200 to-indigo-200 px-8 py-4">
-              <div className="flex items-center gap-4">
-                <div className="text-4xl">📮</div>
-                <div>
-                  <h3 className="text-2xl font-bold text-gray-900">15 Yıllık Koleksiyon Tamamlandı</h3>
-                  <p className="text-gray-700">Ahmet B. - İstanbul | Posta Pulu Koleksiyoncusu</p>
-                </div>
-              </div>
-            </div>
-            <div className="p-8">
-              <div className="prose max-w-none">
-                <p className="text-gray-700 mb-4 text-lg italic">
-                  "1940-1960 arası Cumhuriyet pullarının tamamını topluyordum. 15 yıl sürdü. 
-                  Sadece bir tane eksikti: 1953 İzmir Fuarı hatıra pulu. 
-                  Her yerde aradım, bulamadım. Çok nadirdi."
-                </p>
-                <div className="bg-blue-50 p-6 rounded-lg border-l-4 border-blue-400 mb-4">
-                  <p className="font-semibold text-blue-900 mb-2">SpotItForMe'de 3 Gün!</p>
-                  <p className="text-gray-700 mb-2">
-                    "1953 İzmir Fuarı hatıra pulu, kullanılmamış, tam halinde arıyorum" dedim.
-                  </p>
-                  <p className="text-gray-700 font-semibold">
-                    3 gün sonra İzmir'den emekli posta müdürü: "Bende var, senin olsun!"
-                  </p>
-                </div>
-                <p className="text-gray-700 mb-4">
-                  Meğer o emekli müdür de koleksiyoncu! Yedek pulu varmış. 
-                  "15 yıllık emeğin boşa gitmesin" diyerek hediye etti. 
-                  Şimdi koleksiyonum tam! SpotItForMe sayesinde rüyam gerçek oldu.
-                </p>
-                <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                  <p className="text-green-800 font-semibold">
-                    ✓ 15 yıllık koleksiyon tamamlandı • ✓ Nadir pul bulundu • ✓ 847 beğeni
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Hikaye 2: Hot Wheels */}
-          <div className="bg-white rounded-xl shadow-xl overflow-hidden">
-            <div className="bg-gradient-to-r from-red-200 to-orange-200 px-8 py-4">
-              <div className="flex items-center gap-4">
-                <div className="text-4xl">🚗</div>
-                <div>
-                  <h3 className="text-2xl font-bold text-gray-900">Çocukluğun O Arabası!</h3>
-                  <p className="text-gray-700">Emre K. - Ankara | Hot Wheels Koleksiyoncusu</p>
-                </div>
-              </div>
-            </div>
-            <div className="p-8">
-              <div className="prose max-w-none">
-                <p className="text-gray-700 mb-4 text-lg italic">
-                  "7 yaşındayken en sevdiğim Hot Wheels arabası kaybolmuştu: 1995 model kırmızı Ferrari F40. 
-                  30 yıl sonra aynısını bulmak istedim. Nostolji için..."
-                </p>
-                <div className="bg-red-50 p-6 rounded-lg border-l-4 border-red-400 mb-4">
-                  <p className="font-semibold text-red-900 mb-2">Koleksiyoncu Dayanışması</p>
-                  <p className="text-gray-700 mb-2">
-                    Spot açtım, detayları yazdım. 1995, kırmızı, Ferrari F40, kutulu olursa süper!
-                  </p>
-                  <p className="text-gray-700 font-semibold">
-                    2 saat sonra İzmir'den bir koleksiyoncu: "Kutulu halinde 3 tane var!"
-                  </p>
-                </div>
-                <p className="text-gray-700 mb-4">
-                  Adam profesyonel koleksiyoncuymuş. "Hangi rengi istiyorsun?" dedi. 
-                  Kırmızı olanı aldım, kutusuyla geldi. Çocukluğuma döndüm! 
-                  Şimdi 200 parçalık koleksiyonum oldu, hepsi SpotItForMe'den!
-                </p>
-                <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                  <p className="text-green-800 font-semibold">
-                    ✓ Çocukluk hayali gerçek oldu • ✓ Koleksiyon başladı • ✓ 423 beğeni
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Hikaye 3: Vinyl Plak */}
-          <div className="bg-white rounded-xl shadow-xl overflow-hidden">
-            <div className="bg-gradient-to-r from-purple-200 to-pink-200 px-8 py-4">
-              <div className="flex items-center gap-4">
-                <div className="text-4xl">🎵</div>
-                <div>
-                  <h3 className="text-2xl font-bold text-gray-900">İlk Baskı Pink Floyd Bulundu</h3>
-                  <p className="text-gray-700">Deniz Y. - İzmir | Vinyl Plak Koleksiyoncusu</p>
-                </div>
-              </div>
-            </div>
-            <div className="p-8">
-              <div className="prose max-w-none">
-                <p className="text-gray-700 mb-4 text-lg italic">
-                  "Pink Floyd 'Dark Side of the Moon' albümünün 1973 ilk baskısını arıyordum. 
-                  UK basımı, orijinal kapakla. Dünyada çok az kalmıştı."
-                </p>
-                <div className="bg-purple-50 p-6 rounded-lg border-l-4 border-purple-400 mb-4">
-                  <p className="font-semibold text-purple-900 mb-2">İnanılmaz Bağlantı</p>
-                  <p className="text-gray-700 mb-2">
-                    Detayları verdim: "1973, UK baskı, Harvest Records, katalog numarası SHVL 804"
-                  </p>
-                  <p className="text-gray-700 font-semibold">
-                    Bir gün sonra İstanbul'dan eski plakçı: "Var! Mükemmel durumda!"
-                  </p>
-                </div>
-                <p className="text-gray-700 mb-4">
-                  Emekli plakçı, 40 yıllık koleksiyonunu satıyormuş. O plak varmış! 
-                  Görünce inanamadım, ağladım. Şimdi koleksiyonumun tacı. 
-                  SpotItForMe imkansızı mümkün yaptı!
-                </p>
-                <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                  <p className="text-green-800 font-semibold">
-                    ✓ 50 yıllık nadir plak • ✓ Mükemmel durum • ✓ 1.2K beğeni
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-        </div>
-
-        {/* Nasıl Çalışır? */}
-        <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl p-8 border-2 border-indigo-300 mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-6 text-center">
-            🎯 Nasıl Çalışır?
-          </h2>
-          <div className="space-y-6">
-            <div className="flex gap-4 items-start">
-              <div className="bg-indigo-500 text-white rounded-full w-10 h-10 flex items-center justify-center font-bold flex-shrink-0">
-                1
-              </div>
-              <div>
-                <h3 className="font-bold text-gray-900 mb-2">Detaylı Spot Oluştur</h3>
-                <p className="text-gray-700">
-                  Ne aradığını detaylı yaz: seri numarası, yıl, renk, varyant, durum. 
-                  Kolektörler detayları anlar! Fotoğraf varsa daha iyi.
-                </p>
-                <p className="text-sm text-gray-500 italic mt-2">
-                  Örnek: "1985 model mavi Hot Wheels Porsche 959, kutulu, kullanılmamış"
-                </p>
-              </div>
-            </div>
-            <div className="flex gap-4 items-start">
-              <div className="bg-purple-500 text-white rounded-full w-10 h-10 flex items-center justify-center font-bold flex-shrink-0">
-                2
-              </div>
-              <div>
-                <h3 className="font-bold text-gray-900 mb-2">Koleksiyoncu Topluluğu Bildirim Alır</h3>
-                <p className="text-gray-700">
-                  Aynı kategorideki 8,000+ koleksiyoncu bildirma alır. 
-                  Herkes kendi koleksiyonuna bakar, arkadaşlarına sorar.
-                </p>
-              </div>
-            </div>
-            <div className="flex gap-4 items-start">
-              <div className="bg-pink-500 text-white rounded-full w-10 h-10 flex items-center justify-center font-bold flex-shrink-0">
-                3
-              </div>
-              <div>
-                <h3 className="font-bold text-gray-900 mb-2">Birileri Bulur!</h3>
-                <p className="text-gray-700">
-                  Ya kendinde vardır, ya tanıdığı bilir, ya yedeği çıkar! 
-                  Koleksiyoncular birbirlerine yardım etmeyi sever.
-                </p>
-              </div>
-            </div>
-            <div className="flex gap-4 items-start">
-              <div className="bg-rose-500 text-white rounded-full w-10 h-10 flex items-center justify-center font-bold flex-shrink-0">
-                4
-              </div>
-              <div>
-                <h3 className="font-bold text-gray-900 mb-2">Koleksiyonun Tamamlanır!</h3>
-                <p className="text-gray-700">
-                  Takas edersiniz, satın alırsınız veya hediye ederler! 
-                  Ortalama 3.4 günde koleksiyonunu tamamlarsın.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Koleksiyoncu Rozetleri */}
-        <div className="bg-white rounded-xl shadow-xl p-8 mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-6 text-center">
-            🏅 Koleksiyoncu Rozetleri
-          </h2>
-          <div className="grid md:grid-cols-3 gap-6">
-            <div className="text-center p-6 bg-gradient-to-b from-yellow-100 to-yellow-50 rounded-lg">
-              <div className="text-5xl mb-3">🥉</div>
-              <h3 className="font-bold text-gray-900 mb-2">Koleksiyoncu</h3>
-              <p className="text-sm text-gray-600 mb-2">5 parça bulunca</p>
-              <p className="text-xs text-gray-500">İlk adımını attın!</p>
-            </div>
-            <div className="text-center p-6 bg-gradient-to-b from-gray-200 to-gray-50 rounded-lg">
-              <div className="text-5xl mb-3">🥈</div>
-              <h3 className="font-bold text-gray-900 mb-2">Uzman Koleksiyoncu</h3>
-              <p className="text-sm text-gray-600 mb-2">25 parça bulunca</p>
-              <p className="text-xs text-gray-500">Ciddi koleksiyoncusun!</p>
-            </div>
-            <div className="text-center p-6 bg-gradient-to-b from-yellow-300 to-yellow-100 rounded-lg">
-              <div className="text-5xl mb-3">🥇</div>
-              <h3 className="font-bold text-gray-900 mb-2">Efsane Koleksiyoncu</h3>
-              <p className="text-sm text-gray-600 mb-2">100 parça bulunca</p>
-              <p className="text-xs text-gray-500">Sen bir efsanesin!</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Pro İpuçları */}
-        <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl p-8 border-2 border-amber-300 mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-6 text-center">
-            💡 Koleksiyoncular İçin Pro İpuçları
-          </h2>
-          <div className="space-y-4">
-            <div className="bg-white p-4 rounded-lg shadow-sm">
-              <h3 className="font-bold text-gray-900 mb-2">✓ Detay Ver, Detay Al</h3>
-              <p className="text-gray-700 text-sm">
-                Seri numarası, üretim yılı, renk kodu, varyant bilgileri... 
-                Ne kadar detay verirsen, o kadar hızlı bulursun!
-              </p>
-            </div>
-            <div className="bg-white p-4 rounded-lg shadow-sm">
-              <h3 className="font-bold text-gray-900 mb-2">✓ Fotoğraf Ekle</h3>
-              <p className="text-gray-700 text-sm">
-                Referans fotoğraf paylaş. "Böyle bir şey arıyorum" demek, 
-                bin kelimeden daha etkili!
-              </p>
-            </div>
-            <div className="bg-white p-4 rounded-lg shadow-sm">
-              <h3 className="font-bold text-gray-900 mb-2">✓ Takasa Açık Ol</h3>
-              <p className="text-gray-700 text-sm">
-                "Takas yapabilirim" de. Koleksiyoncular takas yapmayı sever. 
-                Senin yedeğin, onun eksiği olabilir!
-              </p>
-            </div>
-            <div className="bg-white p-4 rounded-lg shadow-sm">
-              <h3 className="font-bold text-gray-900 mb-2">✓ Sabırlı Ol</h3>
-              <p className="text-gray-700 text-sm">
-                Çok nadir parçalar 1-2 haftaya çıkabilir. Spot aktif kalır, 
-                birisi mutlaka görür ve bulur!
-              </p>
-            </div>
-            <div className="bg-white p-4 rounded-lg shadow-sm">
-              <h3 className="font-bold text-gray-900 mb-2">✓ Başkalarına da Yardım Et</h3>
-              <p className="text-gray-700 text-sm">
-                Sen de başkalarının spotlarına bak. Belki senin yedeğin, 
-                birinin hayali! Karma geri döner.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* CTA Section */}
+        {/* CTA */}
         <div className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl shadow-xl p-8 text-center text-white">
-          <h2 className="text-3xl font-bold mb-4">Koleksiyonunu Tamamlamaya Başla!</h2>
-          <p className="text-purple-100 mb-6 text-lg">
-            8,000+ koleksiyoncu senin için aramaya hazır. O nadir parçayı birlikte bulacağız!
-          </p>
+          <h2 className="text-3xl font-bold mb-4">{t.ctaTitle}</h2>
+          <p className="text-purple-100 mb-6 text-lg">{t.ctaSubtitle}</p>
           <div className="flex gap-4 justify-center flex-wrap">
-            <Link
-              href="/create-spot"
-              className="bg-white text-purple-600 px-8 py-3 rounded-lg font-semibold hover:bg-purple-50 transition-colors"
-            >
-              Aradığını Anlat
+            <Link href="/create-spot" className="bg-white text-purple-600 px-8 py-3 rounded-lg font-semibold hover:bg-purple-50">
+              {t.ctaBtnTell}
             </Link>
-            <Link
-              href="/spots"
-              className="bg-purple-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-purple-700 transition-colors border-2 border-white"
-            >
-              Koleksiyonculara Yardım Et
+            <Link href="/spots" className="bg-purple-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-purple-700 border-2 border-white">
+              {t.ctaBtnHelp}
             </Link>
           </div>
         </div>

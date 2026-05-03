@@ -3,9 +3,13 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { navSections } from '@/components/navigation/navItems'
+import { navLocaleText } from '@/components/navigation/navLocalization'
+import { useCurrentLocale } from '@/hooks/useCurrentLocale'
 
 export default function AppSidebar() {
   const pathname = usePathname()
+  const locale = useCurrentLocale()
+  const navText = navLocaleText[locale]
 
   const isActivePath = (href: string, matchPath?: string) => {
     const comparePath = matchPath || href.split('?')[0]
@@ -15,26 +19,31 @@ export default function AppSidebar() {
   return (
     <aside className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
       <div className="mb-4 px-2">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Navigasyon</p>
-        <h2 className="mt-1 text-lg font-bold text-gray-900">Sol Menü</h2>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">
+          {locale === 'tr' ? 'Navigasyon' : locale === 'en' ? 'Navigation' : locale === 'de' ? 'Navigation' : locale === 'fr' ? 'Navigation' : locale === 'es' ? 'Navegacion' : 'Navigatsiya'}
+        </p>
+        <h2 className="mt-1 text-lg font-bold text-gray-900">
+          {locale === 'tr' ? 'Sol Menu' : locale === 'en' ? 'Side Menu' : locale === 'de' ? 'Seitenmenu' : locale === 'fr' ? 'Menu lateral' : locale === 'es' ? 'Menu lateral' : 'Bokovoe menyu'}
+        </h2>
       </div>
 
       <nav className="space-y-4">
         {navSections.map((section) => (
           <div key={section.title}>
             <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">
-              {section.title}
+              {navText.sections[section.title] || section.title}
             </p>
 
             {section.title === 'Paylasim' && (
               <div className="mb-3 rounded-2xl border border-blue-100 bg-gradient-to-b from-blue-50 to-white p-2">
                 <p className="px-2 pb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-blue-500">
-                  Hızlı Paylaşım
+                  {navText.quickShare}
                 </p>
                 <div className="space-y-1">
                   {section.items
                     .filter((item) => item.isPinned)
                     .map(({ href, icon: Icon, label, description, matchPath }) => {
+                      const localized = navText.itemByHref[href]
                       const isActive = isActivePath(href, matchPath)
 
                       return (
@@ -49,10 +58,10 @@ export default function AppSidebar() {
                         >
                           <div className="flex items-center gap-2">
                             <Icon className="h-4 w-4 shrink-0" />
-                            <span className="text-sm font-semibold">{label}</span>
+                            <span className="text-sm font-semibold">{localized?.label || label}</span>
                           </div>
-                          {description && (
-                            <p className="mt-1 pl-6 text-xs text-gray-500">{description}</p>
+                          {(localized?.description || description) && (
+                            <p className="mt-1 pl-6 text-xs text-gray-500">{localized?.description || description}</p>
                           )}
                         </Link>
                       )
@@ -64,12 +73,13 @@ export default function AppSidebar() {
             {section.title === 'Haritalar' && (
               <div className="mb-3 rounded-2xl border border-emerald-100 bg-gradient-to-b from-emerald-50 to-white p-2">
                 <p className="px-2 pb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-600">
-                  Hızlı Haritalar
+                  {navText.quickMaps}
                 </p>
                 <div className="grid grid-cols-2 gap-1">
                   {section.items
                     .filter((item) => item.isPinned)
                     .map(({ href, icon: Icon, label, description, matchPath }, index, items) => {
+                      const localized = navText.itemByHref[href]
                       const isActive = isActivePath(href, matchPath)
                       const shouldSpanFullRow = items.length % 2 === 1 && index === items.length - 1
 
@@ -87,10 +97,10 @@ export default function AppSidebar() {
                         >
                           <div className="flex items-center gap-2">
                             <Icon className="h-4 w-4 shrink-0" />
-                            <span className="text-sm font-semibold leading-tight">{label}</span>
+                            <span className="text-sm font-semibold leading-tight">{localized?.label || label}</span>
                           </div>
-                          {description && (
-                            <p className="mt-1 text-xs text-gray-500">{description}</p>
+                          {(localized?.description || description) && (
+                            <p className="mt-1 text-xs text-gray-500">{localized?.description || description}</p>
                           )}
                         </Link>
                       )
@@ -103,6 +113,7 @@ export default function AppSidebar() {
               {section.items
                 .filter((item) => (section.title !== 'Paylasim' && section.title !== 'Haritalar') || !item.isPinned)
                 .map(({ href, icon: Icon, label, matchPath, description }) => {
+                  const localized = navText.itemByHref[href]
                   const isActive = isActivePath(href, matchPath)
 
                   return (
@@ -117,9 +128,9 @@ export default function AppSidebar() {
                     >
                       <Icon className="h-4 w-4 shrink-0 mt-0.5" />
                       <div className="min-w-0">
-                        <p className="text-sm font-medium">{label}</p>
-                        {description && (
-                          <p className="mt-0.5 text-xs text-gray-500">{description}</p>
+                        <p className="text-sm font-medium">{localized?.label || label}</p>
+                        {(localized?.description || description) && (
+                          <p className="mt-0.5 text-xs text-gray-500">{localized?.description || description}</p>
                         )}
                       </div>
                     </Link>

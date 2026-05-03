@@ -5,21 +5,24 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import type { Shop } from "@/lib/types";
+import { useCurrentLocale } from "@/hooks/useCurrentLocale";
 
-const categories = [
-  "Tümü",
-  "Antika",
-  "Elektronik",
-  "Oyuncak",
-  "Kitap",
-  "Müzik",
-  "Diğer"
-];
+const sdText = {
+  tr: { title: 'Mağazaları Keşfet', desc: 'Kayıtlı mağazaları kategoriye veya popülerliğe göre filtreleyerek keşfet.', popularTitle: 'Popüler Mağazalar', allTitle: 'Tüm Mağazalar', noPopular: 'Popüler mağaza bulunamadı.', loading: 'Mağazalar yükleniyor...', noShops: 'Seçili kategoriye ait mağaza bulunamadı.', category: 'Kategori:', products: 'Ürün:', opening: 'Açılış:', other: 'Diğer', cats: ['Tümü','Antika','Elektronik','Oyuncak','Kitap','Müzik','Diğer'] },
+  en: { title: 'Discover Shops', desc: 'Filter and discover registered shops by category or popularity.', popularTitle: 'Popular Shops', allTitle: 'All Shops', noPopular: 'No popular shops found.', loading: 'Loading shops...', noShops: 'No shops found for the selected category.', category: 'Category:', products: 'Products:', opening: 'Opened:', other: 'Other', cats: ['All','Antique','Electronics','Toy','Book','Music','Other'] },
+  de: { title: 'Geschäfte entdecken', desc: 'Registrierte Geschäfte nach Kategorie oder Popularität filtern und entdecken.', popularTitle: 'Beliebte Geschäfte', allTitle: 'Alle Geschäfte', noPopular: 'Keine beliebten Geschäfte gefunden.', loading: 'Geschäfte werden geladen...', noShops: 'Keine Geschäfte in der ausgewählten Kategorie gefunden.', category: 'Kategorie:', products: 'Produkte:', opening: 'Eröffnung:', other: 'Sonstige', cats: ['Alle','Antiquitäten','Elektronik','Spielzeug','Buch','Musik','Sonstige'] },
+  fr: { title: 'Découvrir les boutiques', desc: 'Filtrez et découvrez les boutiques enregistrées par catégorie ou popularité.', popularTitle: 'Boutiques populaires', allTitle: 'Toutes les boutiques', noPopular: 'Aucune boutique populaire trouvée.', loading: 'Chargement des boutiques...', noShops: 'Aucune boutique trouvée pour la catégorie sélectionnée.', category: 'Catégorie :', products: 'Produits :', opening: 'Ouverture :', other: 'Autre', cats: ['Tous','Antiquité','Électronique','Jouet','Livre','Musique','Autre'] },
+  es: { title: 'Descubrir tiendas', desc: 'Filtra y descubre tiendas registradas por categoría o popularidad.', popularTitle: 'Tiendas populares', allTitle: 'Todas las tiendas', noPopular: 'No se encontraron tiendas populares.', loading: 'Cargando tiendas...', noShops: 'No se encontraron tiendas en la categoría seleccionada.', category: 'Categoría:', products: 'Productos:', opening: 'Apertura:', other: 'Otro', cats: ['Todo','Antigüedad','Electrónica','Juguete','Libro','Música','Otro'] },
+  ru: { title: 'Открыть магазины', desc: 'Фильтруйте и открывайте зарегистрированные магазины по категории или популярности.', popularTitle: 'Популярные магазины', allTitle: 'Все магазины', noPopular: 'Популярных магазинов не найдено.', loading: 'Загрузка магазинов...', noShops: 'Магазинов в выбранной категории не найдено.', category: 'Категория:', products: 'Товары:', opening: 'Открытие:', other: 'Другое', cats: ['Все','Антиквариат','Электроника','Игрушки','Книга','Музыка','Другое'] },
+} as const
+
 
 export default function ShopsDiscoveryPage() {
   const [shops, setShops] = useState<Shop[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedCategory, setSelectedCategory] = useState("Tümü");
+  const locale = useCurrentLocale();
+  const t = sdText[locale as keyof typeof sdText] ?? sdText.tr;
+  const [selectedCategory, setSelectedCategory] = useState<string>(t.cats[0]);
 
   useEffect(() => {
     fetchShops();
@@ -38,10 +41,11 @@ export default function ShopsDiscoveryPage() {
     setLoading(false);
   };
 
-  const filteredShops = selectedCategory === "Tümü"
+  const allCat = t.cats[0] as string
+  const filteredShops = selectedCategory === allCat
     ? shops
     : shops.filter((shop) =>
-        (shop.category || "Diğer") === selectedCategory
+        (shop.category || t.other) === selectedCategory
       );
 
   // Popüler mağazalar örneği: en çok ürünü olan ilk 4 mağaza
@@ -54,13 +58,11 @@ export default function ShopsDiscoveryPage() {
       {/* Header layouttan gelmektedir */}
       <main className="container-custom py-8 md:py-12">
         <div className="max-w-4xl mx-auto bg-white rounded-2xl shadow-lg p-8">
-          <h1 className="text-4xl font-bold text-center text-emerald-700 mb-6">Mağazaları Keşfet</h1>
-          <p className="text-lg text-gray-700 text-center mb-8">
-            Kayıtlı mağazaları kategoriye veya popülerliğe göre filtreleyerek keşfet. Her mağazanın ürünlerini ve puanını inceleyebilirsin.
-          </p>
+          <h1 className="text-4xl font-bold text-center text-emerald-700 mb-6">{t.title}</h1>
+          <p className="text-lg text-gray-700 text-center mb-8">{t.desc}</p>
           {/* Kategori Filtreleri */}
           <div className="flex flex-wrap gap-2 justify-center mb-8">
-            {categories.map((cat) => (
+            {t.cats.map((cat) => (
               <button
                 key={cat}
                 className={`px-4 py-2 rounded-lg font-medium transition ${
@@ -77,10 +79,10 @@ export default function ShopsDiscoveryPage() {
 
           {/* Popüler Mağazalar */}
           <div className="mb-8">
-            <h2 className="text-2xl font-bold text-emerald-800 mb-4">Popüler Mağazalar</h2>
+            <h2 className="text-2xl font-bold text-emerald-800 mb-4">{t.popularTitle}</h2>
             <div className="grid md:grid-cols-2 gap-6">
               {popularShops.length === 0 && !loading && (
-                <div className="text-gray-500 col-span-2 text-center">Popüler mağaza bulunamadı.</div>
+                <div className="text-gray-500 col-span-2 text-center">{t.noPopular}</div>
               )}
               {popularShops.map((shop) => (
                 <div key={shop.id} className="bg-emerald-50 border-l-4 border-emerald-400 rounded-xl p-6 flex flex-col gap-2">
@@ -88,21 +90,21 @@ export default function ShopsDiscoveryPage() {
                     <span className="text-2xl">🏪</span>
                     <span className="font-bold text-lg text-emerald-900">{shop.shop_name}</span>
                   </div>
-                  <div className="text-sm text-gray-600">Kategori: {shop.category || "Diğer"}</div>
-                  <div className="text-sm text-gray-600">Ürün: {shop.total_images ?? 0}</div>
-                  <div className="text-sm text-yellow-700">Açılış: {new Date(shop.created_at).toLocaleDateString("tr-TR")}</div>
+                  <div className="text-sm text-gray-600">{t.category} {shop.category || t.other}</div>
+                  <div className="text-sm text-gray-600">{t.products} {shop.total_images ?? 0}</div>
+                  <div className="text-sm text-yellow-700">{t.opening} {new Date(shop.created_at).toLocaleDateString()}</div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Tüm Mağazalar */}
+          {/* All Shops */}
           <div>
-            <h2 className="text-2xl font-bold text-emerald-800 mb-4">Tüm Mağazalar</h2>
+            <h2 className="text-2xl font-bold text-emerald-800 mb-4">{t.allTitle}</h2>
             {loading ? (
-              <div className="text-center text-gray-400 py-12">Mağazalar yükleniyor...</div>
+              <div className="text-center text-gray-400 py-12">{t.loading}</div>
             ) : filteredShops.length === 0 ? (
-              <div className="text-center text-gray-400 py-12">Seçili kategoriye ait mağaza bulunamadı.</div>
+              <div className="text-center text-gray-400 py-12">{t.noShops}</div>
             ) : (
               <div className="grid md:grid-cols-2 gap-6">
                 {filteredShops.map((shop) => (
@@ -111,9 +113,9 @@ export default function ShopsDiscoveryPage() {
                       <span className="text-2xl">🏪</span>
                       <span className="font-bold text-lg text-emerald-900">{shop.shop_name}</span>
                     </div>
-                    <div className="text-sm text-gray-600">Kategori: {shop.category || "Diğer"}</div>
-                    <div className="text-sm text-gray-600">Ürün: {shop.total_images ?? 0}</div>
-                    <div className="text-sm text-yellow-700">Açılış: {new Date(shop.created_at).toLocaleDateString("tr-TR")}</div>
+                    <div className="text-sm text-gray-600">{t.category} {shop.category || t.other}</div>
+                    <div className="text-sm text-gray-600">{t.products} {shop.total_images ?? 0}</div>
+                    <div className="text-sm text-yellow-700">{t.opening} {new Date(shop.created_at).toLocaleDateString()}</div>
                   </div>
                 ))}
               </div>

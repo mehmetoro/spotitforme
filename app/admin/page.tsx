@@ -2,6 +2,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import RecentSpots from '@/components/admin/RecentSpots'
 import RevenueChart from '@/components/admin/RevenueChart'
@@ -101,6 +102,30 @@ export default function AdminDashboard() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
         <p className="text-gray-600">SpotItForMe yönetim paneline hoş geldiniz</p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-blue-700">Hizli Yonetim</h2>
+          <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+            <Link href="/admin/users" className="rounded-lg bg-white px-3 py-2 hover:bg-blue-100">Kullanicilar</Link>
+            <Link href="/admin/spots" className="rounded-lg bg-white px-3 py-2 hover:bg-blue-100">Spotlar</Link>
+            <Link href="/admin/shops" className="rounded-lg bg-white px-3 py-2 hover:bg-blue-100">Magazalar</Link>
+            <Link href="/admin/social" className="rounded-lg bg-white px-3 py-2 hover:bg-blue-100">Sosyal Icerik</Link>
+            <Link href="/admin/product-reports" className="rounded-lg bg-white px-3 py-2 hover:bg-blue-100">Urun Bildirimleri</Link>
+            <Link href="/admin/ads" className="rounded-lg bg-white px-3 py-2 hover:bg-blue-100">Reklamlar</Link>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-emerald-700">Gunluk Operasyon Kontrolu</h2>
+          <ul className="mt-3 space-y-1 text-sm text-emerald-900">
+            <li>Yeni spotlar ve yardim paylasimlari denetlendi mi?</li>
+            <li>Magaza basvurulari ve urun raporlari incelendi mi?</li>
+            <li>Odeme, cron ve log ekranlari kontrol edildi mi?</li>
+            <li>Mesajlasma ve bildirim kuyruklari temiz mi?</li>
+          </ul>
+        </div>
       </div>
 
       {/* Temel İstatistikler */}

@@ -1,7 +1,7 @@
 // components/AuthModal.tsx - DEBUG VERSİYON
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { sendWelcomeEmail } from '@/lib/email-server'
 
@@ -9,9 +9,10 @@ interface AuthModalProps {
   isOpen: boolean
   onClose: () => void
   onSuccess?: () => void
+  initialMode?: 'login' | 'register'
 }
 
-export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
+export default function AuthModal({ isOpen, onClose, onSuccess, initialMode = 'login' }: AuthModalProps) {
   const [isLogin, setIsLogin] = useState(true)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -20,6 +21,11 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
   const [error, setError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
   const [debugLog, setDebugLog] = useState<string[]>([])
+
+  useEffect(() => {
+    if (!isOpen) return
+    setIsLogin(initialMode !== 'register')
+  }, [initialMode, isOpen])
 
   const addDebugLog = (message: string) => {
     console.log(`🔍 DEBUG: ${message}`)

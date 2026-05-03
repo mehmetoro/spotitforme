@@ -33,6 +33,7 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search')
     const hashtag = searchParams.get('hashtag')
     const channel = searchParams.get('channel')
+    const locale = searchParams.get('locale') || 'tr'
 
     // Supabase query ile filtreleri uygula
     let query = supabase
@@ -105,6 +106,25 @@ export async function GET(request: NextRequest) {
       spotter: spotter_map[s.spotter_id] || null,
       spot: spot_map[s.spot_id] || null
     }))
+
+    // Çevirileri uygula (TR dışı dillerde)
+    if (locale !== 'tr' && enriched.length > 0) {
+      const sightingIds = enriched.map((s: any) => s.id)
+      const { data: translations } = await supabase
+        .from('sighting_translations')
+        .select('sighting_id, title, description')
+        .in('sighting_id', sightingIds)
+        .eq('language', locale)
+      if (translations && translations.length > 0) {
+        const transMap: Record<string, any> = {}
+        for (const t of translations) transMap[t.sighting_id] = t
+        enriched = enriched.map((s: any) => {
+          const t = transMap[s.id]
+          if (t) return { ...s, title: t.title || s.title, notes: t.description || s.notes }
+          return s
+        })
+      }
+    }
 
     return NextResponse.json(enriched)
   } catch (err: any) {

@@ -24,8 +24,21 @@ function getUserColors(userId: string) {
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { GamificationEngine } from '@/lib/gamification/game-engine'
+import { useCurrentLocale } from '@/hooks/useCurrentLocale'
 
 export default function Leaderboard() {
+  const locale = useCurrentLocale()
+  const t = {
+    title: locale === 'tr' ? 'Lider Tablosu' : locale === 'en' ? 'Leaderboard' : locale === 'de' ? 'Bestenliste' : locale === 'fr' ? 'Classement' : locale === 'es' ? 'Clasificacion' : 'Tablitsa liderov',
+    subtitle: locale === 'tr' ? 'En aktif bulucular' : locale === 'en' ? 'Most active finders' : locale === 'de' ? 'Aktivste Finder' : locale === 'fr' ? 'Membres les plus actifs' : locale === 'es' ? 'Buscadores mas activos' : 'Samye aktivnye uchastniki',
+    daily: locale === 'tr' ? 'Gunluk' : locale === 'en' ? 'Daily' : locale === 'de' ? 'Taglich' : locale === 'fr' ? 'Quotidien' : locale === 'es' ? 'Diario' : 'Dnevnoy',
+    weekly: locale === 'tr' ? 'Haftalik' : locale === 'en' ? 'Weekly' : locale === 'de' ? 'Wochentlich' : locale === 'fr' ? 'Hebdomadaire' : locale === 'es' ? 'Semanal' : 'Nedelnyy',
+    allTime: locale === 'tr' ? 'Tum Zamanlar' : locale === 'en' ? 'All Time' : locale === 'de' ? 'Gesamt' : locale === 'fr' ? 'Tout le temps' : locale === 'es' ? 'Todo el tiempo' : 'Za vse vremya',
+    points: locale === 'tr' ? 'puan' : locale === 'en' ? 'points' : locale === 'de' ? 'Punkte' : locale === 'fr' ? 'points' : locale === 'es' ? 'puntos' : 'ochkov',
+    helps: locale === 'tr' ? 'yardim' : locale === 'en' ? 'helps' : locale === 'de' ? 'Hilfen' : locale === 'fr' ? 'aides' : locale === 'es' ? 'ayudas' : 'pomoshchi',
+    user: locale === 'tr' ? 'Kullanici' : locale === 'en' ? 'User' : locale === 'de' ? 'Benutzer' : locale === 'fr' ? 'Utilisateur' : locale === 'es' ? 'Usuario' : 'Polzovatel',
+    fullList: locale === 'tr' ? 'Tam Listeyi Gor' : locale === 'en' ? 'View Full List' : locale === 'de' ? 'Volle Liste anzeigen' : locale === 'fr' ? 'Voir la liste complete' : locale === 'es' ? 'Ver lista completa' : 'Smotret polnyy spisok',
+  }
   const [leaderboard, setLeaderboard] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [timeRange, setTimeRange] = useState<'daily' | 'weekly' | 'all'>('weekly')
@@ -71,7 +84,7 @@ export default function Leaderboard() {
       // Leaderboard oluştur
       const leaderboardData = (usersData || []).map(user => ({
         user_id: user.id,
-        name: user.full_name || 'Kullanıcı',
+        name: user.full_name || t.user,
         avatar_url: user.avatar_url,
         total_sightings: userCounts[user.id],
         total_points: userCounts[user.id] * 10, // Her sighting 10 puan
@@ -102,8 +115,8 @@ export default function Leaderboard() {
     <div className="bg-white rounded-xl shadow-lg p-6 overflow-hidden">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 min-w-0">
         <div>
-          <h2 className="text-xl font-bold text-gray-900">🏆 Lider Tablosu</h2>
-          <p className="text-gray-600">En aktif bulucular</p>
+          <h2 className="text-xl font-bold text-gray-900">🏆 {t.title}</h2>
+          <p className="text-gray-600">{t.subtitle}</p>
         </div>
         
         <div className="w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
@@ -118,7 +131,7 @@ export default function Leaderboard() {
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              {range === 'daily' ? 'Günlük' : range === 'weekly' ? 'Haftalık' : 'Tüm Zamanlar'}
+              {range === 'daily' ? t.daily : range === 'weekly' ? t.weekly : t.allTime}
             </button>
           ))}
           </div>
@@ -205,8 +218,8 @@ export default function Leaderboard() {
                     {userLevel?.name}
                   </p>
                   <div className="flex flex-col sm:flex-row sm:items-center gap-1 w-full">
-                    <div className="font-bold text-gray-900 text-base sm:text-lg">{user.total_points} puan</div>
-                    <div className="text-xs text-gray-500">{user.total_sightings} yardım</div>
+                    <div className="font-bold text-gray-900 text-base sm:text-lg">{user.total_points} {t.points}</div>
+                    <div className="text-xs text-gray-500">{user.total_sightings} {t.helps}</div>
                   </div>
                   {/* Progress bar (mini) */}
                   <div className="mt-2 w-full">
@@ -230,7 +243,7 @@ export default function Leaderboard() {
           onClick={() => fetchLeaderboard()}
           className="w-full text-center text-blue-600 hover:text-blue-800 font-medium py-2"
         >
-          Tam Listeyi Gör
+          {t.fullList}
         </button>
       </div>
     </div>

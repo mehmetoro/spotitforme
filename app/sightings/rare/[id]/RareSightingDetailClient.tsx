@@ -7,6 +7,7 @@ import { buildSeoImageAlt } from '@/lib/content-seo'
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/hooks/useToast'
 import { extractSightingIdFromParam } from '@/lib/sighting-slug'
+import { useCurrentLocale } from '@/hooks/useCurrentLocale'
 
 interface RareSighting {
   id: string
@@ -73,6 +74,7 @@ export default function RareSightingDetailClient() {
   const params = useParams()
   const router = useRouter()
   const toast = useToast()
+  const locale = useCurrentLocale()
   const [sighting, setSighting] = useState<RareSighting | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -91,11 +93,11 @@ export default function RareSightingDetailClient() {
     const rawId = Array.isArray(params.id) ? params.id[0] : params.id
     const id = rawId ? extractSightingIdFromParam(rawId) : rawId
     if (id) fetchSighting(id)
-  }, [params.id])
+  }, [params.id, locale])
 
   const fetchSighting = async (id: string) => {
     try {
-      const res = await fetch(`/api/quick-sightings/${id}`)
+      const res = await fetch(`/api/quick-sightings/${id}?locale=${locale}`)
       if (!res.ok) {
         const err = await res.json()
         setError(err.error || 'Kayıt bulunamadı')

@@ -6,10 +6,12 @@ import { supabase } from '@/lib/supabase'
 import FeedPost from '@/components/social/FeedPost'
 import { DynamicAdvancedMap } from './DynamicAdvancedMap'
 import { extractSightingIdFromParam } from '@/lib/sighting-slug'
+import { useCurrentLocale } from '@/hooks/useCurrentLocale'
 
 export default function SocialPostDetailClient() {
   const params = useParams()
   const router = useRouter()
+  const locale = useCurrentLocale()
   const rawId = Array.isArray(params.id) ? params.id[0] : params.id
   const id = rawId ? extractSightingIdFromParam(rawId) : ''
   const [post, setPost] = useState<any>(null)
@@ -34,6 +36,25 @@ export default function SocialPostDetailClient() {
         if (!p) {
           setError('Gönderi bulunamadı')
           return
+        }
+
+        if (['tr', 'en', 'de', 'fr', 'es', 'ru'].includes(locale)) {
+          try {
+            const { data: translation } = await supabase
+              .from('social_post_translations')
+              .select('title, description')
+              .eq('social_post_id', id)
+              .eq('language', locale)
+              .maybeSingle()
+
+            if (translation) {
+              p.title = translation.title || p.title
+              p.content = translation.description || p.content
+              p.description = translation.description || p.description
+            }
+          } catch {
+            // Çeviri tablosu yoksa orijinal içerik gösterilir.
+          }
         }
 
         let like_count = 0
@@ -92,7 +113,7 @@ export default function SocialPostDetailClient() {
     }
 
     fetchPost()
-  }, [id])
+  }, [id, locale])
 
   const handleLike = async (postId: string, liked: boolean) => {
     try {

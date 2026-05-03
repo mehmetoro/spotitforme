@@ -6,8 +6,10 @@ const FALLBACK_SUPABASE_URL = 'https://gobzxreumkbgaohvzoef.supabase.co'
 const FALLBACK_SUPABASE_ANON_KEY =
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdvYnp4cmV1bWtiZ2FvaHZ6b2VmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkyODI2MjksImV4cCI6MjA4NDg1ODYyOX0.9r7Ds_Ja0ulkTYWxJsl9r14ylIbUHzdFULvWehfoTDQ'
 
+const SUPPORTED_LOCALES = ['tr', 'en', 'de', 'fr', 'es', 'ru']
+
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
@@ -25,6 +27,8 @@ export async function GET(
     if (!id) {
       return NextResponse.json({ error: 'ID gerekli' }, { status: 400 })
     }
+
+    const locale = request.nextUrl.searchParams.get('locale') || 'tr'
 
     const { data, error } = await supabase
       .from('quick_sightings')
@@ -50,6 +54,21 @@ export async function GET(
         .eq('id', data.user_id)
         .single()
       user = profileData
+    }
+
+    // Çeviri varsa title/description'ı override et
+    if (SUPPORTED_LOCALES.includes(locale)) {
+      const { data: translation } = await supabase
+        .from('quick_sighting_translations')
+        .select('title, description')
+        .eq('quick_sighting_id', id)
+        .eq('language', locale)
+        .maybeSingle()
+
+      if (translation) {
+        if (translation.title) data.title = translation.title
+        if (translation.description) data.description = translation.description
+      }
     }
 
     return NextResponse.json({ ...data, user })

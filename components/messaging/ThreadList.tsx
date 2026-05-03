@@ -4,12 +4,16 @@
 import { useEffect, useMemo, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { ADMIN_USER_ID } from '@/lib/admin';
+import { useCurrentLocale, type SupportedLocale } from '@/hooks/useCurrentLocale'
+import { translateTextInBrowser } from '@/lib/browser-translation'
 import { MessageSquare, User, Clock, Trash2, CheckCircle, Search } from 'lucide-react'
 
 interface Thread {
   id: string
   participant1_id: string
   participant2_id: string
+  participant1_language?: SupportedLocale | null
+  participant2_language?: SupportedLocale | null
   request_status?: 'pending' | 'accepted' | 'rejected'
   request_initiator_id?: string | null
   request_message?: string | null
@@ -60,12 +64,50 @@ export default function ThreadList({
   loading,
   userId
 }: ThreadListProps) {
+  const locale = useCurrentLocale()
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const [searchQuery, setSearchQuery] = useState('')
   const [quickFilter, setQuickFilter] = useState<QuickFilter>('all')
   const [sortBy, setSortBy] = useState<SortOption>('newest')
+  const [translatedPreviews, setTranslatedPreviews] = useState<Record<string, string>>({})
+
+  const t = {
+    newItem: { tr: 'Yeni', en: 'New', de: 'Neu', fr: 'Nouveau', es: 'Nuevo', ru: 'Novoe' },
+    minAgo: { tr: 'dk once', en: 'min ago', de: 'Min. her', fr: 'min', es: 'min', ru: 'min nazad' },
+    hourAgo: { tr: 'saat once', en: 'h ago', de: 'Std. her', fr: 'h', es: 'h', ru: 'ch nazad' },
+    loading: { tr: 'Yukleniyor...', en: 'Loading...', de: 'Wird geladen...', fr: 'Chargement...', es: 'Cargando...', ru: 'Zagruzka...' },
+    noMessageYet: { tr: 'Henuz mesajiniz yok', en: 'No messages yet', de: 'Noch keine Nachrichten', fr: 'Pas encore de messages', es: 'Aun no hay mensajes', ru: 'Soobshcheniy poka net' },
+    startFirstMessage: { tr: 'Ilk mesajinizi gondererek baslayin', en: 'Start by sending your first message', de: 'Senden Sie zuerst Ihre erste Nachricht', fr: 'Commencez par envoyer votre premier message', es: 'Comienza enviando tu primer mensaje', ru: 'Nachnite s otpravki pervogo soobshcheniya' },
+    searchParticipant: { tr: 'Katilimci ara...', en: 'Search participant...', de: 'Teilnehmer suchen...', fr: 'Rechercher un participant...', es: 'Buscar participante...', ru: 'Poisk uchastnika...' },
+    all: { tr: 'Tumu', en: 'All', de: 'Alle', fr: 'Tous', es: 'Todos', ru: 'Vse' },
+    unread: { tr: 'Okunmamislar', en: 'Unread', de: 'Ungelesen', fr: 'Non lus', es: 'No leidos', ru: 'Neprochitannye' },
+    pendingRequests: { tr: 'Bekleyen Talepler', en: 'Pending Requests', de: 'Ausstehende Anfragen', fr: 'Demandes en attente', es: 'Solicitudes pendientes', ru: 'Ozhidayushchie zaprosy' },
+    activeChats: { tr: 'Aktif Konusmalar', en: 'Active Chats', de: 'Aktive Chats', fr: 'Conversations actives', es: 'Chats activos', ru: 'Aktivnye chaty' },
+    newest: { tr: 'En Yeni', en: 'Newest', de: 'Neueste', fr: 'Plus recents', es: 'Mas recientes', ru: 'Snachala novye' },
+    unreadFirst: { tr: 'Okunmamislar Once', en: 'Unread First', de: 'Ungelesene zuerst', fr: 'Non lus d abord', es: 'No leidos primero', ru: 'Neprochitannye snachala' },
+    outgoingRequests: { tr: 'Gonderdigim Talepler', en: 'Outgoing Requests', de: 'Gesendete Anfragen', fr: 'Demandes envoyees', es: 'Solicitudes enviadas', ru: 'Moi zaprosy' },
+    waitingApproval: { tr: 'Onay bekleyen', en: 'Waiting approval', de: 'Wartet auf Genehmigung', fr: 'En attente', es: 'En espera', ru: 'Ozhidaet podtverzhdeniya' },
+    incomingRequests: { tr: 'Bana Gelen Talepler', en: 'Incoming Requests', de: 'Eingehende Anfragen', fr: 'Demandes recues', es: 'Solicitudes recibidas', ru: 'Vkhodyashchie zaprosy' },
+    waitingResponse: { tr: 'Yanit bekleyen', en: 'Waiting response', de: 'Wartet auf Antwort', fr: 'En attente de reponse', es: 'Esperando respuesta', ru: 'Ozhidaet otveta' },
+    allTypes: { tr: 'Tum Turler', en: 'All Types', de: 'Alle Typen', fr: 'Tous les types', es: 'Todos los tipos', ru: 'Vse tipy' },
+    clearAll: { tr: 'Tumunu Temizle', en: 'Clear All', de: 'Alles loschen', fr: 'Tout effacer', es: 'Limpiar todo', ru: 'Ochistit vse' },
+    noConversationForFilter: { tr: 'Bu filtreye uygun konusma bulunamadi.', en: 'No conversations match this filter.', de: 'Keine Unterhaltung fur diesen Filter gefunden.', fr: 'Aucune conversation pour ce filtre.', es: 'No hay conversaciones para este filtro.', ru: 'Net chatov dlya etogo filtra.' },
+    pendingApprovalTag: { tr: 'Onay Bekleniyor', en: 'Pending Approval', de: 'Wartet auf Genehmigung', fr: 'En attente', es: 'Pendiente', ru: 'Ozhidaet podtverzhdeniya' },
+    newRequestTag: { tr: 'Yeni Talep', en: 'New Request', de: 'Neue Anfrage', fr: 'Nouvelle demande', es: 'Nueva solicitud', ru: 'Novyy zapros' },
+    rejected: { tr: 'reddedildi', en: 'rejected', de: 'abgelehnt', fr: 'refuse', es: 'rechazado', ru: 'otkloneno' },
+    delete: { tr: 'Sil', en: 'Delete', de: 'Loschen', fr: 'Supprimer', es: 'Eliminar', ru: 'Udalit' },
+    requestSent: { tr: 'Mesajlasma talebi gonderildi (onay bekleniyor)', en: 'Request sent (pending approval)', de: 'Anfrage gesendet (wartet auf Genehmigung)', fr: 'Demande envoyee (en attente)', es: 'Solicitud enviada (pendiente)', ru: 'Zapros otpravlen (ozhidaet podtverzhdeniya)' },
+    requestPrefix: { tr: 'Mesajlasma talebi', en: 'Message request', de: 'Nachrichtenanfrage', fr: 'Demande de message', es: 'Solicitud de mensaje', ru: 'Zapros na perepisku' },
+    firstRequest: { tr: 'Ilk mesaj talebi', en: 'First message request', de: 'Erste Nachrichtenanfrage', fr: 'Premiere demande', es: 'Primera solicitud', ru: 'Pervyy zapros' },
+    requestRejected: { tr: 'Mesajlasma talebi reddedildi', en: 'Message request rejected', de: 'Nachrichtenanfrage abgelehnt', fr: 'Demande refusee', es: 'Solicitud rechazada', ru: 'Zapros otklonen' },
+    noMessage: { tr: 'Mesaj yok', en: 'No message', de: 'Keine Nachricht', fr: 'Aucun message', es: 'Sin mensaje', ru: 'Net soobshcheniya' },
+    incomingFilter: { tr: 'Bana Gelen Talep', en: 'Incoming', de: 'Eingehend', fr: 'Entrant', es: 'Entrante', ru: 'Vkhodyashchie' },
+    outgoingFilter: { tr: 'Gonderdigim Talep', en: 'Outgoing', de: 'Ausgehend', fr: 'Sortant', es: 'Saliente', ru: 'Iskhodyashchie' },
+  } as const
+
+  const trText = <K extends keyof typeof t>(key: K) => t[key][locale] ?? t[key].tr
 
   const resolveFilter = (value: string | null): RequestFilter => {
     if (value === 'incoming' || value === 'outgoing') return value
@@ -258,26 +300,26 @@ export default function ThreadList({
       case 'spot':
         return 'spot'
       case 'help':
-        return 'yardım'
+        return locale === 'tr' ? 'yardim' : locale === 'en' ? 'help' : locale === 'de' ? 'hilfe' : locale === 'fr' ? 'aide' : locale === 'es' ? 'ayuda' : 'pomoshch'
       case 'social':
-        return 'sosyal'
+        return locale === 'tr' ? 'sosyal' : locale === 'en' ? 'social' : locale === 'de' ? 'sozial' : locale === 'fr' ? 'social' : locale === 'es' ? 'social' : 'social'
       case 'reward':
-        return 'ödül'
+        return locale === 'tr' ? 'odul' : locale === 'en' ? 'reward' : locale === 'de' ? 'belohnung' : locale === 'fr' ? 'recompense' : locale === 'es' ? 'recompensa' : 'nagrada'
       case 'trade':
-        return 'ticaret'
+        return locale === 'tr' ? 'ticaret' : locale === 'en' ? 'trade' : locale === 'de' ? 'handel' : locale === 'fr' ? 'echange' : locale === 'es' ? 'comercio' : 'obmen'
       default:
-        return 'genel'
+        return locale === 'tr' ? 'genel' : locale === 'en' ? 'general' : locale === 'de' ? 'allgemein' : locale === 'fr' ? 'general' : locale === 'es' ? 'general' : 'obshchiy'
     }
   }
 
   const getRequestFilterLabel = (filter: RequestFilter) => {
     switch (filter) {
       case 'incoming':
-        return 'Bana Gelen Talep'
+        return trText('incomingFilter')
       case 'outgoing':
-        return 'Gönderdiğim Talep'
+        return trText('outgoingFilter')
       default:
-        return 'Tümü'
+        return trText('all')
     }
   }
 
@@ -317,22 +359,63 @@ export default function ThreadList({
   const getMessagePreview = (thread: Thread) => {
     if (thread.request_status === 'pending') {
       if (thread.request_initiator_id === userId) {
-        return 'Mesajlaşma talebi gönderildi (onay bekleniyor)'
+        return trText('requestSent')
       }
-      return `Mesajlaşma talebi: ${thread.request_message || 'İlk mesaj talebi'}`
+      return `${trText('requestPrefix')}: ${thread.request_message || trText('firstRequest')}`
     }
 
     if (thread.request_status === 'rejected') {
-      return 'Mesajlaşma talebi reddedildi'
+      return trText('requestRejected')
     }
 
     return thread.last_message_preview || 
            thread.last_message_content || 
-           'Mesaj yok'
+           trText('noMessage')
   }
 
+  useEffect(() => {
+    let cancelled = false
+
+    const translatePreviews = async () => {
+      const nextPreviews: Record<string, string> = {}
+
+      for (const thread of threads) {
+        const preview = getMessagePreview(thread)
+        if (!preview || thread.request_status === 'pending' || thread.request_status === 'rejected') {
+          continue
+        }
+
+        const targetLanguage =
+          thread.participant1_id === userId
+            ? thread.participant1_language || locale
+            : thread.participant2_language || locale
+
+        const result = await translateTextInBrowser({
+          text: preview,
+          targetLanguage,
+        })
+
+        if (cancelled) return
+
+        if (result.supported) {
+          nextPreviews[thread.id] = result.translatedText
+        }
+      }
+
+      if (!cancelled) {
+        setTranslatedPreviews(nextPreviews)
+      }
+    }
+
+    void translatePreviews()
+
+    return () => {
+      cancelled = true
+    }
+  }, [threads, userId, locale])
+
   const formatTime = (dateString: string) => {
-    if (!dateString) return 'Yeni'
+    if (!dateString) return trText('newItem')
     
     try {
       const date = new Date(dateString)
@@ -341,14 +424,14 @@ export default function ThreadList({
       const diffMins = Math.floor(diffMs / 60000)
       
       if (diffMins < 60) {
-        return `${diffMins} dk önce`
+        return `${diffMins} ${trText('minAgo')}`
       } else if (diffMins < 1440) {
-        return `${Math.floor(diffMins / 60)} saat önce`
+        return `${Math.floor(diffMins / 60)} ${trText('hourAgo')}`
       } else {
-        return date.toLocaleDateString('tr-TR')
+        return date.toLocaleDateString(locale === 'tr' ? 'tr-TR' : locale === 'en' ? 'en-US' : locale === 'de' ? 'de-DE' : locale === 'fr' ? 'fr-FR' : locale === 'es' ? 'es-ES' : 'ru-RU')
       }
     } catch {
-      return 'Yeni'
+      return trText('newItem')
     }
   }
 
@@ -357,7 +440,7 @@ export default function ThreadList({
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-2 text-gray-600">Yükleniyor...</p>
+          <p className="mt-2 text-gray-600">{trText('loading')}</p>
         </div>
       </div>
     )
@@ -367,8 +450,8 @@ export default function ThreadList({
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
         <MessageSquare className="w-12 h-12 text-gray-400 mb-4" />
-        <h3 className="text-lg font-medium text-gray-900 mb-2">Henüz mesajınız yok</h3>
-        <p className="text-gray-600">İlk mesajınızı göndererek başlayın</p>
+        <h3 className="text-lg font-medium text-gray-900 mb-2">{trText('noMessageYet')}</h3>
+        <p className="text-gray-600">{trText('startFirstMessage')}</p>
       </div>
     )
   }
@@ -380,7 +463,7 @@ export default function ThreadList({
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
-            placeholder="Katılımcı ara..."
+            placeholder={trText('searchParticipant')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -404,7 +487,7 @@ export default function ThreadList({
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
-            Tümü
+            {trText('all')}
           </button>
           <button
             onClick={() => setQuickFilter('unread')}
@@ -414,7 +497,7 @@ export default function ThreadList({
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
-            Okunmamışlar
+            {trText('unread')}
           </button>
           <button
             onClick={() => setQuickFilter('pending')}
@@ -424,7 +507,7 @@ export default function ThreadList({
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
-            Bekleyen Talepler
+            {trText('pendingRequests')}
           </button>
           <button
             onClick={() => setQuickFilter('active')}
@@ -434,7 +517,7 @@ export default function ThreadList({
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
-            Aktif Konuşmalar
+            {trText('activeChats')}
           </button>
           <div className="flex-shrink-0 h-4 border-l border-gray-300 mx-1"></div>
           <button
@@ -445,7 +528,7 @@ export default function ThreadList({
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
-            En Yeni
+            {trText('newest')}
           </button>
           <button
             onClick={() => setSortBy('unread')}
@@ -455,7 +538,7 @@ export default function ThreadList({
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
-            Okunmamışlar Önce
+            {trText('unreadFirst')}
           </button>
         </div>
       </div>
@@ -469,9 +552,9 @@ export default function ThreadList({
               : 'border-gray-200 bg-white hover:bg-gray-50'
           }`}
         >
-          <p className="text-[11px] uppercase tracking-wide text-gray-500">Gönderdiğim Talepler</p>
+          <p className="text-[11px] uppercase tracking-wide text-gray-500">{trText('outgoingRequests')}</p>
           <p className="mt-1 text-lg font-semibold text-gray-900">{outgoingPendingCount}</p>
-          <p className="text-xs text-gray-600">Onay bekleyen</p>
+          <p className="text-xs text-gray-600">{trText('waitingApproval')}</p>
         </button>
         <button
           onClick={() => handlePendingSummaryClick('incoming')}
@@ -481,9 +564,9 @@ export default function ThreadList({
               : 'border-gray-200 bg-white hover:bg-gray-50'
           }`}
         >
-          <p className="text-[11px] uppercase tracking-wide text-gray-500">Bana Gelen Talepler</p>
+          <p className="text-[11px] uppercase tracking-wide text-gray-500">{trText('incomingRequests')}</p>
           <p className="mt-1 text-lg font-semibold text-gray-900">{incomingPendingCount}</p>
-          <p className="text-xs text-gray-600">Yanıt bekleyen</p>
+          <p className="text-xs text-gray-600">{trText('waitingResponse')}</p>
         </button>
       </div>
 
@@ -494,7 +577,7 @@ export default function ThreadList({
             activeFilter === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
           }`}
         >
-          Tümü
+          {trText('all')}
         </button>
         <button
           onClick={() => setFiltersAndSyncUrl('incoming', activeTypeFilter)}
@@ -502,7 +585,7 @@ export default function ThreadList({
             activeFilter === 'incoming' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
           }`}
         >
-          Bana Gelen Talep ({incomingPendingCount})
+          {trText('incomingFilter')} ({incomingPendingCount})
         </button>
         <button
           onClick={() => setFiltersAndSyncUrl('outgoing', activeTypeFilter)}
@@ -510,7 +593,7 @@ export default function ThreadList({
             activeFilter === 'outgoing' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
           }`}
         >
-          Gönderdiğim Talep ({outgoingPendingCount})
+          {trText('outgoingFilter')} ({outgoingPendingCount})
         </button>
       </div>
 
@@ -521,7 +604,7 @@ export default function ThreadList({
             activeTypeFilter === 'all' ? 'bg-slate-700 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
           }`}
         >
-          Tüm Türler
+          {trText('allTypes')}
         </button>
         <button
           onClick={() => setFiltersAndSyncUrl(activeFilter, 'shop')}
@@ -545,7 +628,7 @@ export default function ThreadList({
             activeTypeFilter === 'help' ? 'bg-slate-700 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
           }`}
         >
-          yardım
+          {getThreadTypeLabel('help')}
         </button>
         <button
           onClick={() => setFiltersAndSyncUrl(activeFilter, 'social')}
@@ -553,7 +636,7 @@ export default function ThreadList({
             activeTypeFilter === 'social' ? 'bg-slate-700 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
           }`}
         >
-          sosyal
+          {getThreadTypeLabel('social')}
         </button>
         <button
           onClick={() => setFiltersAndSyncUrl(activeFilter, 'reward')}
@@ -561,7 +644,7 @@ export default function ThreadList({
             activeTypeFilter === 'reward' ? 'bg-slate-700 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
           }`}
         >
-          ödül
+          {getThreadTypeLabel('reward')}
         </button>
         <button
           onClick={() => setFiltersAndSyncUrl(activeFilter, 'general')}
@@ -569,7 +652,7 @@ export default function ThreadList({
             activeTypeFilter === 'general' ? 'bg-slate-700 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
           }`}
         >
-          genel
+          {getThreadTypeLabel('general')}
         </button>
         <button
           onClick={() => setFiltersAndSyncUrl(activeFilter, 'trade')}
@@ -577,7 +660,7 @@ export default function ThreadList({
             activeTypeFilter === 'trade' ? 'bg-slate-700 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
           }`}
         >
-          ticaret
+          {getThreadTypeLabel('trade')}
         </button>
       </div>
 
@@ -588,7 +671,7 @@ export default function ThreadList({
               onClick={() => setFiltersAndSyncUrl('all', activeTypeFilter)}
               className="text-xs px-3 py-1 rounded-full bg-blue-100 text-blue-800 hover:bg-blue-200"
             >
-              Talep: {getRequestFilterLabel(activeFilter)} ({filteredThreads.length}) ×
+              {trText('requestPrefix')}: {getRequestFilterLabel(activeFilter)} ({filteredThreads.length}) ×
             </button>
           )}
           {activeTypeFilter !== 'all' && (
@@ -596,21 +679,21 @@ export default function ThreadList({
               onClick={() => setFiltersAndSyncUrl(activeFilter, 'all')}
               className="text-xs px-3 py-1 rounded-full bg-slate-100 text-slate-800 hover:bg-slate-200"
             >
-              Tür: {getThreadTypeLabel(activeTypeFilter)} ({filteredThreads.length}) ×
+              {locale === 'tr' ? 'Tur' : locale === 'en' ? 'Type' : locale === 'de' ? 'Typ' : locale === 'fr' ? 'Type' : locale === 'es' ? 'Tipo' : 'Tip'}: {getThreadTypeLabel(activeTypeFilter)} ({filteredThreads.length}) ×
             </button>
           )}
           <button
             onClick={() => setFiltersAndSyncUrl('all', 'all')}
             className="text-xs px-3 py-1 rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200"
           >
-            Tümünü Temizle
+            {trText('clearAll')}
           </button>
         </div>
       )}
 
       {filteredThreads.length === 0 && (
         <div className="p-6 text-center text-sm text-gray-500">
-          Bu filtreye uygun konuşma bulunamadı.
+          {trText('noConversationForFilter')}
         </div>
       )}
 
@@ -652,12 +735,12 @@ export default function ThreadList({
                           </span>
                           {isPending && (
                             <span className="shrink-0 text-xs px-2.5 py-1 rounded-full bg-amber-500 text-white font-semibold animate-pulse shadow-sm">
-                              {isRequestInitiator ? '⚡ Onay Bekleniyor' : '🔔 Yeni Talep'}
+                              {isRequestInitiator ? `⚡ ${trText('pendingApprovalTag')}` : `🔔 ${trText('newRequestTag')}`}
                             </span>
                           )}
                           {isRejected && (
                             <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium">
-                              reddedildi
+                              {trText('rejected')}
                             </span>
                           )}
                         </div>
@@ -666,7 +749,7 @@ export default function ThreadList({
                         </span>
                       </div>
                       <p className="text-sm text-gray-600 truncate mt-1">
-                        {getMessagePreview(thread)}
+                        {translatedPreviews[thread.id] || getMessagePreview(thread)}
                       </p>
                     </div>
                   </div>
@@ -687,7 +770,7 @@ export default function ThreadList({
                       onDeleteThread(thread.id)
                     }}
                     className="text-gray-400 hover:text-red-500 p-1"
-                    title="Sil"
+                    title={trText('delete')}
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>

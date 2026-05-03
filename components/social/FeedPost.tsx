@@ -42,7 +42,8 @@ export default function FeedPost({
 
   useEffect(() => {
     const getCurr = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
+      const { data: { session } } = await supabase.auth.getSession()
+      const user = session?.user ?? null
       if (user) setCurrentUserId(user.id)
     }
     getCurr()
@@ -95,12 +96,19 @@ export default function FeedPost({
 
   // content veya caption - hangisi varsa onu kullan
   const content = post.content || post.caption || ''
+  const title = post.title || ''
 
   // hashtags
   const hashtags = post.hashtags || []
 
   return (
     <div className="bg-white rounded-xl shadow-lg overflow-hidden cursor-pointer">
+      {/* Başlık */}
+      {title && (
+        <div className="px-6 pt-5 pb-1">
+          <h2 className="text-lg font-bold text-gray-900 break-words leading-tight">{title}</h2>
+        </div>
+      )}
       {/* Header - Kullanıcı bilgileri */}
       <PostHeader 
         user={user || post.user || { full_name: 'Kullanıcı', username: 'kullanici' }}

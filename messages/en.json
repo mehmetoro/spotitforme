@@ -1,0 +1,20 @@
+{
+  "common": {
+    "appName": "SpotItForMe",
+    "language": "Language",
+    "save": "Save"
+  },
+  "nav": {
+    "home": "Home",
+    "spots": "Spots",
+    "createSpot": "Create Spot"
+  },
+  "home": {
+    "title": "Find rare items with the community",
+    "subtitle": "Share, discover, help"
+  },
+  "createSpot": {
+    "title": "Create New Spot",
+    "description": "Share what you are looking for with the community."
+  }
+}

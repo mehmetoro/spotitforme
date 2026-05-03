@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import ResponsiveAd from '@/components/ResponsiveAd'
 import { buildRareSightingPath, buildSightingPath } from '@/lib/sighting-slug'
+import { useCurrentLocale } from '@/hooks/useCurrentLocale'
 
 interface Sighting {
   id: string
@@ -61,6 +62,7 @@ const CATEGORIES = [
 
 
 export default function SightingsPage() {
+  const locale = useCurrentLocale()
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<'sightings' | 'rare'>('sightings');
 
@@ -103,6 +105,7 @@ export default function SightingsPage() {
       setSightingsLoading(true);
       const params = new URLSearchParams();
       params.append('channel', 'physical');
+      params.append('locale', locale);
       if (filters.category) params.append('category', filters.category);
       if (filters.hasLocation !== 'all') params.append('hasLocation', filters.hasLocation);
       if (filters.hasPrice !== 'all') params.append('hasPrice', filters.hasPrice);
@@ -130,6 +133,7 @@ export default function SightingsPage() {
       setRareLoading(true);
       const params = new URLSearchParams();
       params.append('channel', 'physical');
+      params.append('locale', locale);
       if (filters.category) params.append('category', filters.category);
       if (filters.hasLocation !== 'all') params.append('hasLocation', filters.hasLocation);
       if (filters.hasPrice !== 'all') params.append('hasPrice', filters.hasPrice);
@@ -155,7 +159,9 @@ export default function SightingsPage() {
   }, [filters.searchText, filters.category, filters.hasLocation, filters.hasPrice, filters.hashtag, didInitSearchText]);
 
   const formatDate = (date: string) =>
-    new Date(date).toLocaleDateString('tr-TR')
+    new Date(date).toLocaleDateString(
+      locale === 'tr' ? 'tr-TR' : locale === 'en' ? 'en-US' : locale === 'de' ? 'de-DE' : locale === 'fr' ? 'fr-FR' : locale === 'es' ? 'es-ES' : 'ru-RU'
+    )
 
   const getCurrencyPrefix = (currency: string | null | undefined) => {
     const code = (currency || 'TRY').toUpperCase()
@@ -172,6 +178,7 @@ export default function SightingsPage() {
       setSightingsLoading(true);
       const params = new URLSearchParams();
       params.append('channel', 'physical');
+      params.append('locale', locale);
       if (filters.category) params.append('category', filters.category);
       if (filters.hasLocation !== 'all') params.append('hasLocation', filters.hasLocation);
       if (filters.hasPrice !== 'all') params.append('hasPrice', filters.hasPrice);
@@ -201,6 +208,7 @@ export default function SightingsPage() {
       setRareLoading(true);
       const params = new URLSearchParams();
       params.append('channel', 'physical');
+      params.append('locale', locale);
       if (filters.category) params.append('category', filters.category);
       if (filters.hasLocation !== 'all') params.append('hasLocation', filters.hasLocation);
       if (filters.hasPrice !== 'all') params.append('hasPrice', filters.hasPrice);
@@ -233,22 +241,33 @@ export default function SightingsPage() {
     if (activeTab === 'rare' && rareSightings.length === 0) fetchRareSightings()
   }, [activeTab])
 
+  // Locale değişince rare sightings yeniden çek
+  useEffect(() => {
+    if (rareSightings.length > 0) fetchRareSightings()
+    if (sightings.length > 0) fetchSightings()
+  }, [locale])
+
   return (
     <main className="container-custom py-8 overflow-x-hidden">
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900">🤝 Yardımlar</h1>
-        <p className="text-gray-600 mt-1">Kullanıcıların bildirdiği ürünler ve konumlar</p>
+        <p className="text-gray-600 mt-1">{locale === 'tr' ? 'Kullanicilarin bildirdigi urunler ve konumlar' : 'Products and locations reported by users'}</p>
+        <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+          {locale === 'tr'
+            ? 'Bu bolum fiziki yardimlar icindir: Aranan urunu magaza, pazar veya herhangi bir noktada gordugunde burada paylasirsin. Aranmayan ama zor bulunan urunleri paylasmak icin Nadir Gorulenler sekmesini kullanabilirsin.'
+            : 'This section is for physical sightings. Share when you see a requested item in shops, markets or anywhere else. Use Rare Sightings tab for hard-to-find but not specifically requested items.'}
+        </div>
         <div className="mt-3">
           <Link href="/virtual-sightings" className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-700 hover:text-emerald-800">
-            🌐 Sanal Yardımlara Geç
+            {locale === 'tr' ? '🌐 Sanal Yardimlara Gec' : '🌐 Switch to Virtual Sightings'}
           </Link>
         </div>
       </div>
 
       {/* Ortak Arama ve Filtreler */}
       <div className="bg-white rounded-xl shadow p-5 mb-6">
-        <h2 className="text-base font-bold mb-3">🔍 Arama & Filtreler</h2>
+        <h2 className="text-base font-bold mb-3">{locale === 'tr' ? '🔍 Arama & Filtreler' : '🔍 Search & Filters'}</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <input
             type="text"
@@ -263,7 +282,7 @@ export default function SightingsPage() {
             onChange={(e) => setFilters({ ...filters, category: e.target.value })}
             className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
           >
-            <option value="">Tüm Kategoriler</option>
+            <option value="">{locale === 'tr' ? 'Tum Kategoriler' : 'All Categories'}</option>
             {CATEGORIES.map((c) => (
               <option key={c.value} value={c.value}>{c.label}</option>
             ))}
@@ -273,13 +292,13 @@ export default function SightingsPage() {
             onChange={(e) => setFilters({ ...filters, hasPrice: e.target.value })}
             className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
           >
-            <option value="all">Fiyat: Tümü</option>
-            <option value="with">💰 Fiyat İçeren</option>
-            <option value="without">Fiyat Yok</option>
+            <option value="all">{locale === 'tr' ? 'Fiyat: Tumu' : 'Price: All'}</option>
+            <option value="with">{locale === 'tr' ? '💰 Fiyat Iceren' : '💰 With Price'}</option>
+            <option value="without">{locale === 'tr' ? 'Fiyat Yok' : 'No Price'}</option>
           </select>
           <input
             type="text"
-            placeholder="Hashtag (# olmadan)"
+            placeholder={locale === 'tr' ? 'Hashtag (# olmadan)' : 'Hashtag (without #)'}
             value={filters.hashtag}
             onChange={(e) => setFilters({ ...filters, hashtag: e.target.value })}
             className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
@@ -297,7 +316,7 @@ export default function SightingsPage() {
               : 'border-transparent text-gray-500 hover:text-gray-700'
           }`}
         >
-          📍 Spot Yardımları
+          {locale === 'tr' ? '📍 Spot Yardimlari' : '📍 Spot Helps'}
         </button>
         <button
           onClick={() => setActiveTab('rare')}
@@ -307,7 +326,7 @@ export default function SightingsPage() {
               : 'border-transparent text-gray-500 hover:text-gray-700'
           }`}
         >
-          💎 Nadir Görülenler
+          {locale === 'tr' ? '💎 Nadir Gorulenler' : '💎 Rare Sightings'}
         </button>
       </div>
 
@@ -324,8 +343,8 @@ export default function SightingsPage() {
           ) : sightings.length === 0 ? (
             <div className="bg-white rounded-xl shadow p-12 text-center">
               <div className="text-4xl mb-4">🔍</div>
-              <h2 className="text-lg font-bold text-gray-900 mb-1">Yardım bulunamadı</h2>
-              <p className="text-gray-500 text-sm">Filtrelerinizi değiştirip tekrar deneyin</p>
+              <h2 className="text-lg font-bold text-gray-900 mb-1">{locale === 'tr' ? 'Yardim bulunamadi' : 'No help posts found'}</h2>
+              <p className="text-gray-500 text-sm">{locale === 'tr' ? 'Filtrelerinizi degistirip tekrar deneyin' : 'Try changing your filters and search again'}</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -349,7 +368,7 @@ export default function SightingsPage() {
                     )}
                   </div>
                   <div className="p-4">
-                    <h3 className="font-bold text-gray-900 truncate mb-1">{s.title || 'Bilinmeyen Ürün'}</h3>
+                    <h3 className="font-bold text-gray-900 truncate mb-1">{s.title || (locale === 'tr' ? 'Bilinmeyen Urun' : 'Unknown Item')}</h3>
                     <p className="text-sm text-gray-600 line-clamp-2 mb-2">📍 {s.location_description}</p>
                     {s.notes && <p className="text-sm text-gray-500 line-clamp-2 mb-2">{s.notes}</p>}
                     {s.hashtags && (
@@ -364,7 +383,7 @@ export default function SightingsPage() {
                         {s.spotter?.avatar_url && (
                           <img src={s.spotter.avatar_url} alt="" className="w-6 h-6 rounded-full shrink-0" />
                         )}
-                        <span className="text-xs text-gray-600 truncate">{s.spotter?.full_name || 'Kullanıcı'}</span>
+                        <span className="text-xs text-gray-600 truncate">{s.spotter?.full_name || (locale === 'tr' ? 'Kullanici' : 'User')}</span>
                       </div>
                       <span className="text-xs text-gray-400 shrink-0 ml-2">{formatDate(s.created_at)}</span>
                     </div>
@@ -380,10 +399,11 @@ export default function SightingsPage() {
             <div className="flex gap-3">
               <span className="text-2xl shrink-0">💎</span>
               <div>
-                <p className="font-semibold text-purple-900">Nadir Ürün Bildirimleri</p>
+                <p className="font-semibold text-purple-900">{locale === 'tr' ? 'Nadir Urun Bildirimleri' : 'Rare Item Reports'}</p>
                 <p className="text-sm text-purple-700 mt-0.5">
-                  Kullanıcılar henüz spotu olmayan nadir ürünleri bir yerde gördüklerinde buraya bildiriyor.
-                  İstediğiniz ürünü bulursanız satıcıya ulaşmak için bir spot oluşturabilirsiniz.
+                  {locale === 'tr'
+                    ? 'Kullanicilar henuz spotu olmayan nadir urunleri bir yerde gorduklerinde buraya bildiriyor. Istediginiz urunu bulursaniz saticiya ulasmak icin bir spot olusturabilirsiniz.'
+                    : 'Users report rare items here when they spot them. If you find what you need, create a spot to reach the seller.'}
                 </p>
               </div>
             </div>
@@ -398,9 +418,9 @@ export default function SightingsPage() {
           ) : rareSightings.length === 0 ? (
             <div className="bg-white rounded-xl shadow p-12 text-center">
               <div className="text-4xl mb-4">💎</div>
-              <h2 className="text-lg font-bold text-gray-900 mb-1">Nadir görülen bulunamadı</h2>
+              <h2 className="text-lg font-bold text-gray-900 mb-1">{locale === 'tr' ? 'Nadir gorulen bulunamadi' : 'No rare sightings found'}</h2>
               <p className="text-gray-500 text-sm">
-                Henüz bildirim yok. Ana sayfadaki "Nadir Gördüm" butonuyla siz de ekleyin!
+                {locale === 'tr' ? 'Henuz bildirim yok. Ana sayfadaki Nadir Gordum butonuyla siz de ekleyin!' : 'No reports yet. Add one with the Rare Sighting button on the home page!'}
               </p>
             </div>
           ) : (
@@ -413,11 +433,11 @@ export default function SightingsPage() {
                 >
                   <div className="h-44 bg-gradient-to-br from-purple-50 to-indigo-100 overflow-hidden relative">
                     {s.photo_url ? (
-                      <img src={s.photo_url} alt="Nadir görülen" className="w-full h-full object-cover group-hover:scale-105 transition" />
+                      <img src={s.photo_url} alt={locale === 'tr' ? 'Nadir gorulen' : 'Rare sighting'} className="w-full h-full object-cover group-hover:scale-105 transition" />
                     ) : (
                       <div className="w-full h-full flex flex-col items-center justify-center text-purple-300 gap-2">
                         <span className="text-5xl">💎</span>
-                        <span className="text-xs text-purple-400">Fotoğraf yok</span>
+                        <span className="text-xs text-purple-400">{locale === 'tr' ? 'Fotograf yok' : 'No photo'}</span>
                       </div>
                     )}
                     {/* Badges */}
@@ -431,7 +451,7 @@ export default function SightingsPage() {
                     )}
                     {/* Nadir badge */}
                     <span className="absolute bottom-2 right-2 bg-purple-700 text-white text-xs px-2 py-0.5 rounded-full font-semibold">
-                      NADİR
+                      {locale === 'tr' ? 'NADIR' : 'RARE'}
                     </span>
                   </div>
                   <div className="p-4">
@@ -442,7 +462,7 @@ export default function SightingsPage() {
                       </span>
                     )}
                     {/* Başlık */}
-                    <h3 className="font-bold text-gray-900 line-clamp-2 mb-1 break-words">{s.title || s.link_preview_title || 'Nadir ürün paylaşımı'}</h3>
+                    <h3 className="font-bold text-gray-900 line-clamp-2 mb-1 break-words">{s.title || s.link_preview_title || (locale === 'tr' ? 'Nadir urun paylasimi' : 'Rare item report')}</h3>
                     {/* Detay */}
                     {s.description && <p className="text-sm text-gray-600 line-clamp-2 mb-1 break-words">{s.description}</p>}
                     {/* Location */}
@@ -453,7 +473,7 @@ export default function SightingsPage() {
                         {s.user?.avatar_url && (
                           <img src={s.user.avatar_url} alt="" className="w-6 h-6 rounded-full shrink-0" />
                         )}
-                        <span className="text-xs text-gray-600 truncate">{s.user?.full_name || 'Kullanıcı'}</span>
+                        <span className="text-xs text-gray-600 truncate">{s.user?.full_name || (locale === 'tr' ? 'Kullanici' : 'User')}</span>
                       </div>
                       <span className="text-xs text-gray-400 shrink-0 ml-2">{formatDate(s.created_at)}</span>
                     </div>

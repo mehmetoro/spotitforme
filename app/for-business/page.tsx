@@ -6,6 +6,16 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import AuthModal from '@/components/AuthModal'
 import { supabase } from '@/lib/supabase'
 import { sendBusinessRegistrationEmail } from '@/lib/email-server'
+import { useCurrentLocale } from '@/hooks/useCurrentLocale'
+
+const fbText = {
+  tr: { heroTitle: 'İşletmeniz İçin', heroBadge: '🎯 Tamamen Ücretsiz - Sınırsız Spot Oluşturma', feat1Title: 'Binlerce Potansiyel Müşteri', feat1: 'Arayan müşteriler doğrudan size ulaşsın', feat2Title: 'Anında Bildirim', feat2: 'Müşteri aradığında hemen haberdar olun', feat3Title: 'Satışları Artırın', feat3: 'Hedefli müşterilerle satış yapın', formTitleNew: 'Ücretsiz Mağaza Kaydı', formTitleEdit: 'Mağaza Bilgilerini Güncelle', formSubNew: 'Formu doldurun, 2 dakikada mağazanızı açın', formSubEdit: 'Mağaza bilgilerinizi güncelleyin', loginRequired: 'Giriş Yapmanız Gerekiyor', loginDesc: 'Mağaza kaydı için önce giriş yapmalısınız.', loginBtn: 'Giriş Yap / Kayıt Ol', skipBtn: 'Şimdilik Atla', loggedIn: 'Giriş Yapıldı', businessInfo: '🏪 İşletme Bilgileri', shopName: 'İşletme Adı *', shopNamePlaceholder: 'Örn: Retro Eşya Mağazası', shopNameHint: 'Müşterilerin göreceği isim', ownerName: 'Yetkili Kişi Adı *', ownerNameHint: 'İletişim için gerekli', email: 'Email Adresi *', emailHint: 'Onay ve bildirimler için', phone: 'Telefon *', phoneHint: 'Müşterilerin arayabileceği numara', city: 'Şehir *', cityPlaceholder: 'Şehir seçin', cityHint: 'İşletmenizin bulunduğu şehir', bizType: 'İşletme Türü *', addressInfo: '📍 Adres Bilgileri', address: 'Adres', addressHint: 'Müşterilerin bulabilmesi için tam adres', website: 'Website (varsa)', descSection: '📝 İşletme Açıklaması', descLabel: 'Kısa Tanıtım *', descHint: 'Müşteriler bu açıklamayı görecek.', spotsSection: '📊 Tahmini Aktivite', spotsLabel: 'Ayda kaç spot oluşturmayı planlıyorsunuz? *', termsSection: '📜 Koşullar ve Onaylar', acceptTerms: 'Kullanım Koşullarını okudum ve kabul ediyorum', acceptPrivacy: 'Gizlilik Politikasını okudum ve kabul ediyorum', acceptMarketing: 'Yenilik ve kampanya bilgilerini almak istiyorum', submitBtn: 'Mağaza Kaydımı Tamamla', updateBtn: 'Bilgileri Güncelle', successTitleNew: 'Mağaza Kaydınız Alındı!', successTitleEdit: 'Mağaza Bilgileriniz Güncellendi!', successDesc: 'mağazanız için kaydınız başarıyla alındı! 🎉', goPanel: 'Mağaza Paneline Git', createSpot: 'İlk Spot\'unu Oluştur', termsError: 'Lütfen Kullanım Koşulları ve Gizlilik Politikasını kabul edin.', duplicateError: 'Bu email adresiyle zaten bir mağaza kaydı bulunmaktadır.', genericError: 'Kayıt sırasında bir hata oluştu. Lütfen tekrar deneyin.', shopExists: 'Zaten bir mağazanız var. Mağaza panelinize yönlendiriliyorsunuz.' },
+  en: { heroTitle: 'For Your Business', heroBadge: '🎯 Completely Free - Unlimited Spot Creation', feat1Title: 'Thousands of Potential Customers', feat1: 'Searching customers reach you directly', feat2Title: 'Instant Notification', feat2: 'Be notified immediately when a customer searches', feat3Title: 'Boost Sales', feat3: 'Sell to targeted customers', formTitleNew: 'Free Shop Registration', formTitleEdit: 'Update Shop Information', formSubNew: 'Fill the form, open your shop in 2 minutes', formSubEdit: 'Update your shop information', loginRequired: 'Login Required', loginDesc: 'You must log in first to register a shop.', loginBtn: 'Login / Register', skipBtn: 'Skip for Now', loggedIn: 'Logged In', businessInfo: '🏪 Business Information', shopName: 'Business Name *', shopNamePlaceholder: 'e.g. Retro Goods Store', shopNameHint: 'Name customers will see', ownerName: 'Contact Person *', ownerNameHint: 'Required for contact', email: 'Email Address *', emailHint: 'For confirmation and notifications', phone: 'Phone *', phoneHint: 'Number customers can call', city: 'City *', cityPlaceholder: 'Select city', cityHint: 'City where your business is located', bizType: 'Business Type *', addressInfo: '📍 Address Information', address: 'Address', addressHint: 'Full address for customers to find you', website: 'Website (if any)', descSection: '📝 Business Description', descLabel: 'Short Introduction *', descHint: 'Customers will see this description.', spotsSection: '📊 Estimated Activity', spotsLabel: 'How many spots do you plan to create per month? *', termsSection: '📜 Terms & Approvals', acceptTerms: 'I have read and accept the Terms of Use', acceptPrivacy: 'I have read and accept the Privacy Policy', acceptMarketing: 'I want to receive news and campaign information', submitBtn: 'Complete My Registration', updateBtn: 'Update Information', successTitleNew: 'Your Shop Registration Received!', successTitleEdit: 'Your Shop Information Updated!', successDesc: 'registration for your shop was successful! 🎉', goPanel: 'Go to Shop Panel', createSpot: 'Create Your First Spot', termsError: 'Please accept the Terms of Use and Privacy Policy.', duplicateError: 'A shop registration with this email already exists.', genericError: 'An error occurred during registration. Please try again.', shopExists: 'You already have a shop. Redirecting to your shop panel.' },
+  de: { heroTitle: 'Für Ihr Unternehmen', heroBadge: '🎯 Völlig kostenlos - Unbegrenzte Spot-Erstellung', feat1Title: 'Tausende potenzielle Kunden', feat1: 'Suchende Kunden erreichen Sie direkt', feat2Title: 'Sofortige Benachrichtigung', feat2: 'Sofort benachrichtigt werden', feat3Title: 'Umsatz steigern', feat3: 'An zielgerichtete Kunden verkaufen', formTitleNew: 'Kostenlose Shop-Registrierung', formTitleEdit: 'Shop-Informationen aktualisieren', formSubNew: 'Formular ausfüllen, Shop in 2 Minuten eröffnen', formSubEdit: 'Ihre Shop-Informationen aktualisieren', loginRequired: 'Anmeldung erforderlich', loginDesc: 'Sie müssen sich zuerst anmelden, um einen Shop zu registrieren.', loginBtn: 'Anmelden / Registrieren', skipBtn: 'Jetzt überspringen', loggedIn: 'Angemeldet', businessInfo: '🏪 Unternehmensinformationen', shopName: 'Unternehmensname *', shopNamePlaceholder: 'z.B. Retro-Waren-Laden', shopNameHint: 'Name, den Kunden sehen', ownerName: 'Kontaktperson *', ownerNameHint: 'Für Kontaktzwecke erforderlich', email: 'E-Mail-Adresse *', emailHint: 'Für Bestätigung und Benachrichtigungen', phone: 'Telefon *', phoneHint: 'Nummer, die Kunden anrufen können', city: 'Stadt *', cityPlaceholder: 'Stadt auswählen', cityHint: 'Stadt Ihres Unternehmens', bizType: 'Unternehmenstyp *', addressInfo: '📍 Adressinformationen', address: 'Adresse', addressHint: 'Vollständige Adresse', website: 'Website (falls vorhanden)', descSection: '📝 Unternehmensbeschreibung', descLabel: 'Kurze Vorstellung *', descHint: 'Kunden sehen diese Beschreibung.', spotsSection: '📊 Geschätzte Aktivität', spotsLabel: 'Wie viele Spots planen Sie pro Monat? *', termsSection: '📜 Bedingungen & Genehmigungen', acceptTerms: 'Ich habe die Nutzungsbedingungen gelesen und akzeptiere sie', acceptPrivacy: 'Ich habe die Datenschutzrichtlinie gelesen und akzeptiere sie', acceptMarketing: 'Ich möchte Neuigkeiten und Kampagneninformationen erhalten', submitBtn: 'Registrierung abschließen', updateBtn: 'Informationen aktualisieren', successTitleNew: 'Ihre Shop-Registrierung erhalten!', successTitleEdit: 'Ihre Shop-Informationen aktualisiert!', successDesc: 'Ihre Shop-Registrierung war erfolgreich! 🎉', goPanel: 'Zum Shop-Panel', createSpot: 'Ersten Spot erstellen', termsError: 'Bitte akzeptieren Sie die Nutzungsbedingungen und Datenschutzrichtlinie.', duplicateError: 'Mit dieser E-Mail-Adresse existiert bereits eine Shop-Registrierung.', genericError: 'Während der Registrierung ist ein Fehler aufgetreten.', shopExists: 'Sie haben bereits einen Shop. Weiterleitung zum Shop-Panel.' },
+  fr: { heroTitle: 'Pour votre entreprise', heroBadge: '🎯 Entièrement gratuit - Création illimitée de spots', feat1Title: 'Des milliers de clients potentiels', feat1: 'Les clients qui cherchent vous trouvent directement', feat2Title: 'Notification instantanée', feat2: 'Être notifié immédiatement', feat3Title: 'Augmenter les ventes', feat3: 'Vendre à des clients ciblés', formTitleNew: 'Inscription boutique gratuite', formTitleEdit: 'Mettre à jour les informations', formSubNew: 'Remplissez le formulaire, ouvrez votre boutique en 2 minutes', formSubEdit: 'Mettre à jour vos informations', loginRequired: 'Connexion requise', loginDesc: 'Vous devez vous connecter pour enregistrer une boutique.', loginBtn: 'Se connecter / S\'inscrire', skipBtn: 'Ignorer pour l\'instant', loggedIn: 'Connecté', businessInfo: '🏪 Informations commerciales', shopName: 'Nom de l\'entreprise *', shopNamePlaceholder: 'ex. Boutique Rétro', shopNameHint: 'Nom que les clients verront', ownerName: 'Personne de contact *', ownerNameHint: 'Requis pour le contact', email: 'Adresse e-mail *', emailHint: 'Pour confirmation et notifications', phone: 'Téléphone *', phoneHint: 'Numéro que les clients peuvent appeler', city: 'Ville *', cityPlaceholder: 'Sélectionner la ville', cityHint: 'Ville de votre entreprise', bizType: 'Type d\'entreprise *', addressInfo: '📍 Informations d\'adresse', address: 'Adresse', addressHint: 'Adresse complète', website: 'Site web (si disponible)', descSection: '📝 Description de l\'entreprise', descLabel: 'Présentation courte *', descHint: 'Les clients verront cette description.', spotsSection: '📊 Activité estimée', spotsLabel: 'Combien de spots prévoyez-vous par mois ? *', termsSection: '📜 Conditions et approbations', acceptTerms: 'J\'ai lu et j\'accepte les Conditions d\'utilisation', acceptPrivacy: 'J\'ai lu et j\'accepte la Politique de confidentialité', acceptMarketing: 'Je veux recevoir des informations sur les actualités et promotions', submitBtn: 'Compléter mon inscription', updateBtn: 'Mettre à jour les informations', successTitleNew: 'Votre inscription boutique reçue!', successTitleEdit: 'Vos informations boutique mises à jour!', successDesc: 'votre inscription a été réussie ! 🎉', goPanel: 'Aller au panel boutique', createSpot: 'Créer votre premier spot', termsError: 'Veuillez accepter les Conditions d\'utilisation et la Politique de confidentialité.', duplicateError: 'Une inscription boutique avec cet e-mail existe déjà.', genericError: 'Une erreur s\'est produite lors de l\'inscription.', shopExists: 'Vous avez déjà une boutique. Redirection vers votre panel.' },
+  es: { heroTitle: 'Para su negocio', heroBadge: '🎯 Completamente gratis - Creación ilimitada de spots', feat1Title: 'Miles de clientes potenciales', feat1: 'Los clientes que buscan te encuentran directamente', feat2Title: 'Notificación instantánea', feat2: 'Ser notificado inmediatamente', feat3Title: 'Aumentar ventas', feat3: 'Vender a clientes dirigidos', formTitleNew: 'Registro de tienda gratuito', formTitleEdit: 'Actualizar información', formSubNew: 'Rellena el formulario, abre tu tienda en 2 minutos', formSubEdit: 'Actualiza tu información', loginRequired: 'Inicio de sesión requerido', loginDesc: 'Debes iniciar sesión para registrar una tienda.', loginBtn: 'Iniciar sesión / Registrarse', skipBtn: 'Omitir por ahora', loggedIn: 'Sesión iniciada', businessInfo: '🏪 Información del negocio', shopName: 'Nombre del negocio *', shopNamePlaceholder: 'ej. Tienda Retro', shopNameHint: 'Nombre que verán los clientes', ownerName: 'Persona de contacto *', ownerNameHint: 'Requerido para contacto', email: 'Correo electrónico *', emailHint: 'Para confirmación y notificaciones', phone: 'Teléfono *', phoneHint: 'Número que los clientes pueden llamar', city: 'Ciudad *', cityPlaceholder: 'Seleccionar ciudad', cityHint: 'Ciudad de su negocio', bizType: 'Tipo de negocio *', addressInfo: '📍 Información de dirección', address: 'Dirección', addressHint: 'Dirección completa', website: 'Sitio web (si existe)', descSection: '📝 Descripción del negocio', descLabel: 'Presentación corta *', descHint: 'Los clientes verán esta descripción.', spotsSection: '📊 Actividad estimada', spotsLabel: '¿Cuántos spots planea crear por mes? *', termsSection: '📜 Términos y aprobaciones', acceptTerms: 'He leído y acepto los Términos de uso', acceptPrivacy: 'He leído y acepto la Política de privacidad', acceptMarketing: 'Quiero recibir noticias e información de campañas', submitBtn: 'Completar mi registro', updateBtn: 'Actualizar información', successTitleNew: '¡Registro de tienda recibido!', successTitleEdit: '¡Información de tienda actualizada!', successDesc: '¡Tu registro fue exitoso! 🎉', goPanel: 'Ir al panel de tienda', createSpot: 'Crear tu primer spot', termsError: 'Por favor acepta los Términos de uso y la Política de privacidad.', duplicateError: 'Ya existe un registro de tienda con este correo electrónico.', genericError: 'Se produjo un error durante el registro.', shopExists: 'Ya tienes una tienda. Redirigiendo a tu panel.' },
+  ru: { heroTitle: 'Для вашего бизнеса', heroBadge: '🎯 Полностью бесплатно - Неограниченное создание спотов', feat1Title: 'Тысячи потенциальных клиентов', feat1: 'Ищущие клиенты находят вас напрямую', feat2Title: 'Мгновенное уведомление', feat2: 'Получать уведомления немедленно', feat3Title: 'Увеличить продажи', feat3: 'Продавать целевым клиентам', formTitleNew: 'Бесплатная регистрация магазина', formTitleEdit: 'Обновить информацию', formSubNew: 'Заполните форму, откройте магазин за 2 минуты', formSubEdit: 'Обновите информацию о магазине', loginRequired: 'Требуется вход', loginDesc: 'Вы должны войти для регистрации магазина.', loginBtn: 'Войти / Зарегистрироваться', skipBtn: 'Пропустить сейчас', loggedIn: 'Вошли', businessInfo: '🏪 Информация о бизнесе', shopName: 'Название компании *', shopNamePlaceholder: 'напр. Ретро магазин', shopNameHint: 'Название, которое увидят клиенты', ownerName: 'Контактное лицо *', ownerNameHint: 'Требуется для связи', email: 'Адрес электронной почты *', emailHint: 'Для подтверждения и уведомлений', phone: 'Телефон *', phoneHint: 'Номер, который могут позвонить клиенты', city: 'Город *', cityPlaceholder: 'Выберите город', cityHint: 'Город вашего бизнеса', bizType: 'Тип бизнеса *', addressInfo: '📍 Информация об адресе', address: 'Адрес', addressHint: 'Полный адрес', website: 'Веб-сайт (если есть)', descSection: '📝 Описание бизнеса', descLabel: 'Краткое представление *', descHint: 'Клиенты увидят это описание.', spotsSection: '📊 Предполагаемая активность', spotsLabel: 'Сколько спотов вы планируете создавать в месяц? *', termsSection: '📜 Условия и согласия', acceptTerms: 'Я прочитал и принимаю Условия использования', acceptPrivacy: 'Я прочитал и принимаю Политику конфиденциальности', acceptMarketing: 'Я хочу получать новости и информацию о кампаниях', submitBtn: 'Завершить регистрацию', updateBtn: 'Обновить информацию', successTitleNew: 'Регистрация магазина получена!', successTitleEdit: 'Информация о магазине обновлена!', successDesc: 'регистрация прошла успешно! 🎉', goPanel: 'Перейти на панель магазина', createSpot: 'Создать первый спот', termsError: 'Пожалуйста, примите Условия использования и Политику конфиденциальности.', duplicateError: 'Регистрация с этим email уже существует.', genericError: 'Произошла ошибка при регистрации.', shopExists: 'У вас уже есть магазин. Перенаправление на панель.' },
+} as const
 
 interface ShopFormData {
   shopName: string
@@ -27,6 +37,8 @@ export default function ForBusinessPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const editMode = searchParams.get('edit') === 'true'
+  const locale = useCurrentLocale()
+  const t = fbText[locale as keyof typeof fbText] ?? fbText.tr
   
   const [formData, setFormData] = useState<ShopFormData>({
     shopName: '',
@@ -150,12 +162,12 @@ export default function ForBusinessPage() {
     } catch (error: any) {
       console.error('Mağaza kaydı hatası:', error)
       
-      let errorMessage = 'Kayıt sırasında bir hata oluştu. Lütfen tekrar deneyin.'
+      let errorMessage: string = t.genericError
       
       if (error.message?.includes('unique constraint')) {
-        errorMessage = 'Bu email adresiyle zaten bir mağaza kaydı bulunmaktadır.'
+        errorMessage = t.duplicateError
       } else if (error.message?.includes('foreign key constraint')) {
-        errorMessage = 'Kullanıcı bulunamadı. Lütfen tekrar giriş yapın.'
+        errorMessage = t.genericError
       }
       
       alert(errorMessage)
@@ -166,7 +178,7 @@ export default function ForBusinessPage() {
 
   const handleFormSubmit = async () => {
     if (!formData.acceptTerms || !formData.acceptPrivacy) {
-      alert('Lütfen Kullanım Koşulları ve Gizlilik Politikasını kabul edin.')
+      alert(t.termsError)
       return
     }
 
@@ -226,7 +238,7 @@ export default function ForBusinessPage() {
           .single()
         
         if (existing) {
-          alert('Zaten bir mağazanız var. Mağaza panelinize yönlendiriliyorsunuz.')
+          alert(t.shopExists)
           router.push(`/shop/dashboard`)
           return
         }
@@ -281,13 +293,11 @@ export default function ForBusinessPage() {
             </div>
             
             <h1 className="text-3xl font-bold text-gray-900 mb-4">
-              {editMode ? 'Mağaza Bilgileriniz Güncellendi!' : 'Mağaza Kaydınız Alındı!'}
+              {editMode ? t.successTitleEdit : t.successTitleNew}
             </h1>
             
             <p className="text-gray-600 mb-8">
-              <strong>{formData.shopName}</strong> mağazanız için {editMode ? 'bilgileriniz güncellendi' : 'kaydınız başarıyla alındı'}! 🎉
-              <br />
-              {!editMode && `Onay email'i ${formData.email} adresinize gönderildi.`}
+              <strong>{formData.shopName}</strong> {t.successDesc}
             </p>
             
             <div className="space-y-4">
@@ -295,14 +305,14 @@ export default function ForBusinessPage() {
                 onClick={() => router.push('/shop/dashboard')}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-8 rounded-xl text-lg"
               >
-                Mağaza Paneline Git
+                {t.goPanel}
               </button>
               
               <button
                 onClick={() => router.push('/create-spot')}
                 className="w-full bg-white hover:bg-gray-50 text-blue-600 border-2 border-blue-600 font-bold py-4 px-8 rounded-xl text-lg"
               >
-                İlk Spot'unu Oluştur
+                {t.createSpot}
               </button>
               
               <button
@@ -329,35 +339,30 @@ export default function ForBusinessPage() {
         {/* Hero Section */}
         <div className="text-center mb-12 md:mb-16">
           <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-            İşletmeniz İçin <span className="text-blue-600">SpotItForMe</span>
+            {t.heroTitle} <span className="text-blue-600">SpotItForMe</span>
           </h1>
           
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
-            Müşterilerinizin aradığı ürünleri sizde olduğunu anında bildirin, 
-            satışlarınızı artırın ve sadık müşteriler kazanın.
-          </p>
-          
           <div className="inline-flex items-center bg-blue-50 text-blue-700 px-4 py-2 rounded-full text-sm font-medium mb-6">
-            🎯 Tamamen Ücretsiz - Sınırsız Spot Oluşturma
+            {t.heroBadge}
           </div>
           
           <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
               <div className="text-3xl mb-4">👁️</div>
-              <h3 className="font-bold text-gray-900 mb-2">Binlerce Potansiyel Müşteri</h3>
-              <p className="text-gray-600 text-sm">Arayan müşteriler doğrudan size ulaşsın</p>
+              <h3 className="font-bold text-gray-900 mb-2">{t.feat1Title}</h3>
+              <p className="text-gray-600 text-sm">{t.feat1}</p>
             </div>
             
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
               <div className="text-3xl mb-4">⚡</div>
-              <h3 className="font-bold text-gray-900 mb-2">Anında Bildirim</h3>
-              <p className="text-gray-600 text-sm">Müşteri aradığında hemen haberdar olun</p>
+              <h3 className="font-bold text-gray-900 mb-2">{t.feat2Title}</h3>
+              <p className="text-gray-600 text-sm">{t.feat2}</p>
             </div>
             
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
               <div className="text-3xl mb-4">📈</div>
-              <h3 className="font-bold text-gray-900 mb-2">Satışları Artırın</h3>
-              <p className="text-gray-600 text-sm">Hedefli müşterilerle satış yapın</p>
+              <h3 className="font-bold text-gray-900 mb-2">{t.feat3Title}</h3>
+              <p className="text-gray-600 text-sm">{t.feat3}</p>
             </div>
           </div>
         </div>
@@ -368,12 +373,10 @@ export default function ForBusinessPage() {
             {/* Form Header */}
             <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-8">
               <h2 className="text-3xl font-bold mb-2">
-                {editMode ? 'Mağaza Bilgilerini Güncelle' : 'Ücretsiz Mağaza Kaydı'}
+                {editMode ? t.formTitleEdit : t.formTitleNew}
               </h2>
               <p className="opacity-90">
-                {editMode 
-                  ? 'Mağaza bilgilerinizi güncelleyin' 
-                  : 'Formu doldurun, 2 dakikada mağazanızı açın'}
+                {editMode ? t.formSubEdit : t.formSubNew}
               </p>
             </div>
 
@@ -383,9 +386,9 @@ export default function ForBusinessPage() {
                 <div className="flex items-center">
                   <div className="text-2xl mr-4">🔒</div>
                   <div>
-                    <h3 className="font-bold text-gray-900 mb-1">Giriş Yapmanız Gerekiyor</h3>
+                    <h3 className="font-bold text-gray-900 mb-1">{t.loginRequired}</h3>
                     <p className="text-gray-600 text-sm">
-                      Mağaza kaydı için önce giriş yapmalısınız. Hesabınız yoksa 30 saniyede oluşturabilirsiniz.
+                      {t.loginDesc}
                     </p>
                   </div>
                 </div>
@@ -398,14 +401,14 @@ export default function ForBusinessPage() {
                     }}
                     className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg"
                   >
-                    Giriş Yap / Kayıt Ol
+                    {t.loginBtn}
                   </button>
                   
                   <button
                     onClick={handleSkipForNow}
                     className="bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-3 px-6 rounded-lg"
                   >
-                    Şimdilik Atla
+                    {t.skipBtn}
                   </button>
                 </div>
               </div>
@@ -416,7 +419,7 @@ export default function ForBusinessPage() {
                 <div className="flex items-center">
                   <div className="text-2xl mr-4">✅</div>
                   <div>
-                    <h3 className="font-bold text-gray-900 mb-1">Giriş Yapıldı</h3>
+                    <h3 className="font-bold text-gray-900 mb-1">{t.loggedIn}</h3>
                     <p className="text-gray-600 text-sm">
                       {user.email} olarak giriş yaptınız. Mağaza kaydına devam edebilirsiniz.
                     </p>
@@ -431,13 +434,13 @@ export default function ForBusinessPage() {
                 {/* İşletme Bilgileri */}
                 <div>
                   <h3 className="text-xl font-bold text-gray-900 mb-6 pb-3 border-b">
-                    <span className="text-blue-600">🏪</span> İşletme Bilgileri
+                    {t.businessInfo}
                   </h3>
                   
                   <div className="grid md:grid-cols-2 gap-6">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        İşletme Adı *
+                        {t.shopName}
                       </label>
                       <input
                         type="text"
@@ -453,7 +456,7 @@ export default function ForBusinessPage() {
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Yetkili Kişi Adı *
+                        {t.ownerName}
                       </label>
                       <input
                         type="text"
@@ -469,7 +472,7 @@ export default function ForBusinessPage() {
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Email Adresi *
+                        {t.email}
                       </label>
                       <input
                         type="email"
@@ -485,7 +488,7 @@ export default function ForBusinessPage() {
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Telefon *
+                        {t.phone}
                       </label>
                       <input
                         type="tel"
@@ -501,7 +504,7 @@ export default function ForBusinessPage() {
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Şehir *
+                        {t.city}
                       </label>
                       <select
                         value={formData.city}
@@ -510,7 +513,7 @@ export default function ForBusinessPage() {
                         required
                         disabled={!user && !editMode}
                       >
-                        <option value="">Şehir seçin</option>
+                        <option value="">{t.cityPlaceholder}</option>
                         {cities.map(city => (
                           <option key={city} value={city}>{city}</option>
                         ))}
@@ -520,7 +523,7 @@ export default function ForBusinessPage() {
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        İşletme Türü *
+                        {t.bizType}
                       </label>
                       <select
                         value={formData.businessType}
@@ -544,7 +547,7 @@ export default function ForBusinessPage() {
                 {/* Adres */}
                 <div>
                   <h3 className="text-xl font-bold text-gray-900 mb-4">
-                    <span className="text-blue-600">📍</span> Adres Bilgileri
+                    {t.addressInfo}
                   </h3>
                   
                   <div className="mb-4">
@@ -564,7 +567,7 @@ export default function ForBusinessPage() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Website (varsa)
+                        {t.website}
                     </label>
                     <input
                       type="url"
@@ -581,12 +584,12 @@ export default function ForBusinessPage() {
                 {/* Açıklama */}
                 <div>
                   <h3 className="text-xl font-bold text-gray-900 mb-4">
-                    <span className="text-blue-600">📝</span> İşletme Açıklaması
+                    {t.descSection}
                   </h3>
                   
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Kısa Tanıtım *
+                        {t.descLabel}
                     </label>
                     <textarea
                       required
@@ -606,12 +609,12 @@ export default function ForBusinessPage() {
                 {/* Tahmini Spot Sayısı */}
                 <div>
                   <h3 className="text-xl font-bold text-gray-900 mb-4">
-                    <span className="text-blue-600">📊</span> Tahmini Aktivite
+                    {t.spotsSection}
                   </h3>
                   
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-4">
-                      Ayda kaç spot oluşturmayı planlıyorsunuz? *
+                        {t.spotsLabel}
                     </label>
                     <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                       {spotRanges.map(range => (
@@ -647,7 +650,7 @@ export default function ForBusinessPage() {
                 {/* Koşullar */}
                 <div>
                   <h3 className="text-xl font-bold text-gray-900 mb-4">
-                    <span className="text-blue-600">📜</span> Koşullar ve Onaylar
+                    {t.termsSection}
                   </h3>
                   
                   <div className="space-y-4">
@@ -666,8 +669,8 @@ export default function ForBusinessPage() {
                           target="_blank"
                           className="text-blue-600 hover:text-blue-800 font-medium"
                         >
-                          SpotItForMe Kullanım Koşulları
-                        </a>'nı okudum ve kabul ediyorum. *
+                          SpotItForMe
+                        </a>{' '}{t.acceptTerms} *
                       </span>
                     </label>
                     
@@ -686,8 +689,8 @@ export default function ForBusinessPage() {
                           target="_blank"
                           className="text-blue-600 hover:text-blue-800 font-medium"
                         >
-                          SpotItForMe Gizlilik Politikası
-                        </a>'nı okudum ve kabul ediyorum. *
+                          SpotItForMe
+                        </a>{' '}{t.acceptPrivacy} *
                       </span>
                     </label>
                     
@@ -700,8 +703,7 @@ export default function ForBusinessPage() {
                         disabled={!user && !editMode}
                       />
                       <span className="text-sm">
-                        SpotItForMe'den kampanyalar, indirimler ve güncellemeler hakkında 
-                        email almak istiyorum. (İsteğe bağlı)
+                        {t.acceptMarketing}
                       </span>
                     </label>
                   </div>
@@ -721,14 +723,14 @@ export default function ForBusinessPage() {
                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                           </svg>
-                          {editMode ? 'Güncelleniyor...' : 'Kaydediliyor...'}
+                          {editMode ? 'Güncelleniyor...' : locale === 'tr' ? 'Kaydediliyor...' : '...'}
                         </span>
                       ) : editMode ? (
-                        'Mağaza Bilgilerini Güncelle'
+                        t.updateBtn
                       ) : user ? (
-                        'Ücretsiz Mağaza Aç'
+                        t.submitBtn
                       ) : (
-                        'Önce Giriş Yapın'
+                        t.loginBtn
                       )}
                     </button>
                     

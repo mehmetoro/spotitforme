@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useCurrentLocale } from '@/hooks/useCurrentLocale';
 
 function formatNumber(n: number | null | undefined) {
   if (n == null) return '-';
@@ -10,6 +11,19 @@ function formatNumber(n: number | null | undefined) {
 }
 
 export default function Stats() {
+  const locale = useCurrentLocale();
+  const t = {
+    loadError: locale === 'tr' ? 'Istatistikler yuklenemedi' : locale === 'en' ? 'Failed to load statistics' : locale === 'de' ? 'Statistiken konnten nicht geladen werden' : locale === 'fr' ? 'Echec du chargement des statistiques' : locale === 'es' ? 'No se pudieron cargar las estadisticas' : 'Ne udalos zagruzit statistiku',
+    title: locale === 'tr' ? 'SpotItForMe Istatistikleri' : locale === 'en' ? 'SpotItForMe Statistics' : locale === 'de' ? 'SpotItForMe Statistiken' : locale === 'fr' ? 'Statistiques SpotItForMe' : locale === 'es' ? 'Estadisticas de SpotItForMe' : 'Statistika SpotItForMe',
+    subtitle: locale === 'tr' ? 'Turkiye\'nin en buyuk kayip urun bulma toplulugu olarak her gun binlerce kisiye yardim ediyoruz' : locale === 'en' ? 'As Turkey\'s largest community for finding hard-to-find items, we help thousands every day.' : locale === 'de' ? 'Als grosste Community der Turkei fur schwer auffindbare Produkte helfen wir taglich Tausenden.' : locale === 'fr' ? 'En tant que plus grande communaute de Turquie pour trouver des objets rares, nous aidons des milliers de personnes chaque jour.' : locale === 'es' ? 'Como la comunidad mas grande de Turquia para encontrar productos dificiles de hallar, ayudamos a miles cada dia.' : 'Kak krupneysheye soobshchestvo Turtsii po poisku redkikh tovarov, my kazhdyy den pomogayem tysyacham lyudey.',
+    activeSpot: locale === 'tr' ? 'Aktif Spot' : locale === 'en' ? 'Active Spots' : locale === 'de' ? 'Aktive Spots' : locale === 'fr' ? 'Spots actifs' : locale === 'es' ? 'Spots activos' : 'Aktivnye spoty',
+    members: locale === 'tr' ? 'Topluluk Uyesi' : locale === 'en' ? 'Community Members' : locale === 'de' ? 'Community-Mitglieder' : locale === 'fr' ? 'Membres de la communaute' : locale === 'es' ? 'Miembros de la comunidad' : 'Uchastniki soobshchestva',
+    helped: locale === 'tr' ? 'Yardim Edilen Spot' : locale === 'en' ? 'Helped Spots' : locale === 'de' ? 'Unterstutzte Spots' : locale === 'fr' ? 'Spots aides' : locale === 'es' ? 'Spots ayudados' : 'Spoty s pomoshchyu',
+    city: locale === 'tr' ? 'Sehir' : locale === 'en' ? 'Cities' : locale === 'de' ? 'Stadte' : locale === 'fr' ? 'Villes' : locale === 'es' ? 'Ciudades' : 'Goroda',
+    liveTitle: locale === 'tr' ? 'Su Anda Aktif Aramalar' : locale === 'en' ? 'Live Active Searches' : locale === 'de' ? 'Aktive Suchen jetzt' : locale === 'fr' ? 'Recherches actives en ce moment' : locale === 'es' ? 'Busquedas activas ahora' : 'Aktivnye poiski seychas',
+    liveWaiting: (n: string) => locale === 'tr' ? `${n} su anda toplulugumuzdan yardim bekliyor` : locale === 'en' ? `${n} are currently waiting for help from our community` : locale === 'de' ? `${n} warten derzeit auf Hilfe aus der Community` : locale === 'fr' ? `${n} attendent actuellement l'aide de notre communaute` : locale === 'es' ? `${n} estan esperando ayuda de nuestra comunidad` : `${n} seychas zhdu t pomoshch ot soobshchestva`,
+    moreHelping: locale === 'tr' ? '+ daha fazlasi yardim ediyor' : locale === 'en' ? '+ more are helping' : locale === 'de' ? '+ weitere helfen mit' : locale === 'fr' ? '+ encore plus aident' : locale === 'es' ? '+ mas personas ayudan' : '+ eshche bolshe pomogayut',
+  };
   console.log("Stats bileşeni render oldu");
     // Supabase sorgu sonuçlarını doğrudan logla
     // useEffect dışında, render sırasında undefined olur ama useEffect içinde tekrar loglanacak
@@ -121,7 +135,7 @@ export default function Stats() {
           activeSearchers: activeSpotsCount || 0,
         });
       } catch (e: any) {
-        setError('İstatistikler yüklenemedi');
+        setError(t.loadError);
       } finally {
         setLoading(false);
       }
@@ -130,10 +144,10 @@ export default function Stats() {
   }, []);
 
   const statList = [
-    { value: formatNumber(stats.activeSpots), label: 'Aktif Spot', icon: '📝', color: 'from-blue-500 to-blue-600' },
-    { value: formatNumber(stats.userCount), label: 'Topluluk Üyesi', icon: '👥', color: 'from-purple-500 to-purple-600' },
-    { value: formatNumber(stats.helpedSpots), label: 'Yardım Edilen Spot', icon: '🤝', color: 'from-green-500 to-green-600' },
-    { value: formatNumber(stats.cityCount), label: 'Şehir', icon: '📍', color: 'from-orange-500 to-orange-600' },
+    { value: formatNumber(stats.activeSpots), label: t.activeSpot, icon: '📝', color: 'from-blue-500 to-blue-600' },
+    { value: formatNumber(stats.userCount), label: t.members, icon: '👥', color: 'from-purple-500 to-purple-600' },
+    { value: formatNumber(stats.helpedSpots), label: t.helped, icon: '🤝', color: 'from-green-500 to-green-600' },
+    { value: formatNumber(stats.cityCount), label: t.city, icon: '📍', color: 'from-orange-500 to-orange-600' },
   ];
 
   return (
@@ -141,10 +155,10 @@ export default function Stats() {
       <div className="container-custom">
         <div className="text-center mb-12">
           <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-            SpotItForMe İstatistikleri
+            {t.title}
           </h2>
           <p className="text-gray-600 max-w-2xl mx-auto">
-            Türkiye'nin en büyük kayıp ürün bulma topluluğu olarak her gün binlerce kişiye yardım ediyoruz
+            {t.subtitle}
           </p>
         </div>
 
@@ -181,9 +195,9 @@ export default function Stats() {
         <div className="mt-12 bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-8 border border-blue-100">
           <div className="flex flex-col md:flex-row items-center justify-between">
             <div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">🎯 Şu Anda Aktif Aramalar</h3>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">🎯 {t.liveTitle}</h3>
               <p className="text-gray-600">
-                <span className="font-bold text-blue-600">{loading ? '...' : formatNumber(stats.activeSearchers) + ' kişi'}</span> şu anda topluluğumuzdan yardım bekliyor
+                <span className="font-bold text-blue-600">{loading ? '...' : t.liveWaiting(formatNumber(stats.activeSearchers))}</span>
               </p>
             </div>
             <div className="mt-4 md:mt-0">
@@ -196,7 +210,7 @@ export default function Stats() {
                     />
                   ))}
                 </div>
-                <span className="text-sm text-gray-600">+ daha fazlası yardım ediyor</span>
+                <span className="text-sm text-gray-600">{t.moreHelping}</span>
               </div>
             </div>
           </div>

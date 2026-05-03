@@ -16,7 +16,8 @@ export default function SuggestedUsers() {
   const fetchSuggestedUsers = async () => {
     try {
       // Mevcut kullanıcıyı al
-      const { data: { user } } = await supabase.auth.getUser()
+      const { data: { session } } = await supabase.auth.getSession()
+      const user = session?.user ?? null
       if (!user) {
         setUsers([])
         return
@@ -70,7 +71,8 @@ export default function SuggestedUsers() {
 
   const handleFollow = async (userId: string, currentlyFollowing: boolean) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
+      const { data: { session } } = await supabase.auth.getSession()
+      const user = session?.user ?? null
       if (!user) return
 
       if (currentlyFollowing) {

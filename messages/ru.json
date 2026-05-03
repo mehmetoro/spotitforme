@@ -1,0 +1,20 @@
+{
+  "common": {
+    "appName": "SpotItForMe",
+    "language": "Yazyk",
+    "save": "Sohranit"
+  },
+  "nav": {
+    "home": "Glavnaya",
+    "spots": "Spoty",
+    "createSpot": "Sozdat spot"
+  },
+  "home": {
+    "title": "Nahodite redkie tovary s soobshchestvom",
+    "subtitle": "Delites, otkryvayte, pomogayte"
+  },
+  "createSpot": {
+    "title": "Sozdat novyy spot",
+    "description": "Podelites s soobshchestvom tem, chto vy ishchete."
+  }
+}

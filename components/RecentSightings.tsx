@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase' // ESKİ VERSİYONU KULLAN
 import { MapPin, Camera, Award } from 'lucide-react'
+import { useCurrentLocale } from '@/hooks/useCurrentLocale'
 
 interface RecentSightingsProps {
   initialSightings?: any[] // Opsiyonel: Server'dan gelebilir
@@ -12,15 +13,27 @@ interface RecentSightingsProps {
 
 export default function RecentSightings({ initialSightings = [] }: RecentSightingsProps) {
   const router = useRouter()
+  const locale = useCurrentLocale()
+  const t = {
+    title: locale === 'tr' ? 'Son Gorulenler' : locale === 'en' ? 'Recent Sightings' : locale === 'de' ? 'Zuletzt gesichtet' : locale === 'fr' ? 'Recemment apercus' : locale === 'es' ? 'Vistos recientemente' : 'Nedavno zametili',
+    subtitle: locale === 'tr' ? 'Toplulugumuzun en son gordugu nadir urunler' : locale === 'en' ? 'Rare items recently spotted by our community' : locale === 'de' ? 'Seltene Artikel, die die Community zuletzt gesehen hat' : locale === 'fr' ? 'Objets rares recemment repares par la communaute' : locale === 'es' ? 'Objetos raros vistos recientemente por la comunidad' : 'Redkiye tovary, nedavno zamechennye soobshchestvom',
+    photoMissing: locale === 'tr' ? 'Fotograf Yok' : locale === 'en' ? 'No Photo' : locale === 'de' ? 'Kein Foto' : locale === 'fr' ? 'Pas de photo' : locale === 'es' ? 'Sin foto' : 'Net foto',
+    user: locale === 'tr' ? 'Kullanici' : locale === 'en' ? 'User' : locale === 'de' ? 'Benutzer' : locale === 'fr' ? 'Utilisateur' : locale === 'es' ? 'Usuario' : 'Polzovatel',
+    detail: locale === 'tr' ? 'Detay' : locale === 'en' ? 'Details' : locale === 'de' ? 'Details' : locale === 'fr' ? 'Details' : locale === 'es' ? 'Detalle' : 'Detal',
+    showLess: locale === 'tr' ? 'Daha Az Goster' : locale === 'en' ? 'Show Less' : locale === 'de' ? 'Weniger anzeigen' : locale === 'fr' ? 'Afficher moins' : locale === 'es' ? 'Mostrar menos' : 'Pokazat menshe',
+    showAll: (n: number) => locale === 'tr' ? `Tumunu Gor (${n})` : locale === 'en' ? `See All (${n})` : locale === 'de' ? `Alle anzeigen (${n})` : locale === 'fr' ? `Voir tout (${n})` : locale === 'es' ? `Ver todo (${n})` : `Smotret vse (${n})`,
+    ctaTitle: locale === 'tr' ? 'Bu urunlerden birini siz de mi ariyorsunuz?' : locale === 'en' ? 'Looking for one of these items too?' : locale === 'de' ? 'Suchen Sie auch nach einem dieser Produkte?' : locale === 'fr' ? 'Vous cherchez aussi un de ces objets ?' : locale === 'es' ? 'Tambien buscas uno de estos productos?' : 'Vy tozhe ishchete odin iz etikh tovarov?',
+    ctaDesc: locale === 'tr' ? 'Ben de ariyorum deyin, spot olusturalim ve bulalim!' : locale === 'en' ? 'Say I am looking too, create a spot and let the community help!' : locale === 'de' ? 'Sag auch ich suche, erstelle einen Spot und lass die Community helfen!' : locale === 'fr' ? 'Dites moi aussi je cherche, creez un spot et laissez la communaute aider !' : locale === 'es' ? 'Di yo tambien busco, crea un spot y deja que la comunidad ayude!' : 'Skazhite ya tozhe ishchu, sozdadim spot i naydem vmeste!',
+    createSpot: locale === 'tr' ? 'Spot Olustur' : locale === 'en' ? 'Create Spot' : locale === 'de' ? 'Spot erstellen' : locale === 'fr' ? 'Creer un spot' : locale === 'es' ? 'Crear spot' : 'Sozdat spot',
+    allSightings: locale === 'tr' ? 'Tum Gorulenleri Incele' : locale === 'en' ? 'Explore All Sightings' : locale === 'de' ? 'Alle Sichtungen ansehen' : locale === 'fr' ? 'Voir tous les apercus' : locale === 'es' ? 'Ver todos los avistamientos' : 'Smotret vse nablyudeniya',
+  }
   const [sightings, setSightings] = useState<any[]>(initialSightings)
   const [loading, setLoading] = useState(!initialSightings.length)
   const [showAll, setShowAll] = useState(false)
 
   useEffect(() => {
-    if (!initialSightings.length) {
-      fetchSightings()
-    }
-  }, [])
+    fetchSightings()
+  }, [locale])
 
   const fetchSightings = async () => {
     try {
@@ -33,8 +46,39 @@ export default function RecentSightings({ initialSightings = [] }: RecentSightin
         .eq('status', 'active')
         .order('created_at', { ascending: false })
         .limit(6)
-      
-      setSightings(data || [])
+
+      const rows = data || []
+
+      // Çevirileri çek ve orijinal verilerin üzerine yaz
+      if (rows.length > 0) {
+        const ids = rows.map((r: any) => r.id)
+        const { data: translations } = await supabase
+          .from('quick_sighting_translations')
+          .select('quick_sighting_id, title, description')
+          .in('quick_sighting_id', ids)
+          .eq('language', locale)
+
+        if (translations && translations.length > 0) {
+          const translationMap: Record<string, { title: string; description: string }> = {}
+          translations.forEach((t: any) => {
+            translationMap[t.quick_sighting_id] = { title: t.title, description: t.description }
+          })
+
+          const merged = rows.map((r: any) => {
+            const tr = translationMap[r.id]
+            if (!tr) return r
+            return {
+              ...r,
+              title: tr.title || r.title,
+              description: tr.description || r.description,
+            }
+          })
+          setSightings(merged)
+          return
+        }
+      }
+
+      setSightings(rows)
     } catch (error) {
       console.error('Sightings yüklenemedi:', error)
     } finally {
@@ -48,7 +92,7 @@ export default function RecentSightings({ initialSightings = [] }: RecentSightin
     return (
       <section className="py-12 bg-white">
         <div className="container-custom">
-          <h2 className="text-3xl font-bold text-gray-900 mb-8">👁️ Son Görülenler</h2>
+          <h2 className="text-3xl font-bold text-gray-900 mb-8">👁️ {t.title}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {[...Array(4)].map((_, i) => (
               <div key={i} className="animate-pulse bg-gray-100 rounded-xl h-64"></div>
@@ -69,10 +113,10 @@ export default function RecentSightings({ initialSightings = [] }: RecentSightin
         <div className="flex items-center justify-between mb-8">
           <div>
             <h2 className="text-3xl font-bold text-gray-900 mb-2">
-              👁️ Son Görülenler
+              👁️ {t.title}
             </h2>
             <p className="text-gray-600">
-              Topluluğumuzun en son gördüğü nadir ürünler
+              {t.subtitle}
             </p>
           </div>
           
@@ -81,7 +125,7 @@ export default function RecentSightings({ initialSightings = [] }: RecentSightin
               onClick={() => setShowAll(!showAll)}
               className="text-blue-600 hover:text-blue-800 font-medium"
             >
-              {showAll ? 'Daha Az Göster' : `Tümünü Gör (${sightings.length})`}
+              {showAll ? t.showLess : t.showAll(sightings.length)}
             </button>
           )}
         </div>
@@ -105,7 +149,7 @@ export default function RecentSightings({ initialSightings = [] }: RecentSightin
                   <div className="w-full h-full flex items-center justify-center">
                     <div className="text-center">
                       <Camera className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-                      <p className="text-sm text-gray-500">Fotoğraf Yok</p>
+                      <p className="text-sm text-gray-500">{t.photoMissing}</p>
                     </div>
                   </div>
                 )}
@@ -138,12 +182,12 @@ export default function RecentSightings({ initialSightings = [] }: RecentSightin
                       {sighting.user?.full_name?.[0] || 'K'}
                     </div>
                     <span className="text-sm text-gray-700">
-                      {sighting.user?.full_name || 'Kullanıcı'}
+                      {sighting.user?.full_name || t.user}
                     </span>
                   </div>
                   
                   <span className="text-blue-600 text-sm font-medium">
-                    Detay →
+                    {t.detail} →
                   </span>
                 </div>
                 
@@ -163,23 +207,23 @@ export default function RecentSightings({ initialSightings = [] }: RecentSightin
         {/* Ben de arıyorum CTA */}
         <div className="mt-10 bg-gradient-to-r from-blue-50 to-blue-100 rounded-2xl p-8 text-center">
           <h3 className="text-xl font-bold text-gray-900 mb-3">
-            Bu ürünlerden birini siz de mi arıyorsunuz?
+            {t.ctaTitle}
           </h3>
           <p className="text-gray-700 mb-6">
-            "Ben de arıyorum" deyin, spot oluşturalım ve bulalım!
+            {t.ctaDesc}
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button
               onClick={() => router.push('/create-spot')}
               className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg"
             >
-              Spot Oluştur
+              {t.createSpot}
             </button>
             <button
               onClick={() => router.push('/recent-sightings')}
               className="bg-white hover:bg-gray-100 text-gray-800 font-bold py-3 px-8 rounded-lg border"
             >
-              Tüm Görülenleri İncele
+              {t.allSightings}
             </button>
           </div>
         </div>

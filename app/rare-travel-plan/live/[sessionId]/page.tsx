@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import Head from 'next/head'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
@@ -981,6 +982,25 @@ export default function LiveTravelSessionPage() {
 
       if (publishErr) throw publishErr
 
+      // Travel route ID'sini al ve çevirileri kaydet
+      const { data: routeRow } = await supabase
+        .from('travel_routes')
+        .select('id')
+        .eq('session_id', sessionId)
+        .single()
+      if (routeRow?.id && plan.title) {
+        fetch('/api/save-translations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            entity: 'travel_route',
+            recordId: routeRow.id,
+            title: plan.title,
+            sourceLanguage: 'tr',
+          }),
+        }).catch((err) => console.warn('Travel route translation error:', err))
+      }
+
       const { error: archiveErr } = await supabase
         .from('rare_travel_plans')
         .update({ is_archived: true })
@@ -1038,7 +1058,12 @@ export default function LiveTravelSessionPage() {
   const shownDuration = dynamicDurationMin ?? planResult?.meta.routeDurationMin
 
   return (
-    <section className="space-y-4 p-4 md:p-6">
+    <>
+      <Head>
+        <title>{plan.title ? `${plan.title} | Nadir Seyahat Planı` : 'Nadir Seyahat Planı'}</title>
+        <meta name="description" content={plan.title ? `${plan.title} - ${plan.from_location} → ${plan.to_location}` : 'Nadir seyahat planı detayları ve rota bilgileri.'} />
+      </Head>
+      <section className="space-y-4 p-4 md:p-6">
       <CreatePostModal
         isOpen={showTripPostModal}
         onClose={() => setShowTripPostModal(false)}
@@ -1052,9 +1077,9 @@ export default function LiveTravelSessionPage() {
       <div className="rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-pink-50 p-4 md:p-5">
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Canlı Seyahat</h1>
-            <p className="mt-1 text-sm text-gray-600">{plan.title}</p>
-            <p className="mt-2 text-xs font-semibold text-red-600">Gecen sure: {hours}h {minutes}m</p>
+            <h1 className="text-2xl font-extrabold text-gray-900">{plan.title || 'Nadir Seyahat Planı'}</h1>
+            <p className="mt-1 text-sm text-gray-600">{plan.from_location} → {plan.to_location}</p>
+            <p className="mt-2 text-xs font-semibold text-red-600">Geçen süre: {hours}h {minutes}m</p>
           </div>
           {session.status === 'active' && !isRouteReadonly && <div className="flex h-3 w-3 animate-pulse rounded-full bg-red-600" />}
         </div>
@@ -1370,6 +1395,7 @@ export default function LiveTravelSessionPage() {
           <p className="text-sm font-semibold text-red-700">{error}</p>
         </div>
       )}
-    </section>
+      </section>
+    </>
   )
 }

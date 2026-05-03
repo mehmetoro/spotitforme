@@ -367,6 +367,22 @@ export default function SightingModal({ spotId, spotTitle, onClose, onSuccess }:
       }
 
       const sightingId = finalInsertedData[0]?.id;
+
+      // Çevirileri kaydet (arka planda, hata olsa devam et)
+      if (sightingId && (formData.title || formData.notes)) {
+        fetch('/api/save-translations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            entity: 'sighting',
+            recordId: sightingId,
+            title: formData.title,
+            description: formData.notes,
+            sourceLanguage: 'tr',
+          }),
+        }).catch((err) => console.warn('Sighting translation error:', err));
+      }
+
       try {
         const { data: spotData } = await supabase
           .from('spots')

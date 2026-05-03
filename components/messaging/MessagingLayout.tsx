@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useToast } from '@/hooks/useToast'
+import { useCurrentLocale } from '@/hooks/useCurrentLocale'
 import ThreadList from './ThreadList'
 import MessageThread from './MessageThread'
 import NewMessageModal from './NewMessageModal'
@@ -41,6 +42,7 @@ export default function MessagingLayout({
   initialThreadType,
   initialDraft,
 }: MessagingLayoutProps) {
+  const locale = useCurrentLocale()
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -55,6 +57,88 @@ export default function MessagingLayout({
   
   // Realtime subscription için
   const [subscription, setSubscription] = useState<any>(null)
+
+  const t = {
+    pendingRequestInfo: {
+      tr: 'Bu kullanıcıya gönderdiğiniz talep hala onay bekliyor.',
+      en: 'Your request to this user is still pending approval.',
+      de: 'Ihre Anfrage an diesen Nutzer wartet noch auf Genehmigung.',
+      fr: 'Votre demande a cet utilisateur est toujours en attente.',
+      es: 'Tu solicitud para este usuario sigue pendiente de aprobacion.',
+      ru: 'Vash zapros etomu polzovatelyu vse eshche ozhidaet podtverzhdeniya.',
+    },
+    authFailed: {
+      tr: 'Oturum dogrulanamadi. Lutfen tekrar giris yapin.',
+      en: 'Session validation failed. Please sign in again.',
+      de: 'Sitzung konnte nicht verifiziert werden. Bitte erneut anmelden.',
+      fr: 'La session n a pas pu etre validee. Veuillez vous reconnecter.',
+      es: 'No se pudo validar la sesion. Inicia sesion de nuevo.',
+      ru: 'Ne udalos proverit sessiyu. Voydite snova.',
+    },
+    sendFailed: {
+      tr: 'Mesaj gonderilemedi. Lutfen tekrar deneyin.',
+      en: 'Message could not be sent. Please try again.',
+      de: 'Nachricht konnte nicht gesendet werden. Bitte erneut versuchen.',
+      fr: 'Le message n a pas pu etre envoye. Veuillez reessayer.',
+      es: 'No se pudo enviar el mensaje. Intentalo de nuevo.',
+      ru: 'Ne udalos otpravit soobshchenie. Poprobuyte eshche raz.',
+    },
+    autoDraft: {
+      tr: 'Merhaba, sizinle bu konu hakkinda iletisime gecmek istiyorum.',
+      en: 'Hello, I would like to contact you about this topic.',
+      de: 'Hallo, ich mochte Sie zu diesem Thema kontaktieren.',
+      fr: 'Bonjour, je souhaite vous contacter a ce sujet.',
+      es: 'Hola, me gustaria contactarte sobre este tema.',
+      ru: 'Privet, ya khochu svyazatsya s vami po etomu voprosu.',
+    },
+    confirmDelete: {
+      tr: 'Bu konusmayi silmek istediginize emin misiniz?',
+      en: 'Are you sure you want to delete this conversation?',
+      de: 'Mochten Sie diese Unterhaltung wirklich loschen?',
+      fr: 'Voulez-vous vraiment supprimer cette conversation ?',
+      es: 'Seguro que quieres eliminar esta conversacion?',
+      ru: 'Vy uvereny, chto khotite udalit etot chat?',
+    },
+    deleteFailed: {
+      tr: 'Konusma silinemedi.',
+      en: 'Conversation could not be deleted.',
+      de: 'Unterhaltung konnte nicht geloscht werden.',
+      fr: 'La conversation n a pas pu etre supprimee.',
+      es: 'No se pudo eliminar la conversacion.',
+      ru: 'Ne udalos udalit chat.',
+    },
+    messagesTitle: { tr: 'Mesajlar', en: 'Messages', de: 'Nachrichten', fr: 'Messages', es: 'Mensajes', ru: 'Soobshcheniya' },
+    newMessage: { tr: 'Yeni mesaj', en: 'New message', de: 'Neue Nachricht', fr: 'Nouveau message', es: 'Nuevo mensaje', ru: 'Novoe soobshchenie' },
+    noAccessTitle: {
+      tr: 'Bu konusmaya erisiminiz yok veya konusma bulunamadi.',
+      en: 'You do not have access to this conversation or it was not found.',
+      de: 'Sie haben keinen Zugriff auf diese Unterhaltung oder sie wurde nicht gefunden.',
+      fr: 'Vous n avez pas acces a cette conversation ou elle est introuvable.',
+      es: 'No tienes acceso a esta conversacion o no se encontro.',
+      ru: 'U vas net dostupa k etomu chatu ili on ne nayden.',
+    },
+    noAccessBody: {
+      tr: 'Erisim izniniz olmayan veya silinmis bir konusmayi acmaya calisiyor olabilirsiniz.',
+      en: 'You may be trying to open a deleted conversation or one you cannot access.',
+      de: 'Sie versuchen moglicherweise, eine geloschte oder nicht zugangliche Unterhaltung zu offnen.',
+      fr: 'Vous essayez peut-etre d ouvrir une conversation supprimee ou non autorisee.',
+      es: 'Puede que estes intentando abrir una conversacion eliminada o sin permiso.',
+      ru: 'Vozmozhno, vy pytaetes otkryt udalennyy chat ili chat bez prav dostupa.',
+    },
+    backToList: { tr: 'Konusma Listesine Don', en: 'Back to Conversation List', de: 'Zuruck zur Liste', fr: 'Retour a la liste', es: 'Volver a la lista', ru: 'Nazad k spisku' },
+    pickConversation: { tr: 'Bir konusma secin', en: 'Select a conversation', de: 'Wahlen Sie eine Unterhaltung', fr: 'Selectionnez une conversation', es: 'Selecciona una conversacion', ru: 'Vyberite chat' },
+    pickConversationBody: {
+      tr: 'Mevcut konusmalarinizi soldan secebilir veya yeni bir mesaj baslatabilirsiniz.',
+      en: 'Pick an existing conversation from the left or start a new message.',
+      de: 'Wahlen Sie links eine Unterhaltung oder starten Sie eine neue Nachricht.',
+      fr: 'Choisissez une conversation a gauche ou demarrez un nouveau message.',
+      es: 'Elige una conversacion a la izquierda o inicia un nuevo mensaje.',
+      ru: 'Vyberite sushchestvuyushchiy chat sleva ili nachnite novoe soobshchenie.',
+    },
+    startNewMessage: { tr: 'Yeni Mesaj Baslat', en: 'Start New Message', de: 'Neue Nachricht starten', fr: 'Demarrer un nouveau message', es: 'Iniciar nuevo mensaje', ru: 'Nachat novoe soobshchenie' },
+  } as const
+
+  const trText = <K extends keyof typeof t>(key: K) => t[key][locale] ?? t[key].tr
 
   useEffect(() => {
     fetchThreads()
@@ -156,7 +240,7 @@ export default function MessagingLayout({
           window.history.replaceState({}, '', nextUrl)
         }
         if (data.request_status === 'pending' && data.request_initiator_id === userId) {
-          toast.info('Bu kullanıcıya gönderdiğiniz talep hâlâ onay bekliyor.', 6000)
+          toast.info(trText('pendingRequestInfo'), 6000)
         }
         return true
       }
@@ -185,8 +269,8 @@ export default function MessagingLayout({
           
           // Bildirim göster (native browser notification)
           if (Notification.permission === 'granted') {
-            new Notification('Yeni Mesaj', {
-              body: payload.new.content?.substring(0, 50) || 'Yeni mesajınız var',
+            new Notification(trText('messagesTitle'), {
+              body: payload.new.content?.substring(0, 50) || trText('newMessage'),
               icon: '/logo.png'
             })
           }
@@ -217,7 +301,7 @@ export default function MessagingLayout({
       }
 
       if (!accessToken) {
-        toast.error('Oturum doğrulanamadı. Lütfen tekrar giriş yapın.')
+        toast.error(trText('authFailed'))
         return false
       }
 
@@ -242,7 +326,7 @@ export default function MessagingLayout({
       }
 
       if (!response.ok) {
-        toast.error(result?.error || 'Mesaj gönderilemedi. Lütfen tekrar deneyin.')
+        toast.error(result?.error || trText('sendFailed'))
         return false
       }
 
@@ -281,7 +365,7 @@ export default function MessagingLayout({
       return true
     } catch (error) {
       console.error('Mesaj gönderme hatası:', error)
-      toast.error('Mesaj gönderilemedi. Lütfen tekrar deneyin.')
+      toast.error(trText('sendFailed'))
       return false
     } finally {
       requestInFlightRef.current = false
@@ -319,7 +403,7 @@ export default function MessagingLayout({
     if (initialThreadId) return
     if (!initialReceiverId) return
 
-    const draft = initialDraft?.trim() || 'Merhaba, sizinle bu konu hakkında iletişime geçmek istiyorum.'
+    const draft = initialDraft?.trim() || trText('autoDraft')
     const threadType = initialThreadType || 'help'
     const autoGuardKey = `messages:auto-request:${initialReceiverId}:${threadType}:${draft}`
 
@@ -364,7 +448,7 @@ export default function MessagingLayout({
   ])
 
   const handleDeleteThread = async (threadId: string) => {
-    if (!confirm('Bu konuşmayı silmek istediğinize emin misiniz?')) return
+    if (!confirm(trText('confirmDelete'))) return
 
     try {
       const { error } = await supabase
@@ -384,7 +468,7 @@ export default function MessagingLayout({
 
     } catch (error) {
       console.error('Thread silme hatası:', error)
-      toast.error('Konuşma silinemedi.')
+      toast.error(trText('deleteFailed'))
     }
   }
 
@@ -394,7 +478,7 @@ export default function MessagingLayout({
       <div className={`w-full md:w-96 border-r border-gray-200 flex-col ${selectedThread ? 'hidden md:flex' : 'flex'}`}>
         <div className="p-4 border-b">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-gray-900">Mesajlar</h2>
+            <h2 className="text-xl font-bold text-gray-900">{trText('messagesTitle')}</h2>
             <div className="flex items-center space-x-2">
               {unreadCount > 0 && (
                 <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full">
@@ -404,7 +488,7 @@ export default function MessagingLayout({
               <button
                 onClick={() => setShowNewMessageModal(true)}
                 className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-lg"
-                title="Yeni mesaj"
+                title={trText('newMessage')}
               >
                 +
               </button>
@@ -439,13 +523,13 @@ export default function MessagingLayout({
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
               <div className="text-4xl mb-4">❌</div>
-              <h3 className="text-lg font-medium text-red-700 mb-2">Bu konuşmaya erişiminiz yok veya konuşma bulunamadı.</h3>
-              <p className="text-gray-600">Erişim izniniz olmayan veya silinmiş bir konuşmayı açmaya çalışıyor olabilirsiniz.</p>
+              <h3 className="text-lg font-medium text-red-700 mb-2">{trText('noAccessTitle')}</h3>
+              <p className="text-gray-600">{trText('noAccessBody')}</p>
               <button
                 onClick={() => setSelectedThread(null)}
                 className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
               >
-                Konuşma Listesine Dön
+                {trText('backToList')}
               </button>
             </div>
           )
@@ -453,16 +537,16 @@ export default function MessagingLayout({
           <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
             <div className="text-4xl mb-4">💬</div>
             <h3 className="text-xl font-bold text-gray-900 mb-2">
-              Bir konuşma seçin
+              {trText('pickConversation')}
             </h3>
             <p className="text-gray-600 mb-6 max-w-md">
-              Mevcut konuşmalarınızı soldan seçebilir veya yeni bir mesaj başlatabilirsiniz.
+              {trText('pickConversationBody')}
             </p>
             <button
               onClick={() => setShowNewMessageModal(true)}
               className="btn-primary"
             >
-              Yeni Mesaj Başlat
+              {trText('startNewMessage')}
             </button>
           </div>
         )}

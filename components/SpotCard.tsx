@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { buildSeoImageAlt } from '@/lib/content-seo'
 import { buildSpotPath } from '@/lib/sighting-slug'
+import { useCurrentLocale } from '@/hooks/useCurrentLocale'
 
 interface SpotCardProps {
   spot: {
@@ -21,6 +22,116 @@ interface SpotCardProps {
 }
 
 export default function SpotCard({ spot }: SpotCardProps) {
+  const locale = useCurrentLocale()
+  const t = {
+    now: locale === 'tr' ? 'simdi' : locale === 'en' ? 'now' : locale === 'de' ? 'jetzt' : locale === 'fr' ? 'maintenant' : locale === 'es' ? 'ahora' : 'seychas',
+    minsAgo: (n: number) => locale === 'tr' ? `${n} dakika once` : locale === 'en' ? `${n} minutes ago` : locale === 'de' ? `vor ${n} Minuten` : locale === 'fr' ? `il y a ${n} min` : locale === 'es' ? `hace ${n} min` : `${n} min nazad`,
+    hoursAgo: (n: number) => locale === 'tr' ? `${n} saat once` : locale === 'en' ? `${n} hours ago` : locale === 'de' ? `vor ${n} Std.` : locale === 'fr' ? `il y a ${n} h` : locale === 'es' ? `hace ${n} h` : `${n} ch nazad`,
+    daysAgo: (n: number) => locale === 'tr' ? `${n} gun once` : locale === 'en' ? `${n} days ago` : locale === 'de' ? `vor ${n} Tagen` : locale === 'fr' ? `il y a ${n} j` : locale === 'es' ? `hace ${n} dias` : `${n} dney nazad`,
+    unknownDate: locale === 'tr' ? 'tarih belirsiz' : locale === 'en' ? 'unknown date' : locale === 'de' ? 'unbekanntes Datum' : locale === 'fr' ? 'date inconnue' : locale === 'es' ? 'fecha desconocida' : 'neizvestnaya data',
+    imageFailed: locale === 'tr' ? 'Resim yuklenemedi' : locale === 'en' ? 'Image failed to load' : locale === 'de' ? 'Bild konnte nicht geladen werden' : locale === 'fr' ? 'Image non chargee' : locale === 'es' ? 'No se pudo cargar la imagen' : 'Ne udalos zagruzit izobrazhenie',
+    imageLoading: locale === 'tr' ? 'Resim yukleniyor...' : locale === 'en' ? 'Loading image...' : locale === 'de' ? 'Bild wird geladen...' : locale === 'fr' ? 'Chargement de l image...' : locale === 'es' ? 'Cargando imagen...' : 'Zagruzka izobrazheniya...',
+    noImage: locale === 'tr' ? 'Resim Yok' : locale === 'en' ? 'No Image' : locale === 'de' ? 'Kein Bild' : locale === 'fr' ? 'Aucune image' : locale === 'es' ? 'Sin imagen' : 'Net izobrazheniya',
+    active: locale === 'tr' ? 'Aktif' : locale === 'en' ? 'Active' : locale === 'de' ? 'Aktiv' : locale === 'fr' ? 'Actif' : locale === 'es' ? 'Activo' : 'Aktivno',
+    found: locale === 'tr' ? 'Bulundu' : locale === 'en' ? 'Found' : locale === 'de' ? 'Gefunden' : locale === 'fr' ? 'Trouve' : locale === 'es' ? 'Encontrado' : 'Naydeno',
+    user: locale === 'tr' ? 'Kullanici' : locale === 'en' ? 'User' : locale === 'de' ? 'Benutzer' : locale === 'fr' ? 'Utilisateur' : locale === 'es' ? 'Usuario' : 'Polzovatel',
+    detail: locale === 'tr' ? 'Detay' : locale === 'en' ? 'Details' : locale === 'de' ? 'Details' : locale === 'fr' ? 'Details' : locale === 'es' ? 'Detalle' : 'Detal',
+  }
+
+  const categoryLabelMap: Record<string, Record<string, string>> = {
+    tr: {
+      'Elektronik': 'Elektronik',
+      'Fotograf Makineleri': 'Fotograf Makineleri',
+      'Giyim & Aksesuar': 'Giyim & Aksesuar',
+      'Ev & Bahce': 'Ev & Bahce',
+      'Ev Esyalari': 'Ev Esyalari',
+      'Koleksiyon': 'Koleksiyon',
+      'Kitap & Muzik': 'Kitap & Muzik',
+      'Oyunlar': 'Oyunlar',
+      'Spor & Outdoor': 'Spor & Outdoor',
+      'Arac & Parca': 'Arac & Parca',
+      'Diger': 'Diger',
+    },
+    en: {
+      'Elektronik': 'Electronics',
+      'Fotograf Makineleri': 'Cameras',
+      'Giyim & Aksesuar': 'Fashion & Accessories',
+      'Ev & Bahce': 'Home & Garden',
+      'Ev Esyalari': 'Home Items',
+      'Koleksiyon': 'Collection',
+      'Kitap & Muzik': 'Books & Music',
+      'Oyunlar': 'Games',
+      'Spor & Outdoor': 'Sports & Outdoor',
+      'Arac & Parca': 'Vehicle & Parts',
+      'Diger': 'Other',
+    },
+    de: {
+      'Elektronik': 'Elektronik',
+      'Fotograf Makineleri': 'Kameras',
+      'Giyim & Aksesuar': 'Mode & Accessoires',
+      'Ev & Bahce': 'Haus & Garten',
+      'Ev Esyalari': 'Haushalt',
+      'Koleksiyon': 'Sammlung',
+      'Kitap & Muzik': 'Bucher & Musik',
+      'Oyunlar': 'Spiele',
+      'Spor & Outdoor': 'Sport & Outdoor',
+      'Arac & Parca': 'Fahrzeug & Teile',
+      'Diger': 'Andere',
+    },
+    fr: {
+      'Elektronik': 'Electronique',
+      'Fotograf Makineleri': 'Appareils photo',
+      'Giyim & Aksesuar': 'Mode et accessoires',
+      'Ev & Bahce': 'Maison et jardin',
+      'Ev Esyalari': 'Articles maison',
+      'Koleksiyon': 'Collection',
+      'Kitap & Muzik': 'Livres et musique',
+      'Oyunlar': 'Jeux',
+      'Spor & Outdoor': 'Sport et plein air',
+      'Arac & Parca': 'Vehicule et pieces',
+      'Diger': 'Autre',
+    },
+    es: {
+      'Elektronik': 'Electronica',
+      'Fotograf Makineleri': 'Camaras',
+      'Giyim & Aksesuar': 'Moda y accesorios',
+      'Ev & Bahce': 'Hogar y jardin',
+      'Ev Esyalari': 'Articulos del hogar',
+      'Koleksiyon': 'Coleccion',
+      'Kitap & Muzik': 'Libros y musica',
+      'Oyunlar': 'Juegos',
+      'Spor & Outdoor': 'Deporte y outdoor',
+      'Arac & Parca': 'Vehiculo y repuestos',
+      'Diger': 'Otro',
+    },
+    ru: {
+      'Elektronik': 'Elektronika',
+      'Fotograf Makineleri': 'Kameri',
+      'Giyim & Aksesuar': 'Moda i aksessuary',
+      'Ev & Bahce': 'Dom i sad',
+      'Ev Esyalari': 'Tovary dlya doma',
+      'Koleksiyon': 'Kollektsiya',
+      'Kitap & Muzik': 'Knigi i muzyka',
+      'Oyunlar': 'Igry',
+      'Spor & Outdoor': 'Sport i outdoor',
+      'Arac & Parca': 'Transport i zapchasti',
+      'Diger': 'Drugoye',
+    },
+  }
+
+  const normalizeCategoryKey = (value: string) =>
+    value
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/ı/g, 'i')
+      .trim()
+
+  const getLocalizedCategory = (category: string | null) => {
+    if (!category) return category
+    const key = normalizeCategoryKey(category)
+    return categoryLabelMap[locale]?.[key] || category
+  }
+
   // ZAMAN FORMATI
   const getTimeAgo = (dateString: string) => {
     try {
@@ -31,13 +142,14 @@ export default function SpotCard({ spot }: SpotCardProps) {
       const diffHours = Math.floor(diffMs / 3600000)
       const diffDays = Math.floor(diffMs / 86400000)
 
-      if (diffMins < 1) return 'şimdi'
-      if (diffMins < 60) return `${diffMins} dakika önce`
-      if (diffHours < 24) return `${diffHours} saat önce`
-      if (diffDays < 7) return `${diffDays} gün önce`
-      return date.toLocaleDateString('tr-TR')
+      if (diffMins < 1) return t.now
+      if (diffMins < 60) return t.minsAgo(diffMins)
+      if (diffHours < 24) return t.hoursAgo(diffHours)
+      if (diffDays < 7) return t.daysAgo(diffDays)
+      const localeCode = locale === 'tr' ? 'tr-TR' : locale === 'en' ? 'en-US' : locale === 'de' ? 'de-DE' : locale === 'fr' ? 'fr-FR' : locale === 'es' ? 'es-ES' : 'ru-RU'
+      return date.toLocaleDateString(localeCode)
     } catch {
-      return 'tarih belirsiz'
+      return t.unknownDate
     }
   }
 
@@ -138,7 +250,7 @@ export default function SpotCard({ spot }: SpotCardProps) {
                 fallback.innerHTML = `
                   <div class="text-center">
                     <span class="text-3xl block mb-2">📷</span>
-                    <p class="text-sm text-gray-600">Resim yüklenemedi</p>
+                    <p class="text-sm text-gray-600">${t.imageFailed}</p>
                   </div>
                 `
                 img.parentNode?.appendChild(fallback)
@@ -149,7 +261,7 @@ export default function SpotCard({ spot }: SpotCardProps) {
             <div className="absolute inset-0 flex items-center justify-center bg-gray-100" style={{ display: 'none' }}>
               <div className="text-center">
                 <span className="text-3xl block mb-2">📷</span>
-                <p className="text-sm text-gray-600">Resim yükleniyor...</p>
+                <p className="text-sm text-gray-600">{t.imageLoading}</p>
               </div>
             </div>
           </>
@@ -158,7 +270,7 @@ export default function SpotCard({ spot }: SpotCardProps) {
           <div className="w-full h-full flex items-center justify-center bg-gray-50">
             <div className="text-center">
               <span className="text-4xl block mb-3 text-gray-400">📷</span>
-              <p className="text-sm text-gray-500">Resim Yok</p>
+              <p className="text-sm text-gray-500">{t.noImage}</p>
             </div>
           </div>
         )}
@@ -170,7 +282,7 @@ export default function SpotCard({ spot }: SpotCardProps) {
               ? 'bg-green-100 text-green-800 border border-green-200' 
               : 'bg-blue-100 text-blue-800 border border-blue-200'
           }`}>
-            {spot.status === 'active' ? 'Aktif' : 'Bulundu'}
+            {spot.status === 'active' ? t.active : t.found}
           </span>
         </div>
       </div>
@@ -184,7 +296,7 @@ export default function SpotCard({ spot }: SpotCardProps) {
           </div>
           <div className="ml-3">
             <p className="font-medium text-sm">
-              {spot.user?.full_name || 'Kullanıcı'}
+              {spot.user?.full_name || t.user}
             </p>
             <p className="text-xs text-gray-500">
               {getTimeAgo(spot.created_at)}
@@ -208,7 +320,7 @@ export default function SpotCard({ spot }: SpotCardProps) {
         <div className="flex flex-wrap gap-2 mb-4">
           {spot.category && (
             <span className={`text-xs font-medium px-3 py-1 rounded-full ${getCategoryColor(spot.category)}`}>
-              {spot.category}
+              {getLocalizedCategory(spot.category)}
             </span>
           )}
           
@@ -235,7 +347,7 @@ export default function SpotCard({ spot }: SpotCardProps) {
             href={buildSpotPath(spot.id, spot.title)}
             className="text-blue-600 hover:text-blue-800 font-medium"
           >
-            Detay →
+            {t.detail} →
           </Link>
         </div>
 

@@ -8,6 +8,47 @@ import { getImagePreviewDataUrl, optimizeImageFile } from '@/lib/image-processin
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
 import { buildCollectionPath, buildRareSightingPath, buildSightingPath, buildSocialPath, buildSpotPath } from '@/lib/sighting-slug'
+import { useCurrentLocale } from '@/hooks/useCurrentLocale'
+
+const profileText = {
+  tr: {
+    loading: 'Yükleniyor...',
+    shopBanner: { title: '🏪 Mağaza Sahibi misiniz?', desc: 'Ücretsiz mağaza açın, müşterilerinizi artırın ve satışlarınızı büyütün!', btn: 'Ücretsiz Mağaza Aç' },
+    tabs: { spots: '📝 Spotlarım', rare: '💎 Nadir Bildirimlerim', travel: '🧭 Nadir Seyahatlerim', museum: '🏛️ Nadir Müzem', collection: '💼 Koleksiyonum', helps: '🤝 Yardımlarım', shop: '🏪 Mağazam', settings: '⚙️ Ayarlar' },
+    spotsTab: { title: 'Spotlarım', newSpot: '+ Yeni Spot', empty: 'Henüz spot oluşturmadınız', emptyDesc: 'İlk spot\'unuzu oluşturun ve topluluğumuzdan yardım alın', createFirst: 'İlk Spot\'u Oluşturun' },
+  },
+  en: {
+    loading: 'Loading...',
+    shopBanner: { title: '🏪 Are you a shop owner?', desc: 'Open a free store, increase your customers and grow your sales!', btn: 'Open Free Store' },
+    tabs: { spots: '📝 My Spots', rare: '💎 My Rare Reports', travel: '🧭 My Rare Travels', museum: '🏛️ My Rare Museum', collection: '💼 My Collection', helps: '🤝 My Helps', shop: '🏪 My Store', settings: '⚙️ Settings' },
+    spotsTab: { title: 'My Spots', newSpot: '+ New Spot', empty: 'No spots created yet', emptyDesc: 'Create your first spot and get help from our community', createFirst: 'Create First Spot' },
+  },
+  de: {
+    loading: 'Wird geladen...',
+    shopBanner: { title: '🏪 Sind Sie Ladenbesitzer?', desc: 'Eröffnen Sie einen kostenlosen Shop und steigern Sie Ihren Umsatz!', btn: 'Kostenlosen Shop eröffnen' },
+    tabs: { spots: '📝 Meine Spots', rare: '💎 Meine Seltenheiten', travel: '🧭 Meine Seltenen Reisen', museum: '🏛️ Mein Museum', collection: '💼 Meine Sammlung', helps: '🤝 Meine Hilfen', shop: '🏪 Mein Shop', settings: '⚙️ Einstellungen' },
+    spotsTab: { title: 'Meine Spots', newSpot: '+ Neuer Spot', empty: 'Noch keine Spots erstellt', emptyDesc: 'Erstellen Sie Ihren ersten Spot und holen Sie Hilfe von unserer Community', createFirst: 'Ersten Spot erstellen' },
+  },
+  fr: {
+    loading: 'Chargement...',
+    shopBanner: { title: '🏪 Êtes-vous propriétaire d\'une boutique ?', desc: 'Ouvrez une boutique gratuite et développez vos ventes !', btn: 'Ouvrir une boutique gratuite' },
+    tabs: { spots: '📝 Mes Spots', rare: '💎 Mes Rarétés', travel: '🧭 Mes Voyages Rares', museum: '🏛️ Mon Musée Rare', collection: '💼 Ma Collection', helps: '🤝 Mes Aides', shop: '🏪 Ma Boutique', settings: '⚙️ Paramètres' },
+    spotsTab: { title: 'Mes Spots', newSpot: '+ Nouveau Spot', empty: 'Aucun spot créé', emptyDesc: 'Créez votre premier spot et obtenez de l\'aide de notre communauté', createFirst: 'Créer le premier Spot' },
+  },
+  es: {
+    loading: 'Cargando...',
+    shopBanner: { title: '🏪 ¿Eres dueño de una tienda?', desc: '¡Abre una tienda gratis y haz crecer tus ventas!', btn: 'Abrir tienda gratis' },
+    tabs: { spots: '📝 Mis Spots', rare: '💎 Mis Raridades', travel: '🧭 Mis Viajes Raros', museum: '🏛️ Mi Museo Raro', collection: '💼 Mi Colección', helps: '🤝 Mis Ayudas', shop: '🏪 Mi Tienda', settings: '⚙️ Ajustes' },
+    spotsTab: { title: 'Mis Spots', newSpot: '+ Nuevo Spot', empty: 'Aún no has creado spots', emptyDesc: 'Crea tu primer spot y obtén ayuda de nuestra comunidad', createFirst: 'Crear el primer Spot' },
+  },
+  ru: {
+    loading: 'Загрузка...',
+    shopBanner: { title: '🏪 Вы владелец магазина?', desc: 'Откройте бесплатный магазин и увеличьте продажи!', btn: 'Открыть бесплатный магазин' },
+    tabs: { spots: '📝 Мои Споты', rare: '💎 Мои Редкости', travel: '🧭 Мои Редкие Путешествия', museum: '🏛️ Мой Музей', collection: '💼 Моя Коллекция', helps: '🤝 Моя Помощь', shop: '🏪 Мой Магазин', settings: '⚙️ Настройки' },
+    spotsTab: { title: 'Мои Споты', newSpot: '+ Новый Спот', empty: 'Споты ещё не созданы', emptyDesc: 'Создайте свой первый Спот и получите помощь от нашего сообщества', createFirst: 'Создать первый Спот' },
+  },
+} as const
+type ProfileLocale = keyof typeof profileText
 
 interface UserProfile {
   id: string
@@ -106,6 +147,8 @@ interface UserTravelPostItem {
 }
 
 export default function ProfilePage() {
+  const locale = useCurrentLocale()
+  const t = profileText[(locale as ProfileLocale) in profileText ? (locale as ProfileLocale) : 'tr']
   const router = useRouter()
   const searchParams = useSearchParams()
   const [user, setUser] = useState<UserProfile | null>(null)
@@ -187,6 +230,43 @@ export default function ProfilePage() {
   useEffect(() => {
     checkAuth()
   }, [])
+
+  // Locale değişince mevcut verilerin çevirilerini güncelle
+  useEffect(() => {
+    const applyTranslations = async () => {
+      if (userRares.length > 0) {
+        const rareIds = userRares.map((r: any) => r.id)
+        const { data: rareTrs } = await supabase
+          .from('quick_sighting_translations')
+          .select('quick_sighting_id, title, description')
+          .in('quick_sighting_id', rareIds)
+          .eq('language', locale)
+        if (rareTrs && rareTrs.length > 0) {
+          const map: Record<string, { title: string; description: string }> = {}
+          rareTrs.forEach((tr: any) => { map[tr.quick_sighting_id] = { title: tr.title, description: tr.description } })
+          setUserRares((prev) => prev.map((r: any) => {
+            const tr = map[r.id]; return tr ? { ...r, title: tr.title || r.title, description: tr.description || r.description } : r
+          }))
+        }
+      }
+      if (userCollectionItems.length > 0) {
+        const colIds = userCollectionItems.map((c: any) => c.id)
+        const { data: colTrs } = await supabase
+          .from('collection_post_translations')
+          .select('collection_post_id, title, description')
+          .in('collection_post_id', colIds)
+          .eq('language', locale)
+        if (colTrs && colTrs.length > 0) {
+          const map: Record<string, { title: string; description: string }> = {}
+          colTrs.forEach((tr: any) => { map[tr.collection_post_id] = { title: tr.title, description: tr.description } })
+          setUserCollectionItems((prev) => prev.map((c: any) => {
+            const tr = map[c.id]; return tr ? { ...c, title: tr.title || c.title, description: tr.description || c.description } : c
+          }))
+        }
+      }
+    }
+    applyTranslations()
+  }, [locale])
 
   useEffect(() => {
     const tab = searchParams.get('tab')
@@ -287,7 +367,26 @@ export default function ProfilePage() {
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
 
-      setUserRares((rareData || []) as UserRareItem[])
+      let rareItems = (rareData || []) as UserRareItem[]
+
+      if (rareItems.length > 0) {
+        const rareIds = rareItems.map((r: any) => r.id)
+        const { data: rareTrs } = await supabase
+          .from('quick_sighting_translations')
+          .select('quick_sighting_id, title, description')
+          .in('quick_sighting_id', rareIds)
+          .eq('language', locale)
+        if (rareTrs && rareTrs.length > 0) {
+          const rareTrMap: Record<string, { title: string; description: string }> = {}
+          rareTrs.forEach((tr: any) => { rareTrMap[tr.quick_sighting_id] = { title: tr.title, description: tr.description } })
+          rareItems = rareItems.map((r: any) => {
+            const tr = rareTrMap[r.id]
+            return tr ? { ...r, title: tr.title || r.title, description: tr.description || r.description } : r
+          })
+        }
+      }
+
+      setUserRares(rareItems)
 
       // Kullanıcının Nadir Seyahat (social) paylaşımları
       const { data: travelPostsData, error: travelPostsError } = await supabase
@@ -326,7 +425,26 @@ export default function ProfilePage() {
         console.warn('collection_posts query warning:', collectionError.message)
       }
 
-      setUserCollectionItems((collectionData || []) as UserCollectionItem[])
+      let collectionItems = (collectionData || []) as UserCollectionItem[]
+
+      if (collectionItems.length > 0) {
+        const colIds = collectionItems.map((c: any) => c.id)
+        const { data: colTrs } = await supabase
+          .from('collection_post_translations')
+          .select('collection_post_id, title, description')
+          .in('collection_post_id', colIds)
+          .eq('language', locale)
+        if (colTrs && colTrs.length > 0) {
+          const colTrMap: Record<string, { title: string; description: string }> = {}
+          colTrs.forEach((tr: any) => { colTrMap[tr.collection_post_id] = { title: tr.title, description: tr.description } })
+          collectionItems = collectionItems.map((c: any) => {
+            const tr = colTrMap[c.id]
+            return tr ? { ...c, title: tr.title || c.title, description: tr.description || c.description } : c
+          })
+        }
+      }
+
+      setUserCollectionItems(collectionItems)
 
       // Son Nokta -> Spot dönüşümleri
       const { data: conversionHistoryData } = await supabase
@@ -1294,7 +1412,7 @@ export default function ProfilePage() {
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              📝 Spotlarım ({userSpots.length})
+              {t.tabs.spots} ({userSpots.length})
             </button>
             <button
               onClick={() => setActiveTab('rare')}
@@ -1304,7 +1422,7 @@ export default function ProfilePage() {
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              💎 Nadir Bildirimlerim ({userRares.length})
+              {t.tabs.rare} ({userRares.length})
             </button>
             <button
               onClick={() => setActiveTab('travel')}
@@ -1314,7 +1432,7 @@ export default function ProfilePage() {
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              🧭 Nadir Seyahatlerim ({userTravelPosts.length})
+              {t.tabs.travel} ({userTravelPosts.length})
             </button>
             <button
               onClick={() => setActiveTab('museum')}
@@ -1324,7 +1442,7 @@ export default function ProfilePage() {
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              🏛️ Nadir Müzem ({userRares.filter((item) => item.is_in_museum).length})
+              {t.tabs.museum} ({userRares.filter((item) => item.is_in_museum).length})
             </button>
             <button
               onClick={() => setActiveTab('collection')}
@@ -1334,7 +1452,7 @@ export default function ProfilePage() {
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              💼 Koleksiyonum ({userCollectionItems.length})
+              {t.tabs.collection} ({userCollectionItems.length})
             </button>
             <button
               onClick={() => setActiveTab('helps')}
@@ -1344,7 +1462,7 @@ export default function ProfilePage() {
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              🤝 Yardımlarım ({userHelps.length})
+              {t.tabs.helps} ({userHelps.length})
             </button>
             {userShop && (
               <button
@@ -1355,7 +1473,7 @@ export default function ProfilePage() {
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
-                🏪 Mağazam
+                {t.tabs.shop}
               </button>
             )}
             <button
@@ -1366,7 +1484,7 @@ export default function ProfilePage() {
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              ⚙️ Ayarlar
+              {t.tabs.settings}
             </button>
           </div>
           
@@ -1374,25 +1492,25 @@ export default function ProfilePage() {
             {activeTab === 'spots' && (
               <div>
                 <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-xl font-bold text-gray-900">Spotlarım</h3>
+                  <h3 className="text-xl font-bold text-gray-900">{t.spotsTab.title}</h3>
                   <button
                     onClick={handleCreateSpot}
                     className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg"
                   >
-                    + Yeni Spot
+                    {t.spotsTab.newSpot}
                   </button>
                 </div>
                 
                 {userSpots.length === 0 ? (
                   <div className="bg-gray-50 rounded-xl p-8 text-center">
                     <div className="text-4xl mb-4">📝</div>
-                    <h4 className="text-lg font-bold text-gray-900 mb-2">Henüz spot oluşturmadınız</h4>
-                    <p className="text-gray-600 mb-6">İlk spot'unuzu oluşturun ve topluluğumuzdan yardım alın</p>
+                    <h4 className="text-lg font-bold text-gray-900 mb-2">{t.spotsTab.empty}</h4>
+                    <p className="text-gray-600 mb-6">{t.spotsTab.emptyDesc}</p>
                     <button
                       onClick={handleCreateSpot}
                       className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg"
                     >
-                      İlk Spot'u Oluşturun
+                      {t.spotsTab.createFirst}
                     </button>
                   </div>
                 ) : (

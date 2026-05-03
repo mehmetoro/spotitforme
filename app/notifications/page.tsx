@@ -5,9 +5,21 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
+import { useCurrentLocale } from '@/hooks/useCurrentLocale'
+
+const notifText = {
+  tr: { title: 'Bildirimler', unread: (n: number) => `${n} okunmamış bildirim`, markAll: 'Tümünü Okundu İşaretle', emptyTitle: 'Henüz bildiriminiz yok', emptyDesc: 'Başkalarının gönderilerinize beğeni, yorum yapması için takip etmeye başlayın!', unknownUser: 'Bilinmeyen kullanıcı', msgs: { spot_sighting: 'spotunuz için "Ben Gördüm" bildirimi gönderdi', spot_found: 'spotuna "Ben Gördüm" yazıldı', post_liked: 'gönderinizi beğendi', post_commented: 'gönderinize yorum yaptı', post_shared: 'gönderinizi paylaştı', default: 'Yeni bildirim' }, timeAgo: (m: number, h: number, d: number) => m < 1 ? 'az önce' : m < 60 ? `${m} dakika önce` : h < 24 ? `${h} saat önce` : d < 7 ? `${d} gün önce` : '' },
+  en: { title: 'Notifications', unread: (n: number) => `${n} unread notification${n > 1 ? 's' : ''}`, markAll: 'Mark All as Read', emptyTitle: 'No notifications yet', emptyDesc: 'Start following people so they can like and comment on your posts!', unknownUser: 'Unknown user', msgs: { spot_sighting: 'sent a "I Saw It" notification for your spot', spot_found: '"I Saw It" was sent for your spot', post_liked: 'liked your post', post_commented: 'commented on your post', post_shared: 'shared your post', default: 'New notification' }, timeAgo: (m: number, h: number, d: number) => m < 1 ? 'just now' : m < 60 ? `${m} min ago` : h < 24 ? `${h}h ago` : d < 7 ? `${d}d ago` : '' },
+  de: { title: 'Benachrichtigungen', unread: (n: number) => `${n} ungelesene Benachrichtigung${n > 1 ? 'en' : ''}`, markAll: 'Alle als gelesen markieren', emptyTitle: 'Noch keine Benachrichtigungen', emptyDesc: 'Folge anderen, damit sie deine Beiträge liken und kommentieren können!', unknownUser: 'Unbekannter Benutzer', msgs: { spot_sighting: 'hat eine "Ich habe es gesehen"-Benachrichtigung für deinen Spot gesendet', spot_found: '"Ich habe es gesehen" wurde für deinen Spot gesendet', post_liked: 'hat deinen Beitrag geliked', post_commented: 'hat deinen Beitrag kommentiert', post_shared: 'hat deinen Beitrag geteilt', default: 'Neue Benachrichtigung' }, timeAgo: (m: number, h: number, d: number) => m < 1 ? 'gerade eben' : m < 60 ? `vor ${m} Min.` : h < 24 ? `vor ${h} Std.` : d < 7 ? `vor ${d} Tagen` : '' },
+  fr: { title: 'Notifications', unread: (n: number) => `${n} notification${n > 1 ? 's' : ''} non lue${n > 1 ? 's' : ''}`, markAll: 'Tout marquer comme lu', emptyTitle: 'Pas encore de notifications', emptyDesc: 'Suivez des personnes pour que vos publications reçoivent des likes et des commentaires!', unknownUser: 'Utilisateur inconnu', msgs: { spot_sighting: 'a envoyé une notification "Je l\'ai vu" pour votre spot', spot_found: '"Je l\'ai vu" a été envoyé pour votre spot', post_liked: 'a aimé votre publication', post_commented: 'a commenté votre publication', post_shared: 'a partagé votre publication', default: 'Nouvelle notification' }, timeAgo: (m: number, h: number, d: number) => m < 1 ? 'à l\'instant' : m < 60 ? `il y a ${m} min` : h < 24 ? `il y a ${h}h` : d < 7 ? `il y a ${d}j` : '' },
+  es: { title: 'Notificaciones', unread: (n: number) => `${n} notificación${n > 1 ? 'es' : ''} sin leer`, markAll: 'Marcar todo como leído', emptyTitle: 'Aún no hay notificaciones', emptyDesc: '¡Empieza a seguir personas para que puedan dar like y comentar tus publicaciones!', unknownUser: 'Usuario desconocido', msgs: { spot_sighting: 'envió una notificación "Lo vi" para tu spot', spot_found: 'Se envió "Lo vi" para tu spot', post_liked: 'le gustó tu publicación', post_commented: 'comentó tu publicación', post_shared: 'compartió tu publicación', default: 'Nueva notificación' }, timeAgo: (m: number, h: number, d: number) => m < 1 ? 'ahora mismo' : m < 60 ? `hace ${m} min` : h < 24 ? `hace ${h}h` : d < 7 ? `hace ${d}d` : '' },
+  ru: { title: 'Уведомления', unread: (n: number) => `${n} непрочитанных уведомлений`, markAll: 'Отметить все как прочитанные', emptyTitle: 'Уведомлений пока нет', emptyDesc: 'Начните подписываться на людей, чтобы они могли лайкать и комментировать ваши публикации!', unknownUser: 'Неизвестный пользователь', msgs: { spot_sighting: 'отправил уведомление "Я видел это" для вашего спота', spot_found: '"Я видел это" было отправлено для вашего спота', post_liked: 'понравилась ваша публикация', post_commented: 'прокомментировал вашу публикацию', post_shared: 'поделился вашей публикацией', default: 'Новое уведомление' }, timeAgo: (m: number, h: number, d: number) => m < 1 ? 'только что' : m < 60 ? `${m} мин. назад` : h < 24 ? `${h} ч. назад` : d < 7 ? `${d} дн. назад` : '' },
+} as const
 
 export default function NotificationsPage() {
   const router = useRouter()
+  const locale = useCurrentLocale()
+  const t = notifText[locale as keyof typeof notifText] ?? notifText.tr
   const [notifications, setNotifications] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
@@ -107,18 +119,12 @@ export default function NotificationsPage() {
 
   const getNotificationMessage = (notif: any) => {
     switch (notif.type) {
-            case 'spot_sighting':
-              return 'spotunuz için "Ben Gördüm" bildirimi gönderdi'
-      case 'spot_found':
-        return 'spotuna "Ben Gördüm" yazıldı'
-      case 'post_liked':
-        return 'gönderinizi beğendi'
-      case 'post_commented':
-        return 'gönderinize yorum yaptı'
-      case 'post_shared':
-        return 'gönderinizi paylaştı'
-      default:
-        return notif.message || 'Yeni bildirim'
+      case 'spot_sighting': return t.msgs.spot_sighting
+      case 'spot_found': return t.msgs.spot_found
+      case 'post_liked': return t.msgs.post_liked
+      case 'post_commented': return t.msgs.post_commented
+      case 'post_shared': return t.msgs.post_shared
+      default: return notif.message || t.msgs.default
     }
   }
 
@@ -155,11 +161,11 @@ export default function NotificationsPage() {
     const hours = Math.floor(diff / 3600000)
     const days = Math.floor(diff / 86400000)
 
-    if (minutes < 1) return 'az önce'
-    if (minutes < 60) return `${minutes} dakika önce`
-    if (hours < 24) return `${hours} saat önce`
-    if (days < 7) return `${days} gün önce`
-    return date.toLocaleDateString('tr-TR')
+    if (minutes < 1) return t.timeAgo(0, 0, 0)
+    if (minutes < 60) return t.timeAgo(minutes, 0, 0)
+    if (hours < 24) return t.timeAgo(0, hours, 0)
+    if (days < 7) return t.timeAgo(0, 0, days)
+    return date.toLocaleDateString(locale === 'tr' ? 'tr-TR' : locale === 'de' ? 'de-DE' : locale === 'fr' ? 'fr-FR' : locale === 'es' ? 'es-ES' : locale === 'ru' ? 'ru-RU' : 'en-US')
   }
 
   if (loading) {
@@ -178,10 +184,10 @@ export default function NotificationsPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-3xl font-bold">Bildirimler</h1>
+            <h1 className="text-3xl font-bold">{t.title}</h1>
             {unreadCount > 0 && (
               <p className="text-sm text-gray-600">
-                {unreadCount} okunmamış bildirim
+                {t.unread(unreadCount)}
               </p>
             )}
           </div>
@@ -190,7 +196,7 @@ export default function NotificationsPage() {
               onClick={handleMarkAllAsRead}
               className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
             >
-              Tümünü Okundu İşaretle
+              {t.markAll}
             </button>
           )}
         </div>
@@ -200,11 +206,10 @@ export default function NotificationsPage() {
           <div className="bg-white rounded-xl shadow p-12 text-center">
             <div className="text-4xl mb-4">🔔</div>
             <h2 className="text-xl font-bold text-gray-900 mb-2">
-              Henüz bildiriminiz yok
+              {t.emptyTitle}
             </h2>
             <p className="text-gray-600">
-              Başkalarının gönderilerinize beğeni, yorum yapması ve daha fazlası
-              için takip etmeye başlayın!
+              {t.emptyDesc}
             </p>
           </div>
         ) : (
@@ -225,7 +230,7 @@ export default function NotificationsPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-gray-900">
-                      {notif.actor?.name || 'Bilinmeyen kullanıcı'}{' '}
+                      {notif.actor?.name || t.unknownUser}{' '}
                       <span className="font-normal text-gray-700">
                         {getNotificationMessage(notif)}
                       </span>

@@ -10,6 +10,7 @@ import FeedFilters, { FilterType } from '@/components/social/FeedFilters'
 import CategoryGrid from '@/components/social/CategoryGrid'
 import { supabase } from '@/lib/supabase'
 import SuggestedUsers from '@/components/social/SuggestedUsers'
+import { useCurrentLocale } from '@/hooks/useCurrentLocale'
 
 const ISTANBUL_TIMEZONE = 'Europe/Istanbul'
 
@@ -70,14 +71,15 @@ function getStartOfTodayInTimezoneISO(timeZone: string): string {
 }
 
 // Takip Ettiklerim - Takip ettiğin kullanıcılar
-function FollowingList() {
+function FollowingList({ locale }: { locale: 'tr' | 'en' | 'de' | 'fr' | 'es' | 'ru' }) {
   const [following, setFollowing] = useState<any[]>([])
   const router = useRouter()
 
   useEffect(() => {
     const fetchFollowing = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser()
+        const { data: { session } } = await supabase.auth.getSession()
+        const user = session?.user ?? null
         if (!user) return
 
         // Kullanıcının takip ettiği kişileri al
@@ -110,7 +112,8 @@ function FollowingList() {
 
   const handleUnfollow = async (userId: string) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
+      const { data: { session } } = await supabase.auth.getSession()
+      const user = session?.user ?? null
       if (!user) return
 
       await supabase
@@ -130,7 +133,9 @@ function FollowingList() {
     <div className="bg-white rounded-xl shadow p-6 overflow-hidden">
       <h3 className="font-bold text-gray-900 mb-4">👥 Takip Ettiklerim</h3>
       {following.length === 0 ? (
-        <p className="text-gray-500 text-center py-4 text-sm">Henüz kimseyi takip etmiyorsun</p>
+        <p className="text-gray-500 text-center py-4 text-sm">
+          {locale === 'tr' ? 'Henuz kimseyi takip etmiyorsun' : locale === 'en' ? 'You are not following anyone yet' : locale === 'de' ? 'Du folgst noch niemandem' : locale === 'fr' ? 'Vous ne suivez encore personne' : locale === 'es' ? 'Aun no sigues a nadie' : 'Vy poka nikogo ne otslezhivaete'}
+        </p>
       ) : (
         <div className="space-y-3 max-h-96 overflow-y-auto">
           {following.map((user) => (
@@ -140,11 +145,11 @@ function FollowingList() {
                   {user.avatar_url ? (
                     <img src={user.avatar_url} alt={user.full_name} className="w-full h-full object-cover rounded-full" />
                   ) : (
-                    user.full_name?.[0] || 'K'
+                    user.full_name?.[0] || 'U'
                   )}
                 </div>
                 <div className="min-w-0">
-                  <div className="font-medium text-gray-900 text-sm truncate">{user.full_name || 'Kullanıcı'}</div>
+                  <div className="font-medium text-gray-900 text-sm truncate">{user.full_name || (locale === 'tr' ? 'Kullanici' : locale === 'en' ? 'User' : locale === 'de' ? 'Benutzer' : locale === 'fr' ? 'Utilisateur' : locale === 'es' ? 'Usuario' : 'Polzovatel')}</div>
                 </div>
               </div>
               <button
@@ -162,7 +167,7 @@ function FollowingList() {
 }
 
 // TrendingHashtags - Gerçek verilerle çalışır
-function TrendingHashtags() {
+function TrendingHashtags({ locale }: { locale: 'tr' | 'en' | 'de' | 'fr' | 'es' | 'ru' }) {
   const router = useRouter()
   const [hashtags, setHashtags] = useState<{ name: string; count: number }[]>([])
   const [loading, setLoading] = useState(true)
@@ -214,7 +219,7 @@ function TrendingHashtags() {
 
   return (
     <div className="bg-white rounded-xl shadow p-6 overflow-hidden">
-      <h3 className="font-bold text-gray-900 mb-4">🔥 Popüler Hashtag'ler</h3>
+      <h3 className="font-bold text-gray-900 mb-4">🔥 {locale === 'tr' ? "Populer Hashtag'ler" : locale === 'en' ? 'Trending Hashtags' : locale === 'de' ? 'Trend-Hashtags' : locale === 'fr' ? 'Hashtags tendance' : locale === 'es' ? 'Hashtags en tendencia' : 'Populyarnye hashtagi'}</h3>
       <div className="space-y-2">
         {loading ? (
           // Yükleniyor skeleton
@@ -226,7 +231,7 @@ function TrendingHashtags() {
           ))
         ) : hashtags.length === 0 ? (
           <p className="text-gray-500 text-sm text-center py-4">
-            Henüz hashtag yok. İlk paylaşımı yapan sen ol! 🚀
+            {locale === 'tr' ? 'Henuz hashtag yok. Ilk paylasimi yapan sen ol! 🚀' : locale === 'en' ? 'No hashtags yet. Be the first to post! 🚀' : locale === 'de' ? 'Noch keine Hashtags. Sei der Erste! 🚀' : locale === 'fr' ? 'Pas encore de hashtag. Soyez le premier ! 🚀' : locale === 'es' ? 'Aun no hay hashtags. Se el primero! 🚀' : 'Poka net hashtagov. Budte pervym! 🚀'}
           </p>
         ) : (
           hashtags.map((tag) => (
@@ -236,7 +241,7 @@ function TrendingHashtags() {
               className="w-full flex justify-between items-center gap-2 p-2 hover:bg-gray-50 rounded transition min-w-0"
             >
               <span className="text-blue-600 font-medium truncate">{tag.name}</span>
-              <span className="text-sm text-gray-500 whitespace-nowrap shrink-0">{tag.count} paylaşım</span>
+              <span className="text-sm text-gray-500 whitespace-nowrap shrink-0">{tag.count} {locale === 'tr' ? 'paylasim' : locale === 'en' ? 'posts' : locale === 'de' ? 'Beitrage' : locale === 'fr' ? 'publications' : locale === 'es' ? 'publicaciones' : 'postov'}</span>
             </button>
           ))
         )}
@@ -247,6 +252,7 @@ function TrendingHashtags() {
 
 
 export default function DiscoveryPage() {
+  const locale = useCurrentLocale()
   const router = useRouter()
   const searchParams = useSearchParams()
   const searchFromUrl = searchParams.get('search') || ''
@@ -290,7 +296,8 @@ export default function DiscoveryPage() {
   useEffect(() => {
     const fetchUserStats = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser()
+        const { data: { session } } = await supabase.auth.getSession()
+        const user = session?.user ?? null
         if (!user) {
           setLoadingStats(false)
           return
@@ -469,23 +476,23 @@ export default function DiscoveryPage() {
   const getHeaderContent = () => {
     const headers: { [key in FilterType]: { title: string; desc: string; icon: string } } = {
       'for-you': {
-        title: 'Sana Özel',
-        desc: 'Senin ilgi alanlarına göre seçilmiş paylaşımları keşfet',
+        title: locale === 'tr' ? 'Sana Ozel' : locale === 'en' ? 'For You' : locale === 'de' ? 'Fur dich' : locale === 'fr' ? 'Pour vous' : locale === 'es' ? 'Para ti' : 'Dlya vas',
+        desc: locale === 'tr' ? 'Ilgi alanlarina gore secilmis paylasimlari kesfet' : locale === 'en' ? 'Discover posts selected for your interests' : locale === 'de' ? 'Entdecke Inhalte nach deinen Interessen' : locale === 'fr' ? 'Decouvrez des contenus selon vos interets' : locale === 'es' ? 'Descubre publicaciones segun tus intereses' : 'Otkryvayte posty po interesam',
         icon: '🎯'
       },
       'following': {
-        title: 'Takip Edilenler',
-        desc: 'Takip ettiğin kişilerin en son paylaşımları',
+        title: locale === 'tr' ? 'Takip Edilenler' : locale === 'en' ? 'Following' : locale === 'de' ? 'Gefolgt' : locale === 'fr' ? 'Abonnements' : locale === 'es' ? 'Siguiendo' : 'Podpiski',
+        desc: locale === 'tr' ? 'Takip ettigin kisilerin en son paylasimlari' : locale === 'en' ? 'Latest posts from people you follow' : locale === 'de' ? 'Neueste Beitrage von gefolgten Profilen' : locale === 'fr' ? 'Dernieres publications des personnes suivies' : locale === 'es' ? 'Ultimas publicaciones de quienes sigues' : 'Poslednie posty podpisok',
         icon: '👥'
       },
       'popular': {
-        title: 'Popüler',
-        desc: 'En çok beğenilen ve paylaşılan içerikler',
+        title: locale === 'tr' ? 'Populer' : locale === 'en' ? 'Popular' : locale === 'de' ? 'Beliebt' : locale === 'fr' ? 'Populaire' : locale === 'es' ? 'Popular' : 'Populyarnoe',
+        desc: locale === 'tr' ? 'En cok begenilen ve paylasilan icerikler' : locale === 'en' ? 'Most liked and shared content' : locale === 'de' ? 'Meistgelikte und geteilte Inhalte' : locale === 'fr' ? 'Contenus les plus likes et partages' : locale === 'es' ? 'Contenido mas gustado y compartido' : 'Samyy populyarnyy kontent',
         icon: '🔥'
       },
       'category': {
-        title: 'Kategoriler',
-        desc: 'Kategoriye göre göz at',
+        title: locale === 'tr' ? 'Kategoriler' : locale === 'en' ? 'Categories' : locale === 'de' ? 'Kategorien' : locale === 'fr' ? 'Categories' : locale === 'es' ? 'Categorias' : 'Kategorii',
+        desc: locale === 'tr' ? 'Kategoriye gore goz at' : locale === 'en' ? 'Browse by category' : locale === 'de' ? 'Nach Kategorie durchsuchen' : locale === 'fr' ? 'Parcourir par categorie' : locale === 'es' ? 'Explorar por categoria' : 'Prosmotr po kategoriyam',
         icon: '🏷️'
       }
     }
@@ -538,11 +545,11 @@ export default function DiscoveryPage() {
                   onChange={(e) => setPopularWindow(e.target.value as PopularWindow)}
                   className="px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="24h">Son 24 Saat</option>
-                  <option value="3d">Son 3 Gun</option>
-                  <option value="7d">Son 7 Gun</option>
-                  <option value="30d">Son 30 Gun</option>
-                  <option value="all">Tum Zaman</option>
+                  <option value="24h">{locale === 'tr' ? 'Son 24 Saat' : 'Last 24 Hours'}</option>
+                  <option value="3d">{locale === 'tr' ? 'Son 3 Gun' : 'Last 3 Days'}</option>
+                  <option value="7d">{locale === 'tr' ? 'Son 7 Gun' : 'Last 7 Days'}</option>
+                  <option value="30d">{locale === 'tr' ? 'Son 30 Gun' : 'Last 30 Days'}</option>
+                  <option value="all">{locale === 'tr' ? 'Tum Zaman' : 'All Time'}</option>
                 </select>
               </label>
 
@@ -553,11 +560,11 @@ export default function DiscoveryPage() {
                   onChange={(e) => setPopularSort(e.target.value as PopularSort)}
                   className="px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="engagement">Etkilesim Skoru</option>
-                  <option value="likes">En Cok Begeni</option>
-                  <option value="comments">En Cok Yorum</option>
-                  <option value="saves">En Cok Kaydetme</option>
-                  <option value="recent">En Yeni</option>
+                  <option value="engagement">{locale === 'tr' ? 'Etkilesim Skoru' : 'Engagement Score'}</option>
+                  <option value="likes">{locale === 'tr' ? 'En Cok Begeni' : 'Most Likes'}</option>
+                  <option value="comments">{locale === 'tr' ? 'En Cok Yorum' : 'Most Comments'}</option>
+                  <option value="saves">{locale === 'tr' ? 'En Cok Kaydetme' : 'Most Saves'}</option>
+                  <option value="recent">{locale === 'tr' ? 'En Yeni' : 'Most Recent'}</option>
                 </select>
               </label>
             </div>
@@ -576,14 +583,14 @@ export default function DiscoveryPage() {
                   </div>
                   <div>
                     <h3 className="text-xl font-bold mb-1">Bir şey mi gördün?</h3>
-                    <p className="text-blue-100">Hemen paylaş, puan kazan, topluluğa ilham ver!</p>
+                    <p className="text-blue-100">{locale === 'tr' ? 'Hemen paylas, puan kazan, topluluga ilham ver!' : 'Share now, earn points and inspire the community!'}</p>
                   </div>
                 </div>
                 <button
                   onClick={() => setShowCreateModal(true)}
                   className="bg-white text-blue-600 hover:bg-gray-100 font-bold py-3 px-8 rounded-xl whitespace-nowrap transition transform hover:scale-105"
                 >
-                  ✨ Paylaşım Yap
+                  {locale === 'tr' ? '✨ Paylasim Yap' : '✨ Create Post'}
                 </button>
               </div>
             </div>
@@ -616,8 +623,8 @@ export default function DiscoveryPage() {
                   )}
                 </div>
                 <div className="min-w-0">
-                  <h3 className="font-bold text-gray-900 truncate">{userProfile?.name || 'Profilin'}</h3>
-                  <p className="text-sm text-gray-600">Keşfet, paylaş, puan kazan</p>
+                  <h3 className="font-bold text-gray-900 truncate">{userProfile?.name || (locale === 'tr' ? 'Profilin' : 'Your profile')}</h3>
+                  <p className="text-sm text-gray-600">{locale === 'tr' ? 'Kesfet, paylas, puan kazan' : 'Discover, share, earn points'}</p>
                 </div>
               </div>
               
@@ -626,19 +633,19 @@ export default function DiscoveryPage() {
                   <div className="font-bold text-xl text-gray-900">
                     {loadingStats ? '-' : userStats.postsCount}
                   </div>
-                  <div className="text-xs text-gray-500">Paylaşım</div>
+                  <div className="text-xs text-gray-500">{locale === 'tr' ? 'Paylasim' : 'Posts'}</div>
                 </div>
                 <div>
                   <div className="font-bold text-xl text-gray-900">
                     {loadingStats ? '-' : userStats.followersCount}
                   </div>
-                  <div className="text-xs text-gray-500">Takipçi</div>
+                  <div className="text-xs text-gray-500">{locale === 'tr' ? 'Takipci' : 'Followers'}</div>
                 </div>
                 <div>
                   <div className="font-bold text-xl text-gray-900">
                     {loadingStats ? '-' : userStats.followingCount}
                   </div>
-                  <div className="text-xs text-gray-500">Takip</div>
+                  <div className="text-xs text-gray-500">{locale === 'tr' ? 'Takip' : 'Following'}</div>
                 </div>
               </div>
 
@@ -647,22 +654,22 @@ export default function DiscoveryPage() {
                   onClick={() => router.push('/profile')}
                   className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 rounded-lg transition"
                 >
-                  Profili Görüntüle
+                  {locale === 'tr' ? 'Profili Goruntule' : 'View Profile'}
                 </button>
                 <button
                   onClick={() => setShowCreateModal(true)}
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded-lg transition"
                 >
-                  ✨ Hızlı Paylaş
+                  {locale === 'tr' ? '✨ Hizli Paylas' : '✨ Quick Post'}
                 </button>
               </div>
             </div>
 
             {/* Popüler Hashtag'ler */}
-            <TrendingHashtags />
+            <TrendingHashtags locale={locale} />
 
             {/* Takip Ettiklerim */}
-            <FollowingList />
+            <FollowingList locale={locale} />
 
             {/* Önerilen Kullanıcılar */}
             <SuggestedUsers />

@@ -238,6 +238,21 @@ export default function AddProductPage() {
         throw productError;
       }
 
+      // Çevirileri kaydet (arka planda)
+      if (product?.id && (formData.title.trim() || formData.description.trim())) {
+        fetch('/api/save-translations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            entity: 'shop_inventory',
+            recordId: product.id,
+            title: formData.title.trim(),
+            description: formData.description.trim(),
+            sourceLanguage: 'tr',
+          }),
+        }).catch((err) => console.warn('Product translation error:', err));
+      }
+
       // Resim sayacını güncelle
       if (shop) {
         await supabase
