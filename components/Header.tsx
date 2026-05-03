@@ -209,6 +209,9 @@ export default function Header() {
 
           {/* ── Sağ Butonlar ── */}
           <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="md:hidden">
+              <LanguageSwitcher />
+            </div>
             <div className="hidden md:block">
               <LanguageSwitcher />
             </div>
