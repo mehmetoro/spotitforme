@@ -136,6 +136,33 @@ export async function translateTextInBrowser(options: {
 
   const translator = await getTranslator(normalizedSourceLanguage, normalizedTargetLanguage)
   if (!translator?.translate) {
+    // Browser API unavailable (e.g. mobile) — fall back to server-side LibreTranslate
+    try {
+      const resp = await fetch('/api/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: trimmedText,
+          source: normalizedSourceLanguage,
+          targets: [normalizedTargetLanguage],
+        }),
+      })
+      if (resp.ok) {
+        const data = await resp.json()
+        const serverTranslation: string | undefined = data?.translations?.[normalizedTargetLanguage]
+        if (serverTranslation && serverTranslation.trim()) {
+          translationCache.set(cacheKey, serverTranslation)
+          return {
+            translatedText: serverTranslation,
+            sourceLanguage: normalizedSourceLanguage,
+            supported: true,
+            didTranslate: serverTranslation !== options.text,
+          }
+        }
+      }
+    } catch {
+      // server also failed — return original
+    }
     return {
       translatedText: options.text,
       sourceLanguage: normalizedSourceLanguage,

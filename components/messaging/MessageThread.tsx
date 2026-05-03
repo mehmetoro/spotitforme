@@ -1,7 +1,7 @@
 // components/messaging/MessageThread.tsx
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { ADMIN_USER_ID } from '@/lib/admin';
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/hooks/useToast'
@@ -180,6 +180,37 @@ export default function MessageThread({ threadId, userId, onBack }: MessageThrea
       void supabase.removeChannel(channel)
     }
   }, [threadId, userId])
+
+  // Polling fallback: realtime etkin değilse her 5 saniyede yeni mesajları çek
+  const messagesRef = useRef<Message[]>([])
+  useEffect(() => {
+    messagesRef.current = messages
+  }, [messages])
+
+  useEffect(() => {
+    if (!threadId) return
+    const intervalId = setInterval(async () => {
+      const current = messagesRef.current
+      const lastCreatedAt = current.length > 0 ? current[current.length - 1].created_at : null
+      let query = supabase
+        .from('messages')
+        .select('id, sender_id, content, attachments, created_at, is_read, type')
+        .eq('thread_id', threadId)
+        .order('created_at', { ascending: true })
+      if (lastCreatedAt) {
+        query = query.gt('created_at', lastCreatedAt)
+      }
+      const { data } = await query
+      if (data && data.length > 0) {
+        setMessages((prev) => {
+          const existingIds = new Set(prev.map((m) => m.id))
+          const newOnes = data.filter((m: Message) => !existingIds.has(m.id))
+          return newOnes.length > 0 ? [...prev, ...newOnes] : prev
+        })
+      }
+    }, 5000)
+    return () => clearInterval(intervalId)
+  }, [threadId])
 
   useEffect(() => {
     if (!threadId || !userId || !participant?.id) return
