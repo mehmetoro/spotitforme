@@ -64,6 +64,7 @@ export default function MessageThread({ threadId, userId, onBack }: MessageThrea
   const [languageSaving, setLanguageSaving] = useState(false)
   const [translationAvailable, setTranslationAvailable] = useState(true)
   const [translationInProgress, setTranslationInProgress] = useState(false)
+  const [presenceOnline, setPresenceOnline] = useState(false)
 
   const t = {
     user: { tr: 'Kullanici', en: 'User', de: 'Benutzer', fr: 'Utilisateur', es: 'Usuario', ru: 'Polzovatel' },
@@ -72,6 +73,8 @@ export default function MessageThread({ threadId, userId, onBack }: MessageThrea
     offline: { tr: 'Cevrimdisi', en: 'Offline', de: 'Offline', fr: 'Hors ligne', es: 'Desconectado', ru: 'Ne v seti' },
     lastSeen: { tr: 'Son gorulme', en: 'Last seen', de: 'Zuletzt gesehen', fr: 'Vu derniere fois', es: 'Ultima vez', ru: 'Posledniy raz v seti' },
     conversationLanguage: { tr: 'Konusma dili', en: 'Conversation language', de: 'Gesprache Sprache', fr: 'Langue de conversation', es: 'Idioma de conversacion', ru: 'Yazyk chata' },
+    otherLanguage: { tr: 'Karsi taraf dili', en: 'Other user language', de: 'Sprache der Gegenseite', fr: 'Langue de l autre utilisateur', es: 'Idioma de la otra persona', ru: 'Yazyk sobesednika' },
+    languageUnknown: { tr: 'Belirtilmedi', en: 'Not set', de: 'Nicht festgelegt', fr: 'Non defini', es: 'No definido', ru: 'Ne ukazan' },
     translating: { tr: 'Cevriliyor...', en: 'Translating...', de: 'Wird ubersetzt...', fr: 'Traduction...', es: 'Traduciendo...', ru: 'Perevod...' },
     languageHint: { tr: 'Konusma dilinizi seciniz. Gelen mesajlar bu dilde goruntulenir.', en: 'Select your conversation language. Incoming messages are shown in this language.', de: 'Wahlen Sie Ihre Gesprachssprache. Eingehende Nachrichten werden in dieser Sprache angezeigt.', fr: 'Choisissez votre langue de conversation. Les messages entrants seront affiches dans cette langue.', es: 'Elige tu idioma de conversacion. Los mensajes entrantes se mostraran en este idioma.', ru: 'Vyberite yazyk razgovora. Vkhodyashchie soobshcheniya budut pokazany na etom yazyke.' },
     profileView: { tr: 'Profili goruntule', en: 'View profile', de: 'Profil anzeigen', fr: 'Voir le profil', es: 'Ver perfil', ru: 'Otkryt profil' },
@@ -121,10 +124,99 @@ export default function MessageThread({ threadId, userId, onBack }: MessageThrea
     }
   }, [threadId])
 
+  useEffect(() => {
+    if (!threadId || !userId) return
+
+    const channel = supabase
+      .channel(`message-thread:${threadId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `thread_id=eq.${threadId}`,
+        },
+        async (payload) => {
+          const incoming = payload.new as Message
+          setMessages((prev) => (prev.some((m) => m.id === incoming.id) ? prev : [...prev, incoming]))
+
+          if (incoming.sender_id !== userId) {
+            await supabase
+              .from('messages')
+              .update({ is_read: true })
+              .eq('id', incoming.id)
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'message_threads',
+          filter: `id=eq.${threadId}`,
+        },
+        (payload) => {
+          const next = payload.new as Partial<ThreadMeta>
+          setThreadMeta((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  participant1_language: (next.participant1_language as SupportedLocale | null | undefined) ?? prev.participant1_language,
+                  participant2_language: (next.participant2_language as SupportedLocale | null | undefined) ?? prev.participant2_language,
+                  request_status: (next.request_status as ThreadMeta['request_status']) ?? prev.request_status,
+                  request_initiator_id: next.request_initiator_id ?? prev.request_initiator_id,
+                  request_message: next.request_message ?? prev.request_message,
+                  request_responded_at: next.request_responded_at ?? prev.request_responded_at,
+                }
+              : prev
+          )
+        }
+      )
+      .subscribe()
+
+    return () => {
+      void supabase.removeChannel(channel)
+    }
+  }, [threadId, userId])
+
+  useEffect(() => {
+    if (!threadId || !userId || !participant?.id) return
+
+    const presenceChannel = supabase.channel(`presence-thread:${threadId}`, {
+      config: { presence: { key: userId } },
+    })
+
+    presenceChannel
+      .on('presence', { event: 'sync' }, () => {
+        const state = presenceChannel.presenceState()
+        const otherOnline = Object.prototype.hasOwnProperty.call(state, participant.id)
+        setPresenceOnline(otherOnline)
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await presenceChannel.track({
+            user_id: userId,
+            online_at: new Date().toISOString(),
+          })
+        }
+      })
+
+    return () => {
+      void supabase.removeChannel(presenceChannel)
+    }
+  }, [threadId, userId, participant?.id])
+
   const currentConversationLanguage: SupportedLocale =
     threadMeta?.participant1_id === userId
       ? threadMeta?.participant1_language || locale
       : threadMeta?.participant2_language || locale
+
+  const otherParticipantLanguage: SupportedLocale | null =
+    threadMeta?.participant1_id === userId
+      ? threadMeta?.participant2_language || null
+      : threadMeta?.participant1_language || null
 
   useEffect(() => {
     let cancelled = false
@@ -381,7 +473,6 @@ export default function MessageThread({ threadId, userId, onBack }: MessageThrea
     if (!newMessage.trim() && !attachment) return
 
     setSending(true)
-    const tempMessageId = Date.now().toString()
 
     try {
       // 1. Kullanıcı bilgisi
@@ -403,31 +494,25 @@ export default function MessageThread({ threadId, userId, onBack }: MessageThrea
         attachmentUrl = data?.path
       }
 
-      // 3. Yeni mesaj oluştur (optimistik)
-      const newMsg: Message = {
-        id: tempMessageId,
-        sender_id: user.id,
-        content: newMessage,
-        attachments: attachmentUrl ? [attachmentUrl] : undefined,
-        created_at: new Date().toISOString(),
-        is_read: false,
-        type: attachment ? 'image' : 'text'
-      }
-
-      setMessages(prev => [...prev, newMsg])
-      
-      // 4. Supabase'e kaydet
-      const { error: saveError } = await supabase
+      // 3. Supabase'e kaydet ve gercek kaydi geri al
+      const { data: insertedMessage, error: saveError } = await supabase
         .from('messages')
         .insert([{
           thread_id: threadId,
           sender_id: user.id,
+          receiver_id: participant?.id || null,
           content: newMessage,
           attachments: attachmentUrl ? [attachmentUrl] : null,
           type: attachment ? 'image' : 'text'
         }])
+        .select('*')
+        .single()
 
       if (saveError) throw saveError
+
+      if (insertedMessage) {
+        setMessages((prev) => (prev.some((m) => m.id === insertedMessage.id) ? prev : [...prev, insertedMessage as Message]))
+      }
 
       // 5. Thread'i güncelle
       const { error: updateError } = await supabase
@@ -449,9 +534,6 @@ export default function MessageThread({ threadId, userId, onBack }: MessageThrea
     } catch (error) {
       console.error('Mesaj gönderilemedi:', error)
       toast.error(trText('sendFailed'))
-      
-      // Optimistik mesajı geri al
-      setMessages(prev => prev.filter(msg => msg.id !== tempMessageId))
     } finally {
       setSending(false)
     }
@@ -603,6 +685,7 @@ export default function MessageThread({ threadId, userId, onBack }: MessageThrea
   const isPendingRequest = threadMeta?.request_status === 'pending'
   const isRejectedRequest = threadMeta?.request_status === 'rejected'
   const isRequestInitiator = threadMeta?.request_initiator_id === userId
+  const isParticipantOnline = (participant?.is_online || false) || presenceOnline
 
   if (loading) {
     return (
@@ -652,7 +735,7 @@ export default function MessageThread({ threadId, userId, onBack }: MessageThrea
                 </span>
               )}
             </div>
-            {participant?.is_online && (
+            {isParticipantOnline && (
               <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
             )}
           </div>
@@ -660,12 +743,15 @@ export default function MessageThread({ threadId, userId, onBack }: MessageThrea
           <div>
             <h3 className="font-semibold">{participant?.name || trText('user')}</h3>
             <p className="text-sm text-gray-500">
-              {participant?.is_online 
+              {isParticipantOnline 
                 ? trText('online') 
                 : participant?.last_seen 
                   ? `${trText('lastSeen')}: ${new Date(participant.last_seen).toLocaleTimeString(locale === 'tr' ? 'tr-TR' : locale === 'en' ? 'en-US' : locale === 'de' ? 'de-DE' : locale === 'fr' ? 'fr-FR' : locale === 'es' ? 'es-ES' : 'ru-RU')}`
                   : trText('offline')
               }
+            </p>
+            <p className="mt-1 text-[11px] text-gray-500">
+              {trText('otherLanguage')}: {getLanguageLabel(otherParticipantLanguage) || trText('languageUnknown')}
             </p>
             <div className="mt-2 flex items-center gap-2">
               <label className="text-xs text-gray-500">{trText('conversationLanguage')}</label>

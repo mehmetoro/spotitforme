@@ -22,34 +22,41 @@ export async function DELETE(request: NextRequest) {
     })
 
     // user_profiles.id ile auth user id farklı olabilir (eski kayıtlar)
-    // user_profiles.user_id alanı gerçek auth.users.id'yi tutar
     const { data: profileRow } = await adminClient
       .from('user_profiles')
-      .select('id, user_id, email')
+      .select('id, user_id')
       .eq('id', user_id)
       .maybeSingle()
 
-    let authUserId: string = (profileRow as any)?.user_id || user_id
+    // Strateji 1: gönderilen id doğrudan auth.users.id mi?
+    let authUserId: string | null = null
+    const { data: directAuthUser } = await adminClient.auth.admin.getUserById(user_id)
+    if (directAuthUser?.user?.id) {
+      authUserId = directAuthUser.user.id
+    }
 
-    // user_id kolonu boşsa email ile auth user'ı bul
-    if (!(profileRow as any)?.user_id && (profileRow as any)?.email) {
-      const { data: listData } = await adminClient.auth.admin.listUsers({ perPage: 1000 })
-      const matched = listData?.users?.find(
-        (u) => u.email === (profileRow as any).email
+    // Strateji 2: user_profiles.user_id kolonu dolu mu?
+    if (!authUserId && (profileRow as any)?.user_id) {
+      const { data: authUserByProfileUserId } = await adminClient.auth.admin.getUserById(
+        (profileRow as any).user_id
       )
-      if (matched?.id) {
-        authUserId = matched.id
+      if (authUserByProfileUserId?.user?.id) {
+        authUserId = authUserByProfileUserId.user.id
       }
     }
 
-    // Profil kaydı bulunamadıysa (önceki silme denemesinde profile silindi ama auth kaldıysa)
-    // gönderilen id'yi doğrudan auth üzerinde dene
+    if (!authUserId) {
+      return NextResponse.json(
+        { error: 'Auth kullanıcısı bulunamadı. Supabase Dashboard → Authentication üzerinden manuel silin.' },
+        { status: 404 }
+      )
+    }
+
+    // Profil kaydı yoksa sadece auth kullanıcısını sil
     if (!profileRow) {
-      const { error: directAuthDeleteError } = await adminClient.auth.admin.deleteUser(user_id)
-      if (directAuthDeleteError) {
-        return NextResponse.json({ error: 'Kullanıcı bulunamadı veya zaten silinmiş' }, { status: 404 })
-      }
-      return NextResponse.json({ ok: true, deleted_user_id: user_id })
+      const { error: directAuthDeleteError } = await adminClient.auth.admin.deleteUser(authUserId)
+      if (directAuthDeleteError) throw directAuthDeleteError
+      return NextResponse.json({ ok: true, deleted_user_id: authUserId })
     }
 
     // ilişkili veri temizliği için: user_profiles.id (FK'larda bu kullanılıyor)
