@@ -114,11 +114,48 @@ export async function translateTextInBrowser(options: {
   const normalizedSourceLanguage =
     normalizeLanguage(options.sourceLanguage) || (await detectLanguage(trimmedText))
 
-  if (!normalizedSourceLanguage || normalizedSourceLanguage === normalizedTargetLanguage) {
+  // Language detection failed (e.g. mobile has no LanguageDetector) — try server-side with 'auto'
+  if (!normalizedSourceLanguage) {
+    try {
+      const resp = await fetch('/api/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: trimmedText,
+          source: 'auto',
+          targets: [normalizedTargetLanguage],
+        }),
+      })
+      if (resp.ok) {
+        const data = await resp.json()
+        const serverTranslation: string | undefined = data?.translations?.[normalizedTargetLanguage]
+        if (serverTranslation && serverTranslation.trim()) {
+          const autoKey = `auto:${normalizedTargetLanguage}:${trimmedText}`
+          translationCache.set(autoKey, serverTranslation)
+          return {
+            translatedText: serverTranslation,
+            sourceLanguage: normalizeLanguage(data?.source ?? null),
+            supported: true,
+            didTranslate: serverTranslation !== options.text,
+          }
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return {
+      translatedText: options.text,
+      sourceLanguage: null,
+      supported: false,
+      didTranslate: false,
+    }
+  }
+
+  if (normalizedSourceLanguage === normalizedTargetLanguage) {
     return {
       translatedText: options.text,
       sourceLanguage: normalizedSourceLanguage,
-      supported: !!normalizedSourceLanguage,
+      supported: true,
       didTranslate: false,
     }
   }

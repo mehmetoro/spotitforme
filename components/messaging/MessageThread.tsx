@@ -272,6 +272,7 @@ export default function MessageThread({ threadId, userId, onBack }: MessageThrea
         const result = await translateTextInBrowser({
           text: message.content,
           targetLanguage: currentConversationLanguage,
+          sourceLanguage: otherParticipantLanguage,
         })
 
         if (cancelled) return
