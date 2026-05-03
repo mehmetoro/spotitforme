@@ -33,11 +33,12 @@ export async function DELETE(request: NextRequest) {
 
     // user_id kolonu boşsa email ile auth user'ı bul
     if (!(profileRow as any)?.user_id && (profileRow as any)?.email) {
-      const { data: authUserByEmail } = await adminClient.auth.admin.getUserByEmail(
-        (profileRow as any).email
+      const { data: listData } = await adminClient.auth.admin.listUsers({ perPage: 1000 })
+      const matched = listData?.users?.find(
+        (u) => u.email === (profileRow as any).email
       )
-      if (authUserByEmail?.user?.id) {
-        authUserId = authUserByEmail.user.id
+      if (matched?.id) {
+        authUserId = matched.id
       }
     }
 
