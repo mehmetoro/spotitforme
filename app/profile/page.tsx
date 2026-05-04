@@ -1,11 +1,13 @@
 // app/profile/page.tsx - DÜZELTMİŞ VERSİYON
 'use client'
 
-import { useEffect, useState, type ChangeEvent } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { buildSeoImageFileName } from '@/lib/content-seo'
 import { getImagePreviewDataUrl, optimizeImageFile } from '@/lib/image-processing'
 import { supabase } from '@/lib/supabase'
+import LocationSelector from '@/components/LocationSelector'
+import { SOCIAL_CATEGORIES } from '@/lib/social-categories'
 import Link from 'next/link'
 import { buildCollectionPath, buildRareSightingPath, buildSightingPath, buildSocialPath, buildSpotPath } from '@/lib/sighting-slug'
 import { useCurrentLocale } from '@/hooks/useCurrentLocale'
@@ -141,6 +143,10 @@ interface UserTravelPostItem {
   category: string | null
   location: string | null
   city: string | null
+  country: string | null
+  district: string | null
+  latitude: number | null
+  longitude: number | null
   hashtags: string[] | null
   images: string[] | null
   created_at: string
@@ -224,8 +230,23 @@ export default function ProfilePage() {
     category: '',
     location: '',
     city: '',
+    district: '',
+    country: '',
+    latitude: '',
+    longitude: '',
+    imageUrl: '',
     hashtags: '',
   })
+  const [travelEditLocationData, setTravelEditLocationData] = useState<{
+    address: string
+    city: string
+    district: string
+    latitude: number | null
+    longitude: number | null
+  } | null>(null)
+  const [travelEditImageFile, setTravelEditImageFile] = useState<File | null>(null)
+  const [travelEditImagePreview, setTravelEditImagePreview] = useState<string | null>(null)
+  const travelEditImageInputRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
     checkAuth()
@@ -408,6 +429,10 @@ export default function ProfilePage() {
           category: row.category || null,
           location: row.location || null,
           city: row.city || null,
+          district: row.district || null,
+          country: row.country || null,
+          latitude: row.latitude != null ? Number(row.latitude) : null,
+          longitude: row.longitude != null ? Number(row.longitude) : null,
           hashtags: Array.isArray(row.hashtags) ? row.hashtags : null,
           images: Array.isArray(row.images) ? row.images : null,
           created_at: row.created_at,
@@ -776,19 +801,31 @@ export default function ProfilePage() {
   }
 
   const handleStartTravelEdit = (post: UserTravelPostItem) => {
+    const existingImage = Array.isArray(post.images) && post.images.length > 0 ? post.images[0] : ''
     setTravelEditingId(post.id)
+    setTravelEditLocationData(null)
+    setTravelEditImageFile(null)
+    setTravelEditImagePreview(existingImage || null)
     setTravelEditForm({
       title: post.title || '',
       content: post.content || '',
       category: post.category || '',
       location: post.location || '',
       city: post.city || '',
+      district: post.district || '',
+      country: post.country || '',
+      latitude: post.latitude != null ? String(post.latitude) : '',
+      longitude: post.longitude != null ? String(post.longitude) : '',
+      imageUrl: existingImage,
       hashtags: (post.hashtags || []).join(' '),
     })
   }
 
   const handleCancelTravelEdit = () => {
     setTravelEditingId(null)
+    setTravelEditLocationData(null)
+    setTravelEditImageFile(null)
+    setTravelEditImagePreview(null)
   }
 
   const parseHashtags = (value: string): string[] => {
@@ -802,6 +839,46 @@ export default function ProfilePage() {
           .filter(Boolean)
       )
     )
+  }
+
+  const handleTravelEditLocationSelect = (loc: {
+    address: string
+    city: string
+    district: string
+    latitude: number | null
+    longitude: number | null
+  }) => {
+    setTravelEditLocationData(loc)
+    setTravelEditForm((prev) => ({
+      ...prev,
+      location: loc.address || prev.location,
+      city: loc.city || prev.city,
+      district: loc.district || prev.district,
+      latitude: loc.latitude != null ? String(loc.latitude) : prev.latitude,
+      longitude: loc.longitude != null ? String(loc.longitude) : prev.longitude,
+    }))
+  }
+
+  const handleTravelEditImageUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (file.size > 12 * 1024 * 1024) {
+      alert('Fotograf 12MB\'dan kucuk olmalidir.')
+      return
+    }
+
+    try {
+      const optimizedFile = await optimizeImageFile(file)
+      const preview = await getImagePreviewDataUrl(optimizedFile)
+      setTravelEditImageFile(optimizedFile)
+      setTravelEditImagePreview(preview)
+      setTravelEditForm((prev) => ({ ...prev, imageUrl: '' }))
+    } catch {
+      alert('Resim optimize edilirken bir hata olustu.')
+    }
+
+    e.target.value = ''
   }
 
   const handleSaveTravelEdit = async (post: UserTravelPostItem) => {
@@ -820,12 +897,57 @@ export default function ProfilePage() {
     try {
       setTravelActionId(post.id)
 
+      let parsedLat = travelEditForm.latitude.trim() ? Number(travelEditForm.latitude.trim()) : null
+      let parsedLng = travelEditForm.longitude.trim() ? Number(travelEditForm.longitude.trim()) : null
+      let resolvedLocation = travelEditForm.location.trim() || null
+      let resolvedCity = travelEditForm.city.trim() || null
+      let resolvedDistrict = travelEditForm.district.trim() || null
+
+      if (travelEditLocationData) {
+        const locationLat = travelEditLocationData.latitude != null ? Number(travelEditLocationData.latitude) : null
+        const locationLng = travelEditLocationData.longitude != null ? Number(travelEditLocationData.longitude) : null
+
+        if (travelEditLocationData.address?.trim()) resolvedLocation = travelEditLocationData.address.trim()
+        if (travelEditLocationData.city?.trim()) resolvedCity = travelEditLocationData.city.trim()
+        if (travelEditLocationData.district?.trim() && !resolvedDistrict) resolvedDistrict = travelEditLocationData.district.trim()
+        if (locationLat != null && Number.isFinite(locationLat)) parsedLat = locationLat
+        if (locationLng != null && Number.isFinite(locationLng)) parsedLng = locationLng
+      }
+
+      let imageUrlVal = travelEditForm.imageUrl.trim() || null
+      if (travelEditImageFile && user?.id) {
+        const fileName = buildSeoImageFileName({
+          folder: 'social',
+          userId: user.id,
+          title: normalizedTitle || normalizedContent || 'travel-post',
+          originalName: travelEditImageFile.name,
+          index: 0,
+        })
+
+        const { error: uploadError } = await supabase.storage
+          .from('spot-images')
+          .upload(fileName, travelEditImageFile)
+
+        if (uploadError) throw uploadError
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('spot-images')
+          .getPublicUrl(fileName)
+
+        imageUrlVal = publicUrl || null
+      }
+
       const basePayload: Record<string, any> = {
         title: normalizedTitle || null,
         content: normalizedContent || null,
         category: travelEditForm.category.trim() || null,
-        location: travelEditForm.location.trim() || null,
-        city: travelEditForm.city.trim() || null,
+        location: resolvedLocation,
+        city: resolvedCity,
+        district: resolvedDistrict,
+        country: travelEditForm.country.trim() || null,
+        latitude: parsedLat != null && Number.isFinite(parsedLat) ? parsedLat : null,
+        longitude: parsedLng != null && Number.isFinite(parsedLng) ? parsedLng : null,
+        images: imageUrlVal ? [imageUrlVal] : null,
         hashtags: parseHashtags(travelEditForm.hashtags),
       }
 
@@ -833,7 +955,7 @@ export default function ProfilePage() {
         basePayload.hashtags = null
       }
 
-      const optionalColumns = ['title', 'category', 'location', 'city', 'hashtags']
+      const optionalColumns = ['title', 'category', 'location', 'city', 'district', 'country', 'latitude', 'longitude', 'images', 'hashtags']
       let payload = { ...basePayload }
       let updateData: any = null
       let updateError: any = null
@@ -844,7 +966,7 @@ export default function ProfilePage() {
           .update(payload)
           .eq('id', post.id)
           .eq('user_id', user.id)
-          .select('id, title, content, post_type, category, location, city, hashtags, images, created_at')
+          .select('id, title, content, post_type, category, location, city, district, country, latitude, longitude, hashtags, images, created_at')
           .maybeSingle()
 
         updateData = response.data
@@ -867,6 +989,9 @@ export default function ProfilePage() {
 
       setUserTravelPosts((prev) => prev.map((item) => (item.id === post.id ? (updateData as UserTravelPostItem) : item)))
       setTravelEditingId(null)
+      setTravelEditLocationData(null)
+      setTravelEditImageFile(null)
+      setTravelEditImagePreview(null)
     } catch (err: any) {
       alert(err?.message || 'Nadir seyahat paylaşımı güncellenemedi')
     } finally {
@@ -1858,26 +1983,97 @@ export default function ProfilePage() {
                               rows={4}
                               className="w-full px-3 py-2 border border-blue-200 rounded-lg"
                             />
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">Kategori</label>
+                              <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
+                                {SOCIAL_CATEGORIES.map((cat) => (
+                                  <button
+                                    key={cat.id}
+                                    onClick={() => setTravelEditForm({ ...travelEditForm, category: cat.id })}
+                                    type="button"
+                                    className={`p-2 rounded-lg border text-center transition ${
+                                      travelEditForm.category === cat.id
+                                        ? 'border-blue-500 bg-blue-50'
+                                        : 'border-gray-200 hover:border-gray-300'
+                                    }`}
+                                  >
+                                    <div className="text-lg leading-none mb-1">{cat.icon}</div>
+                                    <div className="text-[11px] font-medium text-gray-700 truncate">{cat.name}</div>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                            <div className="p-3 border border-blue-200 rounded-lg">
+                              <LocationSelector
+                                onLocationSelect={handleTravelEditLocationSelect}
+                                initialLocation={travelEditForm.location}
+                                required={false}
+                              />
+                              {travelEditForm.city && (
+                                <div className="text-xs text-gray-500 mt-1">Şehir: <b>{travelEditForm.city}</b></div>
+                              )}
+                            </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                               <input
-                                value={travelEditForm.category}
-                                onChange={(e) => setTravelEditForm({ ...travelEditForm, category: e.target.value })}
-                                placeholder="Kategori"
+                                value={travelEditForm.district}
+                                onChange={(e) => setTravelEditForm({ ...travelEditForm, district: e.target.value })}
+                                placeholder="İlçe"
                                 className="px-3 py-2 border border-blue-200 rounded-lg"
                               />
                               <input
-                                value={travelEditForm.city}
-                                onChange={(e) => setTravelEditForm({ ...travelEditForm, city: e.target.value })}
-                                placeholder="Şehir"
+                                value={travelEditForm.country}
+                                onChange={(e) => setTravelEditForm({ ...travelEditForm, country: e.target.value })}
+                                placeholder="Ülke"
                                 className="px-3 py-2 border border-blue-200 rounded-lg"
                               />
                             </div>
-                            <input
-                              value={travelEditForm.location}
-                              onChange={(e) => setTravelEditForm({ ...travelEditForm, location: e.target.value })}
-                              placeholder="Konum"
-                              className="w-full px-3 py-2 border border-blue-200 rounded-lg"
-                            />
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-gray-600">
+                              <div className="px-3 py-2 border border-blue-100 rounded-lg bg-blue-50">
+                                Enlem: {travelEditForm.latitude || '-'}
+                              </div>
+                              <div className="px-3 py-2 border border-blue-100 rounded-lg bg-blue-50">
+                                Boylam: {travelEditForm.longitude || '-'}
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <label className="block text-sm font-medium text-gray-700">Fotograf</label>
+                              {travelEditImagePreview && (
+                                <img
+                                  src={travelEditImagePreview}
+                                  alt="Travel post preview"
+                                  className="w-full max-h-56 object-cover rounded-lg border border-blue-100"
+                                />
+                              )}
+                              <input
+                                ref={travelEditImageInputRef}
+                                type="file"
+                                accept="image/*"
+                                onChange={handleTravelEditImageUpload}
+                                className="hidden"
+                              />
+                              <div className="flex flex-wrap items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => travelEditImageInputRef.current?.click()}
+                                  className="h-11 px-4 border-2 border-dashed border-blue-300 rounded-lg text-sm text-blue-700 hover:border-blue-400 hover:bg-blue-50 transition"
+                                >
+                                  Fotograf Ekle / Degistir
+                                </button>
+                                {(travelEditImagePreview || travelEditForm.imageUrl) && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setTravelEditImageFile(null)
+                                      setTravelEditImagePreview(null)
+                                      setTravelEditForm({ ...travelEditForm, imageUrl: '' })
+                                    }}
+                                    className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm"
+                                  >
+                                    Resmi Kaldır
+                                  </button>
+                                )}
+                              </div>
+                            </div>
                             <input
                               value={travelEditForm.hashtags}
                               onChange={(e) => setTravelEditForm({ ...travelEditForm, hashtags: e.target.value })}

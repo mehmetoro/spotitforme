@@ -117,16 +117,34 @@ export async function POST(request: NextRequest) {
     )
 
     const nowIso = new Date().toISOString()
-    const rows = translatedByLocale.map((entry) => ({
-      [idColumn]: recordId,
-      language: entry.locale,
-      title: entry.translatedTitle,
-      description: entry.translatedDescription,
-      translation_status: 'completed',
-      translation_service: 'libretranslate',
-      translated_at: nowIso,
-      updated_at: nowIso,
-    }))
+    // Fetch existing rows so we can preserve fields not provided in this request
+    const { data: existingRows } = await supabase
+      .from(table)
+      .select(`language, title, description`)
+      .eq(idColumn, recordId)
+      .in('language', TARGET_LOCALES as unknown as string[])
+
+    const existingMap: Record<string, { title: string; description: string }> = {}
+    ;(existingRows || []).forEach((r: any) => {
+      existingMap[r.language] = { title: r.title || '', description: r.description || '' }
+    })
+
+    const rows = translatedByLocale.map((entry) => {
+      const existing = existingMap[entry.locale] || { title: '', description: '' }
+      // Only overwrite a field if this request actually provided it (non-empty result)
+      const resolvedTitle = entry.translatedTitle || existing.title || ''
+      const resolvedDescription = entry.translatedDescription || existing.description || ''
+      return {
+        [idColumn]: recordId,
+        language: entry.locale,
+        title: resolvedTitle,
+        description: resolvedDescription,
+        translation_status: 'completed',
+        translation_service: 'libretranslate',
+        translated_at: nowIso,
+        updated_at: nowIso,
+      }
+    })
 
     const { error } = await supabase.from(table).upsert(rows, {
       onConflict: `${idColumn},language`,
