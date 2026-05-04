@@ -234,8 +234,35 @@ export async function GET(request: NextRequest) {
 
     const userMap = Object.fromEntries(users.map((u) => [u.id, u]))
 
-    // Çevirileri uygula (quick_sightings için, social değil)
+    // Çevirileri uygula
     let resultRows = filtered.map((s: any) => ({ ...s, user: userMap[s.user_id] || null }))
+
+    if (SUPPORTED_LOCALES.includes(locale) && normalizedChannel === 'social') {
+      const ids = resultRows.map((s: any) => s.id).filter(Boolean)
+      if (ids.length > 0) {
+        const { data: translations } = await supabase
+          .from('social_post_translations')
+          .select('social_post_id, title, description')
+          .in('social_post_id', ids)
+          .eq('language', locale)
+
+        if (translations && translations.length > 0) {
+          const trMap: Record<string, { title: string; description: string }> = {}
+          translations.forEach((t: any) => {
+            trMap[t.social_post_id] = { title: t.title, description: t.description }
+          })
+          resultRows = resultRows.map((s: any) => {
+            const t = trMap[s.id]
+            if (!t) return s
+            return {
+              ...s,
+              title: t.title || s.title,
+              description: t.description || s.description,
+            }
+          })
+        }
+      }
+    }
 
     if (SUPPORTED_LOCALES.includes(locale) && normalizedChannel !== 'social') {
       const ids = resultRows.map((s: any) => s.id).filter(Boolean)

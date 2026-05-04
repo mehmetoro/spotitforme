@@ -6,6 +6,7 @@ import { MapContainer, Marker, Popup, TileLayer, useMapEvents } from 'react-leaf
 import L from 'leaflet'
 import { buildRareSightingPath, buildSocialPath } from '@/lib/sighting-slug'
 import { findCategoryByValue, getCitySlug } from '@/lib/social-categories'
+import { useCurrentLocale } from '@/hooks/useCurrentLocale'
 
 type RareItem = {
   id: string
@@ -123,6 +124,13 @@ const markerIcon = new L.Icon({
 
 function clamp(val: number, min: number, max: number) { return Math.max(min, Math.min(max, val)) }
 
+function truncatePreview(text: string, limit = 78) {
+  const clean = (text || '').replace(/\s+/g, ' ').trim()
+  if (!clean) return ''
+  if (clean.length <= limit) return clean
+  return `${clean.slice(0, limit).trimEnd()}...`
+}
+
 function buildItemDetailPath(item: RareItem) {
   const title = item.title || item.description || ''
   return item.source_channel === 'social'
@@ -189,6 +197,7 @@ export default function RareSightingsMap({ channel = 'physical' }: RareSightings
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const locale = useCurrentLocale()
 
   const [items, setItems] = useState<RareItem[]>([])
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS)
@@ -298,7 +307,7 @@ export default function RareSightingsMap({ channel = 'physical' }: RareSightings
       setLoading(true)
       setError('')
       try {
-        const res = await fetch(`/api/quick-sightings?channel=${channel}&hasLocation=with`)
+        const res = await fetch(`/api/quick-sightings?channel=${channel}&hasLocation=with&locale=${locale}`)
         const data = await res.json()
         if (!res.ok) throw new Error(data?.error || 'Nadir verileri alinamadi')
         if (!isMounted) return
@@ -339,7 +348,7 @@ export default function RareSightingsMap({ channel = 'physical' }: RareSightings
     return () => {
       isMounted = false
     }
-  }, [channel])
+  }, [channel, locale])
 
   const countryOptions = useMemo(
     () => Array.from(new Set(items.map((item) => item.country).filter(Boolean) as string[])).sort((a, b) => a.localeCompare(b, 'tr')),
@@ -873,6 +882,7 @@ export default function RareSightingsMap({ channel = 'physical' }: RareSightings
             const lng = Number(item.longitude)
             const image = item.photo_url || item.image_url || item.link_preview_image || ''
             const title = item.title || item.description || 'Nadir Paylasim'
+            const summary = truncatePreview(item.description || item.title || '', 78)
 
             return (
               <Marker
@@ -896,9 +906,7 @@ export default function RareSightingsMap({ channel = 'physical' }: RareSightings
                       />
                     ) : null}
                     <p className="mt-2 line-clamp-2 text-sm font-semibold text-gray-900">{title}</p>
-                    <p className="mt-1 text-xs text-gray-500">
-                      {[item.country, item.city, item.district, item.location_name].filter(Boolean).join(' · ') || 'Konum'}
-                    </p>
+                    <p className="mt-1 text-xs text-gray-500">{summary || 'Aciklama yok'}</p>
                     {item.price != null && (
                       <p className="mt-1 text-xs font-semibold text-emerald-700">
                         Fiyat: {item.price.toLocaleString('tr-TR')} TL
