@@ -10,9 +10,11 @@ interface SeedPlace {
   content: string
   description?: string
   category?: string
+  location?: string
   city?: string
   district?: string
   country?: string
+  hashtags?: string[] | null
   latitude?: number | null
   longitude?: number | null
   images?: string[] | null
