@@ -3,6 +3,82 @@
 import { useState, useEffect, useRef } from 'react'
 import { MapPin, Navigation } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { useCurrentLocale, type SupportedLocale } from '@/hooks/useCurrentLocale'
+
+const LOCATION_TEXT: Record<SupportedLocale, Record<string, string>> = {
+  tr: {
+    label: '📍 Konum',
+    placeholder: 'Orn: Istiklal Caddesi, Kadikoy Carsi...',
+    useCurrent: 'Mevcut konumumu kullan',
+    currentLocationName: 'Mevcut Konumum',
+    permissionRequired: 'Konum izni vermeniz gerekiyor',
+    tip1: '✓ Konum bilgisi urunun daha hizli bulunmasini saglar',
+    tip2: '✓ Detayli adres (sokak, bina no) daha iyi sonuc verir',
+    locationSearchError: 'Konum arama hatasi:',
+    reverseGeocodeError: 'Reverse geocoding hatasi:',
+    locationUnavailable: 'Konum alinamadi:',
+  },
+  en: {
+    label: '📍 Location',
+    placeholder: 'Ex: Istiklal Street, Kadikoy Bazaar...',
+    useCurrent: 'Use my current location',
+    currentLocationName: 'My Current Location',
+    permissionRequired: 'Location permission is required',
+    tip1: '✓ Location helps your post get discovered faster',
+    tip2: '✓ Detailed address (street, building no) gives better results',
+    locationSearchError: 'Location search error:',
+    reverseGeocodeError: 'Reverse geocoding error:',
+    locationUnavailable: 'Location could not be retrieved:',
+  },
+  de: {
+    label: '📍 Standort',
+    placeholder: 'Bsp: Istiklal-StraBe, Kadikoy-Basar...',
+    useCurrent: 'Meinen aktuellen Standort verwenden',
+    currentLocationName: 'Mein aktueller Standort',
+    permissionRequired: 'Standortberechtigung ist erforderlich',
+    tip1: '✓ Standortdaten helfen, den Beitrag schneller zu finden',
+    tip2: '✓ Detaillierte Adresse liefert bessere Ergebnisse',
+    locationSearchError: 'Standortsuche-Fehler:',
+    reverseGeocodeError: 'Reverse-Geocoding-Fehler:',
+    locationUnavailable: 'Standort konnte nicht ermittelt werden:',
+  },
+  fr: {
+    label: '📍 Localisation',
+    placeholder: 'Ex: Rue Istiklal, Bazar de Kadikoy...',
+    useCurrent: 'Utiliser ma position actuelle',
+    currentLocationName: 'Ma position actuelle',
+    permissionRequired: 'Autorisation de localisation requise',
+    tip1: '✓ La localisation aide a trouver votre publication plus vite',
+    tip2: '✓ Une adresse detaillee donne de meilleurs resultats',
+    locationSearchError: 'Erreur de recherche de localisation:',
+    reverseGeocodeError: 'Erreur de geocodage inverse:',
+    locationUnavailable: 'Impossible de recuperer la localisation:',
+  },
+  es: {
+    label: '📍 Ubicacion',
+    placeholder: 'Ej: Calle Istiklal, Bazar Kadikoy...',
+    useCurrent: 'Usar mi ubicacion actual',
+    currentLocationName: 'Mi ubicacion actual',
+    permissionRequired: 'Se requiere permiso de ubicacion',
+    tip1: '✓ La ubicacion ayuda a encontrar tu publicacion mas rapido',
+    tip2: '✓ Una direccion detallada da mejores resultados',
+    locationSearchError: 'Error de busqueda de ubicacion:',
+    reverseGeocodeError: 'Error de geocodificacion inversa:',
+    locationUnavailable: 'No se pudo obtener la ubicacion:',
+  },
+  ru: {
+    label: '📍 Местоположение',
+    placeholder: 'Напр: Улица Истикляль, Рынок Кадыкёй...',
+    useCurrent: 'Использовать мое текущее местоположение',
+    currentLocationName: 'Мое текущее местоположение',
+    permissionRequired: 'Требуется доступ к геолокации',
+    tip1: '✓ Местоположение помогает быстрее находить публикацию',
+    tip2: '✓ Подробный адрес дает лучшие результаты',
+    locationSearchError: 'Ошибка поиска местоположения:',
+    reverseGeocodeError: 'Ошибка обратного геокодирования:',
+    locationUnavailable: 'Не удалось получить местоположение:',
+  },
+}
 
 // Tip tanımları
 interface LocationSuggestion {
@@ -61,6 +137,8 @@ export default function LocationSelector({
   showCurrentLocation = true,
   showQuickLocations = true
 }: LocationSelectorProps) {
+  const locale = useCurrentLocale()
+  const t = LOCATION_TEXT[locale] ?? LOCATION_TEXT.tr
   const [location, setLocation] = useState(initialLocation)
   const [suggestions, setSuggestions] = useState<LocationSuggestion[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -125,7 +203,7 @@ export default function LocationSelector({
       const allSuggestions = [...dbSuggestions, ...osmSuggestions]
       setSuggestions(allSuggestions.slice(0, 8))
     } catch (error) {
-      console.error('Konum arama hatası:', error)
+      console.error(t.locationSearchError, error)
     } finally {
       setIsLoading(false)
     }
@@ -192,7 +270,7 @@ export default function LocationSelector({
             const data: OSMResult = await response.json()
             
             const locationObj: SelectedLocation = {
-              name: 'Mevcut Konumum',
+              name: t.currentLocationName,
               address: data.display_name,
               latitude,
               longitude,
@@ -203,12 +281,12 @@ export default function LocationSelector({
             setLocation(data.display_name)
             handleLocationSelect(locationObj)
           } catch (error) {
-            console.error('Reverse geocoding hatası:', error)
+            console.error(t.reverseGeocodeError, error)
           }
         },
         (error) => {
-          console.error('Konum alınamadı:', error)
-          alert('Konum izni vermeniz gerekiyor')
+          console.error(t.locationUnavailable, error)
+          alert(t.permissionRequired)
         }
       )
     }
@@ -228,7 +306,7 @@ export default function LocationSelector({
   return (
     <div className="space-y-3">
       <label className="block text-sm font-medium text-gray-700">
-        📍 Konum {required && '*'}
+        {t.label} {required && '*'}
       </label>
       
       <div className="relative">
@@ -239,7 +317,7 @@ export default function LocationSelector({
               type="text"
               value={location}
               onChange={handleInputChange}
-              placeholder="Örn: İstiklal Caddesi, Kadıköy Çarşı..."
+              placeholder={t.placeholder}
               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               required={required}
             />
@@ -250,7 +328,7 @@ export default function LocationSelector({
               type="button"
               onClick={useCurrentLocation}
               className="ml-2 p-3 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition"
-              title="Mevcut konumumu kullan"
+              title={t.useCurrent}
             >
               <Navigation className="w-5 h-5" />
             </button>
@@ -309,8 +387,8 @@ export default function LocationSelector({
       )}
 
       <p className="text-xs text-gray-500">
-        ✓ Konum bilgisi ürünün daha hızlı bulunmasını sağlar<br />
-        ✓ Detaylı adres (sokak, bina no) daha iyi sonuç verir
+        {t.tip1}<br />
+        {t.tip2}
       </p>
     </div>
   )

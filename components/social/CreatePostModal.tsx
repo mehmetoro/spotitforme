@@ -7,7 +7,284 @@ import { getImagePreviewDataUrl, optimizeImageFile } from '@/lib/image-processin
 import { SOCIAL_CATEGORIES } from '@/lib/social-categories'
 import { supabase } from '@/lib/supabase'
 import LocationSelector from '../LocationSelector'
-import { useCurrentLocale } from '@/hooks/useCurrentLocale'
+import { useCurrentLocale, type SupportedLocale } from '@/hooks/useCurrentLocale'
+
+const FORM_TEXT: Record<SupportedLocale, Record<string, string>> = {
+  tr: {
+    headerSocial: 'Nadir Seyahat',
+    headerTrip: 'Seyahat Duragi Ekle',
+    photo: 'Fotograf',
+    photoAdd: 'Fotograf Ekle',
+    title: 'Baslik *',
+    titlePlaceholder: "Orn: 1980'ler Sony Walkman kutulu bulundu",
+    titleHint: 'Baslikta urun adi, marka veya seri bilgisi gecsin.',
+    description: 'Aciklama *',
+    descriptionPlaceholder: 'Ne gordun? Anlat...',
+    descriptionHint: 'Yer, kondisyon, fiyat ipucu veya neden onemli oldugunu yazmaniz kesfi guclendirir.',
+    hashtags: "Hashtag'ler",
+    hashtagPlaceholder: '#vintage #kamera',
+    add: 'Ekle',
+    hashtagRequired: 'En az bir etiket ekleyin: orn. vintage, saat, koleksiyon, walkman.',
+    hashtagSuggestions: 'Otomatik etiket onerileri',
+    city: 'Sehir',
+    category: 'Kategori',
+    publicShare: 'Herkese acik paylas',
+    rewardTitle: 'Kazanacagin Puan',
+    rewardPost: 'Paylasim',
+    rewardPhoto: 'Fotograf',
+    rewardHashtag: 'Hashtag',
+    points: 'puan',
+    cancel: 'Iptal',
+    adding: 'Ekleniyor...',
+    posting: 'Paylasiliyor...',
+    submitTrip: 'Duraga Ekle',
+    submitSocial: 'Paylas',
+    alertTitleSocial: 'Baslik en az 12 karakter olmali. Urun adi, seri veya ayirt edici ifade ekleyin.',
+    alertTitleTrip: 'Baslik en az 3 karakter olmali.',
+    alertDesc: 'Aciklama en az 40 karakter olmali. Neyi, nerede ve neden paylastiginizi daha detayli yazin.',
+    alertHashtag: 'En az 1 etiket ekleyin. Etiketler paylasiminizin kesfedilmesini kolaylastirir.',
+    alertLogin: 'Giris yapmalisiniz',
+    alertLocation: 'Konum dogrulanamadi. Lutfen adresi daha net yazin veya mevcut konumu kullanin.',
+    alertTripAdded: 'Durak paylasimi eklendi!',
+    alertPublished: 'Paylasiminiz yayinlandi!',
+    alertError: 'Hata',
+    defaultFoundContent: 'Bu spotu buldum!',
+    defaultContent: 'Paylasim',
+  },
+  en: {
+    headerSocial: 'Rare Travel',
+    headerTrip: 'Add Travel Stop',
+    photo: 'Photo',
+    photoAdd: 'Add Photo',
+    title: 'Title *',
+    titlePlaceholder: 'Ex: Boxed 1980s Sony Walkman found',
+    titleHint: 'Include product name, brand, or series in the title.',
+    description: 'Description *',
+    descriptionPlaceholder: 'What did you see? Tell us...',
+    descriptionHint: 'Adding place, condition, price clue, or why it matters improves discovery.',
+    hashtags: 'Hashtags',
+    hashtagPlaceholder: '#vintage #camera',
+    add: 'Add',
+    hashtagRequired: 'Add at least one tag: e.g. vintage, watch, collection, walkman.',
+    hashtagSuggestions: 'Suggested tags',
+    city: 'City',
+    category: 'Category',
+    publicShare: 'Public share',
+    rewardTitle: 'Points You Will Earn',
+    rewardPost: 'Post',
+    rewardPhoto: 'Photo',
+    rewardHashtag: 'Hashtag',
+    points: 'points',
+    cancel: 'Cancel',
+    adding: 'Adding...',
+    posting: 'Posting...',
+    submitTrip: 'Add to Stop',
+    submitSocial: 'Share',
+    alertTitleSocial: 'Title must be at least 12 characters. Include product name, series, or a distinctive phrase.',
+    alertTitleTrip: 'Title must be at least 3 characters.',
+    alertDesc: 'Description must be at least 40 characters. Explain what, where, and why in more detail.',
+    alertHashtag: 'Add at least 1 tag. Tags help your post get discovered.',
+    alertLogin: 'You must be logged in',
+    alertLocation: 'Location could not be verified. Please provide a clearer address or use current location.',
+    alertTripAdded: 'Stop post added!',
+    alertPublished: 'Your post has been published!',
+    alertError: 'Error',
+    defaultFoundContent: 'I found this spot!',
+    defaultContent: 'Post',
+  },
+  de: {
+    headerSocial: 'Seltene Reise',
+    headerTrip: 'Reisestopp hinzufugen',
+    photo: 'Foto',
+    photoAdd: 'Foto hinzufugen',
+    title: 'Titel *',
+    titlePlaceholder: 'Bsp: Sony Walkman aus den 1980ern in OVP gefunden',
+    titleHint: 'Titel sollte Produktname, Marke oder Serie enthalten.',
+    description: 'Beschreibung *',
+    descriptionPlaceholder: 'Was hast du gesehen? Erzahl es...',
+    descriptionHint: 'Ort, Zustand, Preis-Hinweis oder Relevanz verbessern die Auffindbarkeit.',
+    hashtags: 'Hashtags',
+    hashtagPlaceholder: '#vintage #kamera',
+    add: 'Hinzufugen',
+    hashtagRequired: 'Fuge mindestens ein Tag hinzu: z. B. vintage, uhr, sammlung, walkman.',
+    hashtagSuggestions: 'Tag-Vorschlage',
+    city: 'Stadt',
+    category: 'Kategorie',
+    publicShare: 'Offentlich teilen',
+    rewardTitle: 'Punkte, die du erhaltst',
+    rewardPost: 'Beitrag',
+    rewardPhoto: 'Foto',
+    rewardHashtag: 'Hashtag',
+    points: 'Punkte',
+    cancel: 'Abbrechen',
+    adding: 'Wird hinzugefugt...',
+    posting: 'Wird geteilt...',
+    submitTrip: 'Zum Stopp hinzufugen',
+    submitSocial: 'Teilen',
+    alertTitleSocial: 'Der Titel muss mindestens 12 Zeichen haben.',
+    alertTitleTrip: 'Der Titel muss mindestens 3 Zeichen haben.',
+    alertDesc: 'Die Beschreibung muss mindestens 40 Zeichen haben.',
+    alertHashtag: 'Fuge mindestens 1 Tag hinzu.',
+    alertLogin: 'Sie mussen angemeldet sein',
+    alertLocation: 'Standort konnte nicht verifiziert werden.',
+    alertTripAdded: 'Stopp-Beitrag hinzugefugt!',
+    alertPublished: 'Dein Beitrag wurde veroffentlicht!',
+    alertError: 'Fehler',
+    defaultFoundContent: 'Ich habe diesen Spot gefunden!',
+    defaultContent: 'Beitrag',
+  },
+  fr: {
+    headerSocial: 'Voyage Rare',
+    headerTrip: 'Ajouter un arret',
+    photo: 'Photo',
+    photoAdd: 'Ajouter une photo',
+    title: 'Titre *',
+    titlePlaceholder: 'Ex: Sony Walkman des annees 1980 trouve en boite',
+    titleHint: 'Le titre doit inclure le nom du produit, la marque ou la serie.',
+    description: 'Description *',
+    descriptionPlaceholder: 'Qu avez-vous vu ? Racontez...',
+    descriptionHint: 'Lieu, etat, indice de prix ou importance renforcent la decouverte.',
+    hashtags: 'Hashtags',
+    hashtagPlaceholder: '#vintage #camera',
+    add: 'Ajouter',
+    hashtagRequired: 'Ajoutez au moins un tag.',
+    hashtagSuggestions: 'Suggestions de tags',
+    city: 'Ville',
+    category: 'Categorie',
+    publicShare: 'Partager publiquement',
+    rewardTitle: 'Points gagnes',
+    rewardPost: 'Publication',
+    rewardPhoto: 'Photo',
+    rewardHashtag: 'Hashtag',
+    points: 'points',
+    cancel: 'Annuler',
+    adding: 'Ajout en cours...',
+    posting: 'Publication...',
+    submitTrip: "Ajouter a l'arret",
+    submitSocial: 'Partager',
+    alertTitleSocial: 'Le titre doit contenir au moins 12 caracteres.',
+    alertTitleTrip: 'Le titre doit contenir au moins 3 caracteres.',
+    alertDesc: 'La description doit contenir au moins 40 caracteres.',
+    alertHashtag: 'Ajoutez au moins 1 tag.',
+    alertLogin: 'Vous devez etre connecte',
+    alertLocation: 'La localisation n a pas pu etre verifiee.',
+    alertTripAdded: 'Arret ajoute !',
+    alertPublished: 'Votre publication a ete publiee !',
+    alertError: 'Erreur',
+    defaultFoundContent: 'J ai trouve ce spot !',
+    defaultContent: 'Publication',
+  },
+  es: {
+    headerSocial: 'Viaje Raro',
+    headerTrip: 'Agregar parada',
+    photo: 'Foto',
+    photoAdd: 'Agregar foto',
+    title: 'Titulo *',
+    titlePlaceholder: 'Ej: Sony Walkman de los 80 encontrado en caja',
+    titleHint: 'Incluye nombre de producto, marca o serie en el titulo.',
+    description: 'Descripcion *',
+    descriptionPlaceholder: 'Que viste? Cuentalo...',
+    descriptionHint: 'Lugar, estado, pista de precio o por que importa mejoran el descubrimiento.',
+    hashtags: 'Hashtags',
+    hashtagPlaceholder: '#vintage #camara',
+    add: 'Agregar',
+    hashtagRequired: 'Agrega al menos una etiqueta.',
+    hashtagSuggestions: 'Sugerencias de etiquetas',
+    city: 'Ciudad',
+    category: 'Categoria',
+    publicShare: 'Compartir publicamente',
+    rewardTitle: 'Puntos que ganaras',
+    rewardPost: 'Publicacion',
+    rewardPhoto: 'Foto',
+    rewardHashtag: 'Hashtag',
+    points: 'puntos',
+    cancel: 'Cancelar',
+    adding: 'Agregando...',
+    posting: 'Publicando...',
+    submitTrip: 'Agregar a parada',
+    submitSocial: 'Compartir',
+    alertTitleSocial: 'El titulo debe tener al menos 12 caracteres.',
+    alertTitleTrip: 'El titulo debe tener al menos 3 caracteres.',
+    alertDesc: 'La descripcion debe tener al menos 40 caracteres.',
+    alertHashtag: 'Agrega al menos 1 etiqueta.',
+    alertLogin: 'Debes iniciar sesion',
+    alertLocation: 'No se pudo verificar la ubicacion.',
+    alertTripAdded: 'Parada agregada!',
+    alertPublished: 'Tu publicacion fue publicada!',
+    alertError: 'Error',
+    defaultFoundContent: 'Encontre este spot!',
+    defaultContent: 'Publicacion',
+  },
+  ru: {
+    headerSocial: 'Redkoe puteshestvie',
+    headerTrip: 'Dobavit ostanovku',
+    photo: 'Foto',
+    photoAdd: 'Dobavit foto',
+    title: 'Zagolovok *',
+    titlePlaceholder: 'Napr: nayden Sony Walkman 1980-h v korobke',
+    titleHint: 'Ukazhite v zagolovke nazvanie tovara, brend ili seriyu.',
+    description: 'Opisanie *',
+    descriptionPlaceholder: 'Chto vy uvideli? Rasskazhite...',
+    descriptionHint: 'Mesto, sostoyanie, cena ili vazhnost uluchshayut obnaruzhenie.',
+    hashtags: 'Hashtagi',
+    hashtagPlaceholder: '#vintage #kamera',
+    add: 'Dobavit',
+    hashtagRequired: 'Dobavte hotya by odin teg.',
+    hashtagSuggestions: 'Predlozhennye tegi',
+    city: 'Gorod',
+    category: 'Kategoriya',
+    publicShare: 'Publichnaya publikaciya',
+    rewardTitle: 'Ballov poluchite',
+    rewardPost: 'Publikaciya',
+    rewardPhoto: 'Foto',
+    rewardHashtag: 'Hashtag',
+    points: 'баллов',
+    cancel: 'Otmena',
+    adding: 'Dobavlenie...',
+    posting: 'Publikaciya...',
+    submitTrip: 'Dobavit v ostanovku',
+    submitSocial: 'Podelitsya',
+    alertTitleSocial: 'Zagolovok dolzhen byt ne menee 12 simvolov.',
+    alertTitleTrip: 'Zagolovok dolzhen byt ne menee 3 simvolov.',
+    alertDesc: 'Opisanie dolzhno byt ne menee 40 simvolov.',
+    alertHashtag: 'Dobavte hotya by 1 teg.',
+    alertLogin: 'Neobhodimo voiti v sistemu',
+    alertLocation: 'Ne udalos podtverdit mestopolozhenie.',
+    alertTripAdded: 'Ostanovka dobavlena!',
+    alertPublished: 'Vasha publikaciya opublikovana!',
+    alertError: 'Oshibka',
+    defaultFoundContent: 'Ya nashel etot spot!',
+    defaultContent: 'Publikaciya',
+  },
+}
+
+const CATEGORY_TEXT: Record<SupportedLocale, Record<string, string>> = {
+  tr: {},
+  en: {
+    'Tarihi Yerler': 'Historical Places',
+    'Muzeler ve Sergiler': 'Museums and Exhibitions',
+    Ibadethane: 'Places of Worship',
+    Konaklama: 'Accommodation',
+    'Restoran ve Lezzet Duraklari': 'Restaurants and Food Stops',
+    'Kafeler ve Kahveciler': 'Cafes and Coffee Shops',
+    'Yerel Pazarlar ve Carsilar': 'Local Markets and Bazaars',
+    'Antika ve Bit Pazarlari': 'Antique and Flea Markets',
+    'Doga Rotalari ve Milli Parklar': 'Nature Routes and National Parks',
+    'Kiyi ve Plajlar': 'Coasts and Beaches',
+    'Seyir Teraslari ve Manzara Noktalari': 'View Terraces and Scenic Points',
+    'Sanat Sokaklari ve Atolyeler': 'Art Streets and Workshops',
+    'Festival ve Etkinlik Alanlari': 'Festival and Event Areas',
+    'Gece Hayati ve Eglence': 'Nightlife and Entertainment',
+    'Koyler ve Kasabalar': 'Villages and Towns',
+    'Rota Ustu Duraklar': 'On-Route Stops',
+    'Gizli Mekanlar': 'Hidden Places',
+    Diger: 'Other',
+  },
+  de: {},
+  fr: {},
+  es: {},
+  ru: {},
+}
 
 export type TripPostModalPayload = {
   title: string
@@ -45,6 +322,7 @@ export default function CreatePostModal({
   onTripPostCreated,
 }: CreatePostModalProps) {
   const locale = useCurrentLocale()
+  const t = FORM_TEXT[locale] ?? FORM_TEXT.tr
   const [loading, setLoading] = useState(false)
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
@@ -84,6 +362,13 @@ export default function CreatePostModal({
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  const getCategoryName = (name: string) => {
+    const localized = CATEGORY_TEXT[locale]?.[name]
+    if (localized) return localized
+    if (locale !== 'tr') return CATEGORY_TEXT.en[name] || name
+    return name
+  }
+
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0]
     if (!selectedFile) return
@@ -94,7 +379,7 @@ export default function CreatePostModal({
       setImageFile(optimizedFile)
       setImagePreview(preview)
     } catch {
-      alert('Resim optimize edilirken bir hata olustu.')
+      alert(`${t.alertError}: image optimization failed.`)
     }
 
     e.target.value = ''
@@ -151,29 +436,29 @@ export default function CreatePostModal({
   const handleSubmit = async () => {
 
     if (mode === 'social' && !isTitleDetailedEnough) {
-      alert('Başlık en az 12 karakter olmalı. Ürün adı, seri veya ayırt edici ifade ekleyin.')
+      alert(t.alertTitleSocial)
       return
     }
 
     if (mode === 'trip_only' && normalizedTitle.length < 3) {
-      alert('Başlık en az 3 karakter olmalı.')
+      alert(t.alertTitleTrip)
       return
     }
 
     if (mode === 'social' && !isContentDetailedEnough) {
-      alert('Açıklama en az 40 karakter olmalı. Neyi, nerede ve neden paylaştığınızı daha detaylı yazın.')
+      alert(t.alertDesc)
       return
     }
 
     if (mode === 'social' && hashtags.length === 0) {
-      alert('En az 1 etiket ekleyin. Etiketler paylaşımınızın keşfedilmesini kolaylaştırır.')
+      alert(t.alertHashtag)
       return
     }
 
     setLoading(true)
     try {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error('Giriş yapmalısınız')
+      if (!user) throw new Error(t.alertLogin)
 
       // user_profiles tablosunda user.id var mı kontrol et, yoksa ekle
       const { data: profile, error: profileError } = await supabase
@@ -247,7 +532,7 @@ export default function CreatePostModal({
         }
 
         if (!selectedAddress || resolvedLatitude == null || resolvedLongitude == null) {
-          alert('Konum dogrulanamadi. Lutfen adresi daha net yazin veya mevcut konumu kullanin.')
+          alert(t.alertLocation)
           setLoading(false)
           return
         }
@@ -264,7 +549,7 @@ export default function CreatePostModal({
           hashtags,
         })
 
-        alert('✅ Durak paylaşımı eklendi!')
+        alert(`✅ ${t.alertTripAdded}`)
 
         setTitle('')
         setContent('')
@@ -289,7 +574,7 @@ export default function CreatePostModal({
       const postData: any = {
         user_id: user.id,
         title: normalizedTitle,
-        content: content || 'Paylaşım',
+        content: content || t.defaultContent,
         post_type: postType
       }
       if (parentSpotId) {
@@ -448,7 +733,7 @@ export default function CreatePostModal({
       }
 
       // 4. Başarılı
-      alert('✅ Paylaşımınız yayınlandı!')
+      alert(`✅ ${t.alertPublished}`)
       
       // 5. Formu temizle
       setTitle('')
@@ -471,7 +756,7 @@ export default function CreatePostModal({
 
     } catch (error: any) {
       console.error('Hata:', error)
-      alert(`Hata: ${error.message}`)
+      alert(`${t.alertError}: ${error.message}`)
     } finally {
       setLoading(false)
     }
@@ -493,9 +778,9 @@ export default function CreatePostModal({
   useEffect(() => {
     if (initialType) setPostType(initialType)
     if (parentSpotId) {
-      setContent('Bu spotu buldum!')
+      setContent(t.defaultFoundContent)
     }
-  }, [initialType, parentSpotId])
+  }, [initialType, parentSpotId, t.defaultFoundContent])
 
   if (!isOpen) return null
 
@@ -505,7 +790,7 @@ export default function CreatePostModal({
         {/* Header */}
         <div className="sticky top-0 bg-white border-b p-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-gray-900">{headerTitle || (mode === 'trip_only' ? 'Seyahat Durağı Ekle' : 'Nadir Seyahat')}</h2>
+            <h2 className="text-2xl font-bold text-gray-900">{headerTitle || (mode === 'trip_only' ? t.headerTrip : t.headerSocial)}</h2>
             <button
               onClick={onClose}
               className="text-gray-500 hover:text-gray-700 text-2xl"
@@ -522,7 +807,7 @@ export default function CreatePostModal({
           {/* Fotoğraf Yükleme */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Fotograf {imageFile && '(1 secildi)'}
+              {t.photo} {imageFile && '(1)'}
             </label>
             
             <input
@@ -556,7 +841,7 @@ export default function CreatePostModal({
                   className="h-32 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center hover:border-blue-400 transition"
                 >
                   <span className="text-2xl text-gray-400">+</span>
-                  <span className="text-xs text-gray-500 mt-1">Fotograf Ekle</span>
+                  <span className="text-xs text-gray-500 mt-1">{t.photoAdd}</span>
                 </button>
               )}
             </div>
@@ -569,18 +854,18 @@ export default function CreatePostModal({
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Başlık *
+              {t.title}
             </label>
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Örn: 1980'ler Sony Walkman kutulu bulundu"
+              placeholder={t.titlePlaceholder}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               maxLength={120}
             />
             <div className="flex items-center justify-between text-xs mt-1">
               <span className={isTitleDetailedEnough ? 'text-emerald-600' : 'text-amber-600'}>
-                Başlıkta ürün adı, marka veya seri bilgisi geçsin.
+                {t.titleHint}
               </span>
               <span className="text-gray-500">{title.length}/120</span>
             </div>
@@ -589,12 +874,12 @@ export default function CreatePostModal({
           {/* Açıklama */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Açıklama *
+              {t.description}
             </label>
             <textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              placeholder="Ne gördün? Anlat..."
+              placeholder={t.descriptionPlaceholder}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 h-24"
               maxLength={500}
             />
@@ -603,7 +888,7 @@ export default function CreatePostModal({
             </div>
             {!isContentDetailedEnough && content.length > 0 && (
               <p className="text-xs text-amber-600 mt-1">
-                Yer, kondisyon, fiyat ipucu veya neden önemli olduğunu yazmanız keşfi güçlendirir.
+                {t.descriptionHint}
               </p>
             )}
           </div>
@@ -611,7 +896,7 @@ export default function CreatePostModal({
           {/* Hashtagler */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Hashtag'ler
+              {t.hashtags}
             </label>
             <div className="flex gap-2">
               <input
@@ -619,14 +904,14 @@ export default function CreatePostModal({
                 value={hashtagInput}
                 onChange={(e) => setHashtagInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addHashtag())}
-                placeholder="#vintage #kamera"
+                placeholder={t.hashtagPlaceholder}
                 className="flex-1 px-4 py-2 border border-gray-300 rounded-lg"
               />
               <button
                 onClick={addHashtag}
                 className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg"
               >
-                Ekle
+                {t.add}
               </button>
             </div>
             
@@ -650,12 +935,12 @@ export default function CreatePostModal({
             )}
             {hashtags.length === 0 && (
               <p className="text-xs text-amber-600 mt-2">
-                En az bir etiket ekleyin: örn. vintage, saat, koleksiyon, walkman.
+                {t.hashtagRequired}
               </p>
             )}
             {suggestedHashtags.length > 0 && (
               <div className="mt-3">
-                <p className="text-xs font-medium text-gray-600 mb-2">Otomatik etiket önerileri</p>
+                <p className="text-xs font-medium text-gray-600 mb-2">{t.hashtagSuggestions}</p>
                 <div className="flex flex-wrap gap-2">
                   {suggestedHashtags.map((tag) => (
                     <button
@@ -681,7 +966,7 @@ export default function CreatePostModal({
               required={true}
             />
             {city && (
-              <div className="text-xs text-gray-500 mt-1">Şehir: <b>{city}</b></div>
+              <div className="text-xs text-gray-500 mt-1">{t.city}: <b>{city}</b></div>
             )}
           </div>
 
@@ -689,7 +974,7 @@ export default function CreatePostModal({
           {/* Kategori */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Kategori
+              {t.category}
             </label>
             <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
               {SOCIAL_CATEGORIES.map((cat) => (
@@ -704,7 +989,7 @@ export default function CreatePostModal({
                   }`}
                 >
                   <div className="text-2xl mb-1">{cat.icon}</div>
-                  <div className="text-xs font-medium text-gray-700 truncate">{cat.name}</div>
+                  <div className="text-xs font-medium text-gray-700 truncate">{getCategoryName(cat.name)}</div>
                 </button>
               ))}
             </div>
@@ -724,12 +1009,8 @@ export default function CreatePostModal({
                 id="isPublicPost"
               />
               <label htmlFor="isPublicPost" className="text-sm font-medium text-gray-700">
-                Herkese açık paylaş
+                {t.publicShare}
               </label>
-              <span className="text-xs text-gray-500">
-                Kapalıysa sadece arayanın görebilir. Gizli ben gördüm için
-                ödeme/iletişim platform dışında olmalıdır.
-              </span>
             </div>
           )}
 
@@ -737,11 +1018,11 @@ export default function CreatePostModal({
           <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-4 rounded-lg">
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-medium text-green-800">🎉 Kazanacağın Puan</p>
+                <p className="font-medium text-green-800">🎉 {t.rewardTitle}</p>
                 <p className="text-sm text-green-600">
-                  • Paylaşım: 10 puan<br />
-                  • Fotograf: +{(imageFile ? 1 : 0) * 5} puan<br />
-                  • Hashtag: +{hashtags.length * 2} puan
+                  • {t.rewardPost}: 10 {t.points}<br />
+                  • {t.rewardPhoto}: +{(imageFile ? 1 : 0) * 5} {t.points}<br />
+                  • {t.rewardHashtag}: +{hashtags.length * 2} {t.points}
                 </p>
               </div>
               <div className="text-3xl font-bold text-green-700">
@@ -758,7 +1039,7 @@ export default function CreatePostModal({
               onClick={onClose}
               className="px-6 py-3 text-gray-700 hover:text-gray-900 font-medium"
             >
-              İptal
+              {t.cancel}
             </button>
             <button
               onClick={handleSubmit}
@@ -768,10 +1049,10 @@ export default function CreatePostModal({
               {loading ? (
                 <span className="flex items-center">
                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                  {mode === 'trip_only' ? 'Ekleniyor...' : 'Paylaşılıyor...'}
+                  {mode === 'trip_only' ? t.adding : t.posting}
                 </span>
               ) : (
-                submitLabel || (mode === 'trip_only' ? 'Duraga Ekle' : 'Paylaş')
+                submitLabel || (mode === 'trip_only' ? t.submitTrip : t.submitSocial)
               )}
             </button>
           </div>

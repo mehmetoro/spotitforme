@@ -1216,7 +1216,7 @@ export default function LiveTravelSessionPage() {
             recordId: newPost.id,
             title: payload.title,
             description: payload.description || '',
-            sourceLanguage: 'tr',
+            sourceLanguage: locale,
           }),
         }).catch((err) => console.warn('Live trip post translation error:', err))
       }
