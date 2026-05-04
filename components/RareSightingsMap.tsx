@@ -111,6 +111,177 @@ const QUERY_KEYS = {
   visible: 'vis',
 } as const
 
+const MAP_UI_TEXT = {
+  tr: {
+    searchPlaceholder: 'Ara: baslik, aciklama, sehir, kategori...',
+    allCountry: 'Ulke: Tumu',
+    allCity: 'Sehir: Tumu',
+    allDistrict: 'Ilce/Bolge: Tumu',
+    allCategory: 'Kategori: Tumu',
+    allMarketplace: 'Pazar Yeri: Tumu',
+    allVisual: 'Gorsel: Tumu',
+    onlyWithVisual: 'Sadece gorselli',
+    onlyWithoutVisual: 'Sadece gorselsiz',
+    minPrice: 'Min fiyat',
+    maxPrice: 'Max fiyat',
+    sortNewest: 'Sirala: En yeni',
+    sortOldest: 'Sirala: En eski',
+    sortPriceAsc: 'Sirala: Fiyat artan',
+    sortPriceDesc: 'Sirala: Fiyat azalan',
+    stats: 'Toplam {total} kayittan {filtered} tanesi filtreye uydu, {visible} tanesi haritada gosteriliyor.',
+    clearCountryFocus: 'Ulke odagini temizle',
+    clearCityFocus: 'Sehir odagini temizle',
+    clearDistrictFocus: 'Ilce odagini temizle',
+    clearLocationFocus: 'Lokasyon odagini temizle',
+    onlyVisibleArea: 'Sadece gorunen alan',
+    singlePin: 'Tekil Pin',
+    cityCluster: 'Sehir Kumesi',
+    resetFilters: 'Filtreleri sifirla',
+    noDataByFilter: 'Secili filtrelere gore kayit bulunamadi. Filtreleri gevsetmeyi deneyin.',
+    tips: 'Ipuclari: Isaretlerin uzerine geldiginde paylasim onizlemesi acilir. Mobilde isarete dokunarak ayni karti gorebilirsiniz.',
+  },
+  en: {
+    searchPlaceholder: 'Search: title, description, city, category...',
+    allCountry: 'Country: All',
+    allCity: 'City: All',
+    allDistrict: 'District/Area: All',
+    allCategory: 'Category: All',
+    allMarketplace: 'Marketplace: All',
+    allVisual: 'Visual: All',
+    onlyWithVisual: 'Only with visual',
+    onlyWithoutVisual: 'Only without visual',
+    minPrice: 'Min price',
+    maxPrice: 'Max price',
+    sortNewest: 'Sort: Newest',
+    sortOldest: 'Sort: Oldest',
+    sortPriceAsc: 'Sort: Price ascending',
+    sortPriceDesc: 'Sort: Price descending',
+    stats: '{filtered} of {total} records match filters, {visible} are currently visible on map.',
+    clearCountryFocus: 'Clear country focus',
+    clearCityFocus: 'Clear city focus',
+    clearDistrictFocus: 'Clear district focus',
+    clearLocationFocus: 'Clear location focus',
+    onlyVisibleArea: 'Only visible area',
+    singlePin: 'Single Pin',
+    cityCluster: 'City Cluster',
+    resetFilters: 'Reset filters',
+    noDataByFilter: 'No records found for selected filters. Try relaxing your filters.',
+    tips: 'Tips: Hover over markers to open a preview. On mobile, tap markers to see the same card.',
+  },
+  de: {
+    searchPlaceholder: 'Suche: Titel, Beschreibung, Stadt, Kategorie...',
+    allCountry: 'Land: Alle',
+    allCity: 'Stadt: Alle',
+    allDistrict: 'Bezirk/Gebiet: Alle',
+    allCategory: 'Kategorie: Alle',
+    allMarketplace: 'Marktplatz: Alle',
+    allVisual: 'Bild: Alle',
+    onlyWithVisual: 'Nur mit Bild',
+    onlyWithoutVisual: 'Nur ohne Bild',
+    minPrice: 'Min. Preis',
+    maxPrice: 'Max. Preis',
+    sortNewest: 'Sortierung: Neueste',
+    sortOldest: 'Sortierung: Alteste',
+    sortPriceAsc: 'Sortierung: Preis aufsteigend',
+    sortPriceDesc: 'Sortierung: Preis absteigend',
+    stats: '{filtered} von {total} Eintragen entsprechen den Filtern, {visible} sind auf der Karte sichtbar.',
+    clearCountryFocus: 'Landfokus zurucksetzen',
+    clearCityFocus: 'Stadtfokus zurucksetzen',
+    clearDistrictFocus: 'Bezirksfokus zurucksetzen',
+    clearLocationFocus: 'Ortsfokus zurucksetzen',
+    onlyVisibleArea: 'Nur sichtbarer Bereich',
+    singlePin: 'Einzelner Pin',
+    cityCluster: 'Stadtcluster',
+    resetFilters: 'Filter zurucksetzen',
+    noDataByFilter: 'Keine Eintrage fur die ausgewahlten Filter gefunden. Versuchen Sie lockerere Filter.',
+    tips: 'Tipps: Fahren Sie uber Marker, um eine Vorschau zu sehen. Auf Mobilgeraten Marker antippen.',
+  },
+  fr: {
+    searchPlaceholder: 'Rechercher: titre, description, ville, categorie...',
+    allCountry: 'Pays: Tous',
+    allCity: 'Ville: Toutes',
+    allDistrict: 'Quartier/Zone: Tous',
+    allCategory: 'Categorie: Toutes',
+    allMarketplace: 'Marketplace: Tous',
+    allVisual: 'Visuel: Tous',
+    onlyWithVisual: 'Seulement avec visuel',
+    onlyWithoutVisual: 'Seulement sans visuel',
+    minPrice: 'Prix min',
+    maxPrice: 'Prix max',
+    sortNewest: 'Tri: Plus recents',
+    sortOldest: 'Tri: Plus anciens',
+    sortPriceAsc: 'Tri: Prix croissant',
+    sortPriceDesc: 'Tri: Prix decroissant',
+    stats: '{filtered} sur {total} correspondent aux filtres, {visible} sont visibles sur la carte.',
+    clearCountryFocus: 'Effacer focus pays',
+    clearCityFocus: 'Effacer focus ville',
+    clearDistrictFocus: 'Effacer focus quartier',
+    clearLocationFocus: 'Effacer focus lieu',
+    onlyVisibleArea: 'Zone visible uniquement',
+    singlePin: 'Pin unique',
+    cityCluster: 'Cluster de ville',
+    resetFilters: 'Reinitialiser filtres',
+    noDataByFilter: 'Aucun resultat pour les filtres selectionnes. Essayez de les assouplir.',
+    tips: 'Astuce: Survolez les marqueurs pour voir un apercu. Sur mobile, touchez un marqueur.',
+  },
+  es: {
+    searchPlaceholder: 'Buscar: titulo, descripcion, ciudad, categoria...',
+    allCountry: 'Pais: Todos',
+    allCity: 'Ciudad: Todas',
+    allDistrict: 'Distrito/Zona: Todos',
+    allCategory: 'Categoria: Todas',
+    allMarketplace: 'Marketplace: Todos',
+    allVisual: 'Visual: Todos',
+    onlyWithVisual: 'Solo con imagen',
+    onlyWithoutVisual: 'Solo sin imagen',
+    minPrice: 'Precio min',
+    maxPrice: 'Precio max',
+    sortNewest: 'Orden: Mas recientes',
+    sortOldest: 'Orden: Mas antiguos',
+    sortPriceAsc: 'Orden: Precio ascendente',
+    sortPriceDesc: 'Orden: Precio descendente',
+    stats: '{filtered} de {total} coinciden con los filtros, {visible} visibles en el mapa.',
+    clearCountryFocus: 'Quitar foco de pais',
+    clearCityFocus: 'Quitar foco de ciudad',
+    clearDistrictFocus: 'Quitar foco de distrito',
+    clearLocationFocus: 'Quitar foco de ubicacion',
+    onlyVisibleArea: 'Solo area visible',
+    singlePin: 'Pin unico',
+    cityCluster: 'Cluster de ciudad',
+    resetFilters: 'Restablecer filtros',
+    noDataByFilter: 'No se encontraron registros con los filtros seleccionados.',
+    tips: 'Consejo: Pase el cursor sobre marcadores para vista previa. En movil, toque el marcador.',
+  },
+  ru: {
+    searchPlaceholder: 'Poisk: zagolovok, opisanie, gorod, kategoriya...',
+    allCountry: 'Strana: Vse',
+    allCity: 'Gorod: Vse',
+    allDistrict: 'Raion/Zona: Vse',
+    allCategory: 'Kategoriya: Vse',
+    allMarketplace: 'Marketplace: Vse',
+    allVisual: 'Vizual: Vse',
+    onlyWithVisual: 'Tolko s izobrazheniem',
+    onlyWithoutVisual: 'Tolko bez izobrazheniya',
+    minPrice: 'Min cena',
+    maxPrice: 'Max cena',
+    sortNewest: 'Sortirovka: Novye',
+    sortOldest: 'Sortirovka: Starye',
+    sortPriceAsc: 'Sortirovka: Cena po vozrastaniyu',
+    sortPriceDesc: 'Sortirovka: Cena po ubyvaniyu',
+    stats: '{filtered} iz {total} zapisey podkhodyat pod filtry, {visible} vidimy na karte.',
+    clearCountryFocus: 'Sbrosit fokus strany',
+    clearCityFocus: 'Sbrosit fokus goroda',
+    clearDistrictFocus: 'Sbrosit fokus rayona',
+    clearLocationFocus: 'Sbrosit fokus lokatsii',
+    onlyVisibleArea: 'Tolko vidimaya oblast',
+    singlePin: 'Odinochnyy pin',
+    cityCluster: 'Klasternyy gorod',
+    resetFilters: 'Sbrosit filtry',
+    noDataByFilter: 'Po vybrannym filtram zapisi ne naydeny.',
+    tips: 'Sovet: Navedite na marker dlya predprosmotra. Na mobilnom ustroystve kosnites markera.',
+  },
+} as const
+
 // Next + Leaflet ortamında default marker ikonlarını elle tanımla.
 const markerIcon = new L.Icon({
   iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
@@ -198,6 +369,7 @@ export default function RareSightingsMap({ channel = 'physical' }: RareSightings
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const locale = useCurrentLocale()
+  const t = MAP_UI_TEXT[locale as keyof typeof MAP_UI_TEXT] ?? MAP_UI_TEXT.tr
 
   const [items, setItems] = useState<RareItem[]>([])
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS)
@@ -638,6 +810,11 @@ export default function RareSightingsMap({ channel = 'physical' }: RareSightings
     popupElement.addEventListener('mouseleave', () => event.target?.closePopup?.())
   }
 
+  const statsText = t.stats
+    .replace('{total}', String(items.length))
+    .replace('{filtered}', String(filteredItems.length))
+    .replace('{visible}', String(visibleItems.length))
+
   if (loading) {
     return <div className="rounded-xl border border-gray-200 p-6 text-sm text-gray-500">Harita verileri yukleniyor...</div>
   }
@@ -663,7 +840,7 @@ export default function RareSightingsMap({ channel = 'physical' }: RareSightings
           <input
             value={filters.searchText}
             onChange={(e) => setFilters((prev) => ({ ...prev, searchText: e.target.value }))}
-            placeholder="Ara: baslik, aciklama, sehir, kategori..."
+            placeholder={t.searchPlaceholder}
             className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
           />
 
@@ -672,7 +849,7 @@ export default function RareSightingsMap({ channel = 'physical' }: RareSightings
             onChange={(e) => setFilters((prev) => ({ ...prev, country: e.target.value, city: 'all', district: 'all' }))}
             className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
           >
-            <option value="all">Ulke: Tumu</option>
+            <option value="all">{t.allCountry}</option>
             {countryOptions.map((country) => (
               <option key={country} value={country}>{country}</option>
             ))}
@@ -683,7 +860,7 @@ export default function RareSightingsMap({ channel = 'physical' }: RareSightings
             onChange={(e) => setFilters((prev) => ({ ...prev, city: e.target.value, district: 'all' }))}
             className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
           >
-            <option value="all">Sehir: Tumu</option>
+            <option value="all">{t.allCity}</option>
             {cityOptions.map((city) => (
               <option key={city} value={city}>{city}</option>
             ))}
@@ -694,7 +871,7 @@ export default function RareSightingsMap({ channel = 'physical' }: RareSightings
             onChange={(e) => setFilters((prev) => ({ ...prev, district: e.target.value }))}
             className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
           >
-            <option value="all">Ilce/Bolge: Tumu</option>
+            <option value="all">{t.allDistrict}</option>
             {districtOptions.map((district) => (
               <option key={district} value={district}>{district}</option>
             ))}
@@ -705,7 +882,7 @@ export default function RareSightingsMap({ channel = 'physical' }: RareSightings
             onChange={(e) => setFilters((prev) => ({ ...prev, category: e.target.value }))}
             className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
           >
-            <option value="all">Kategori: Tumu</option>
+            <option value="all">{t.allCategory}</option>
             {categoryOptions.map((category) => (
               <option key={category} value={category}>{category}</option>
             ))}
@@ -716,7 +893,7 @@ export default function RareSightingsMap({ channel = 'physical' }: RareSightings
             onChange={(e) => setFilters((prev) => ({ ...prev, marketplace: e.target.value }))}
             className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
           >
-            <option value="all">Pazar Yeri: Tumu</option>
+            <option value="all">{t.allMarketplace}</option>
             {marketplaceOptions.map((marketplace) => (
               <option key={marketplace} value={marketplace}>{marketplace}</option>
             ))}
@@ -727,9 +904,9 @@ export default function RareSightingsMap({ channel = 'physical' }: RareSightings
             onChange={(e) => setFilters((prev) => ({ ...prev, hasPhoto: e.target.value as Filters['hasPhoto'] }))}
             className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
           >
-            <option value="all">Gorsel: Tumu</option>
-            <option value="with">Sadece gorselli</option>
-            <option value="without">Sadece gorselsiz</option>
+            <option value="all">{t.allVisual}</option>
+            <option value="with">{t.onlyWithVisual}</option>
+            <option value="without">{t.onlyWithoutVisual}</option>
           </select>
 
           <input
@@ -737,7 +914,7 @@ export default function RareSightingsMap({ channel = 'physical' }: RareSightings
             min="0"
             value={filters.minPrice}
             onChange={(e) => setFilters((prev) => ({ ...prev, minPrice: e.target.value }))}
-            placeholder="Min fiyat"
+            placeholder={t.minPrice}
             className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
           />
 
@@ -746,7 +923,7 @@ export default function RareSightingsMap({ channel = 'physical' }: RareSightings
             min="0"
             value={filters.maxPrice}
             onChange={(e) => setFilters((prev) => ({ ...prev, maxPrice: e.target.value }))}
-            placeholder="Max fiyat"
+            placeholder={t.maxPrice}
             className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
           />
 
@@ -769,17 +946,15 @@ export default function RareSightingsMap({ channel = 'physical' }: RareSightings
             onChange={(e) => setFilters((prev) => ({ ...prev, sortBy: e.target.value as Filters['sortBy'] }))}
             className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
           >
-            <option value="newest">Sirala: En yeni</option>
-            <option value="oldest">Sirala: En eski</option>
-            <option value="price_asc">Sirala: Fiyat artan</option>
-            <option value="price_desc">Sirala: Fiyat azalan</option>
+            <option value="newest">{t.sortNewest}</option>
+            <option value="oldest">{t.sortOldest}</option>
+            <option value="price_asc">{t.sortPriceAsc}</option>
+            <option value="price_desc">{t.sortPriceDesc}</option>
           </select>
         </div>
 
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-          <p className="text-xs text-gray-600">
-            Toplam {items.length} kayittan {filteredItems.length} tanesi filtreye uydu, {visibleItems.length} tanesi haritada gosteriliyor.
-          </p>
+          <p className="text-xs text-gray-600">{statsText}</p>
           <div className="flex flex-wrap items-center gap-2">
             {viewMode === 'city_clusters' && focusedCountryKey && !focusedCityKey && (
               <button
@@ -792,7 +967,7 @@ export default function RareSightingsMap({ channel = 'physical' }: RareSightings
                 }}
                 className="rounded-lg border border-sky-300 bg-sky-50 px-3 py-1.5 text-xs font-medium text-sky-700 hover:bg-sky-100"
               >
-                Ulke odagini temizle
+                {t.clearCountryFocus}
               </button>
             )}
             {viewMode === 'city_clusters' && focusedCityKey && (
@@ -805,7 +980,7 @@ export default function RareSightingsMap({ channel = 'physical' }: RareSightings
                 }}
                 className="rounded-lg border border-indigo-300 bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-100"
               >
-                Sehir odagini temizle
+                {t.clearCityFocus}
               </button>
             )}
             {viewMode === 'city_clusters' && focusedDistrictKey && (
@@ -817,7 +992,7 @@ export default function RareSightingsMap({ channel = 'physical' }: RareSightings
                 }}
                 className="rounded-lg border border-violet-300 bg-violet-50 px-3 py-1.5 text-xs font-medium text-violet-700 hover:bg-violet-100"
               >
-                Ilce odagini temizle
+                {t.clearDistrictFocus}
               </button>
             )}
             {viewMode === 'pins' && focusedLocationKey && (
@@ -825,7 +1000,7 @@ export default function RareSightingsMap({ channel = 'physical' }: RareSightings
                 onClick={() => setFocusedLocationKey(null)}
                 className="rounded-lg border border-teal-300 bg-teal-50 px-3 py-1.5 text-xs font-medium text-teal-700 hover:bg-teal-100"
               >
-                Lokasyon odagini temizle
+                {t.clearLocationFocus}
               </button>
             )}
             <label className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700">
@@ -834,20 +1009,20 @@ export default function RareSightingsMap({ channel = 'physical' }: RareSightings
                 checked={onlyVisibleInMap}
                 onChange={(e) => setOnlyVisibleInMap(e.target.checked)}
               />
-              Sadece gorunen alan
+              {t.onlyVisibleArea}
             </label>
             <div className="inline-flex rounded-lg border border-gray-300 bg-white p-0.5 text-xs">
               <button
                 onClick={() => setViewMode('pins')}
                 className={`rounded-md px-2 py-1 ${viewMode === 'pins' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'}`}
               >
-                Tekil Pin
+                {t.singlePin}
               </button>
               <button
                 onClick={() => setViewMode('city_clusters')}
                 className={`rounded-md px-2 py-1 ${viewMode === 'city_clusters' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'}`}
               >
-                Sehir Kumesi
+                {t.cityCluster}
               </button>
             </div>
             <button
@@ -862,7 +1037,7 @@ export default function RareSightingsMap({ channel = 'physical' }: RareSightings
               }}
               className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-100"
             >
-              Filtreleri sifirla
+              {t.resetFilters}
             </button>
           </div>
         </div>
@@ -1055,12 +1230,12 @@ export default function RareSightingsMap({ channel = 'physical' }: RareSightings
 
       {!filteredItems.length && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-          Secili filtrelere gore kayit bulunamadi. Filtreleri gevsetmeyi deneyin.
+          {t.noDataByFilter}
         </div>
       )}
 
       <p className="text-xs text-gray-500">
-        Ipuclari: Isaretlerin uzerine geldiginde paylasim onizlemesi acilir. Mobilde isarete dokunarak ayni karti gorebilirsiniz.
+        {t.tips}
       </p>
     </div>
   )
