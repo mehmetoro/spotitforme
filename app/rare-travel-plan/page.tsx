@@ -11,12 +11,12 @@ const RareTravelPlanner = dynamic(() => import('@/components/RareTravelPlanner')
 })
 
 const rtpText = {
-  tr: { title: 'Nadir Seyahat Plani', desc: 'OSRM rota altyapisi ile secilen guzergah boyunca ugranmaya deger nadir sosyal paylasimlari kesfet.' },
-  en: { title: 'Rare Travel Plan', desc: 'Discover noteworthy rare social sightings along your chosen route with OSRM routing infrastructure.' },
-  de: { title: 'Seltener Reiseplan', desc: 'Entdecken Sie bemerkenswerte seltene soziale Sichtungen entlang Ihrer gewählten Route mit der OSRM-Routeninfrastruktur.' },
-  fr: { title: 'Plan de voyage rare', desc: 'Découvrez des observations sociales rares remarquables le long de votre itinéraire avec l\'infrastructure de routage OSRM.' },
-  es: { title: 'Plan de viaje raro', desc: 'Descubre avistamientos sociales raros notables a lo largo de tu ruta elegida con la infraestructura de enrutamiento OSRM.' },
-  ru: { title: 'Редкий план путешествия', desc: 'Откройте для себя замечательные редкие социальные наблюдения вдоль выбранного маршрута с инфраструктурой маршрутизации OSRM.' },
+  tr: { title: 'Nadir Seyahat Plani', desc: 'OSRM rota altyapisi ile secilen guzergah boyunca ugranmaya deger nadir sosyal paylasimlari kesfet.', loading: 'Yukleniyor...' },
+  en: { title: 'Rare Travel Plan', desc: 'Discover noteworthy rare social sightings along your chosen route with OSRM routing infrastructure.', loading: 'Loading...' },
+  de: { title: 'Seltener Reiseplan', desc: 'Entdecken Sie bemerkenswerte seltene soziale Sichtungen entlang Ihrer gewählten Route mit der OSRM-Routeninfrastruktur.', loading: 'Wird geladen...' },
+  fr: { title: 'Plan de voyage rare', desc: 'Découvrez des observations sociales rares remarquables le long de votre itinéraire avec l\'infrastructure de routage OSRM.', loading: 'Chargement...' },
+  es: { title: 'Plan de viaje raro', desc: 'Descubre avistamientos sociales raros notables a lo largo de tu ruta elegida con la infraestructura de enrutamiento OSRM.', loading: 'Cargando...' },
+  ru: { title: 'Редкий план путешествия', desc: 'Откройте для себя замечательные редкие социальные наблюдения вдоль выбранного маршрута с инфраструктурой маршрутизации OSRM.', loading: 'Загрузка...' },
 } as const
 
 export default function RareTravelPlanPage() {

@@ -8,6 +8,7 @@ import { MapContainer, Marker, TileLayer, Polyline, Popup, useMap } from 'react-
 import L from 'leaflet'
 import { buildSocialPath } from '@/lib/sighting-slug'
 import { supabase } from '@/lib/supabase'
+import { useCurrentLocale } from '@/hooks/useCurrentLocale'
 
 type LatLng = { lat: number; lng: number }
 
@@ -187,7 +188,7 @@ function LocationAutocomplete({
         {showCurrentLocation && onCurrentLocation && (
           <button
             type="button"
-            title="Mevcut konumumu kullan"
+            title={placeholder || 'Use current location'}
             onClick={onCurrentLocation}
             className="mt-1 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
           >
@@ -227,13 +228,198 @@ function LocationAutocomplete({
   )
 }
 
-const SORT_OPTIONS = [
-  { value: 'likes', label: 'En cok begeni' },
-  { value: 'shares', label: 'En cok paylasim' },
-  { value: 'likes_shares', label: 'Begeni + paylasim' },
-  { value: 'recent', label: 'En yeni paylasimlar' },
-  { value: 'route_proximity', label: 'Rotaya en yakin' },
-] as const
+const SORT_OPTION_VALUES = ['likes', 'shares', 'likes_shares', 'recent', 'route_proximity'] as const
+
+const PLANNER_TEXT = {
+  tr: {
+    title: 'Nadir Seyahat Plani',
+    subtitle: 'Baslangic ve varis konumunu sec, yol uzerindeki en iyi nadir sosyal paylasimlari otomatik getir.',
+    stops: 'Durak sayisi',
+    sort: 'Siralama',
+    corridor: 'Rota koridoru (km)',
+    categories: 'Kategoriler (birden fazla secilebilir)',
+    up: 'Yukari',
+    down: 'Asagi',
+    categoryPick: 'Kategori sec',
+    clear: 'Temizle',
+    allCategories: 'Tum kategoriler',
+    selectedCategoryCount: '{count} kategori secildi',
+    allIncluded: 'Kategori secmezsen tumu dahil edilir',
+    searchLabel: 'Arama kelimesi (opsiyonel)',
+    searchPlaceholder: 'Ornek: antika, koleksiyon, figur',
+    nearbyFilter: 'Yakinimdakiler filtresi (OSRM rota + mevcut konum)',
+    useMyLocation: 'Konumumu kullan',
+    nearbyRadius: 'Yakindaki yaricap (km)',
+    locationReady: 'Konum hazir: {lat}, {lng}',
+    preparingPlan: 'Plan hazirlaniyor...',
+    createPlan: 'Nadir seyahat planini olustur',
+    openAllPins: 'Haritada tum sosyal pinleri ac',
+    saving: 'Kaydediliyor...',
+    savePlan: 'Plani kaydet',
+    starting: 'Baslatiliyor...',
+    startLive: 'Canli Plan Baslat',
+    createShareLink: 'Paylasim linki olustur',
+    summaryTitle: 'Plan ozeti',
+    route: 'Rota:',
+    distance: 'Mesafe:',
+    duration: 'Sure:',
+    foundPosts: 'Bulunan paylasim:',
+    openRouteInGoogle: "Google Maps'te Tum Rotayi Ac",
+    fallbackRoute: 'Rota servisinde gecici kesinti var. Plan, acil modda dogrusal guzergahla olusturuldu.',
+    startPoint: 'Baslangic',
+    destination: 'Varis',
+    stop: 'Durak',
+    rarePost: 'Nadir paylasim',
+    openPost: 'Paylasimi ac',
+    openOnMap: 'Haritada ac',
+    routeStops: 'Rota duraklari ({count} secildi)',
+    noLocationProvided: 'Konum belirtilmemis',
+    toRouteKm: 'km rotaya',
+    googleMaps: 'Google Haritalar',
+    savedPlans: 'Kayitli planlarim',
+    savedPlansDesc: 'Hesaba girisliysen profiline bagli saklanir, degilsen bu tarayicida tutulur.',
+    liveEditArea: 'Canli duzenleme alanin',
+    liveEditDesc: 'Buradaki aktif oturumlarda ara kaydet, ekle-cikar-duzenle yap; sadece sen "tamamla" dediginde rota yayina cikar.',
+    noSavedPlans: 'Henuz kayitli plan yok.',
+    livePlanBadge: 'Canli Plan',
+    completedBadge: 'Tamamlandi',
+    continueToEdit: 'Durak: {count} · Devam etmek icin tikla · {date}',
+    completedSessions: 'Tamamlanan canli oturumlar',
+    clickToEdit: 'Durak: {count} · Duzenlemek icin tikla',
+    cityNotFoundManual: 'Sehir konumu bulunamadi. Lutfen baslangic ve varis adresini manuel girin.',
+    cityLocationFetchFailed: 'Sehir konumu alinamadi. Lutfen baslangic ve varis adresini manuel girin.',
+    browserGeoNotSupported: 'Tarayici konum servisini desteklemiyor.',
+    geoPermissionDenied: 'Konum izni verilmedi veya konum alinamadi.',
+    startEndRequired: 'Baslangic ve varis konumu gerekli. Metin veya enlem,boylam girebilirsin.',
+    planCreateFailed: 'Plan olusturulamadi',
+    saveSuccess: 'Plan kaydedildi.',
+    saveFailed: 'Plan kaydedilemedi. Tablo hazir degilse migration calistirilmali.',
+    loginRequiredForLive: 'Canli plan baslatmak icin giris yapmalisiniz.',
+    liveStarted: 'Canli plan baslatildi!',
+    liveStartFailed: 'Canli plan baslatilamadi.',
+    shareCopied: 'Paylasim linki panoya kopyalandi.',
+    shareLinkPrefix: 'Paylasim linki:',
+    defaultStart: 'Baslangic',
+    defaultEnd: 'Son durak',
+    currentLocationTitle: 'Mevcut konumumu kullan',
+    sortOptions: {
+      likes: 'En cok begeni',
+      shares: 'En cok paylasim',
+      likes_shares: 'Begeni + paylasim',
+      recent: 'En yeni paylasimlar',
+      route_proximity: 'Rotaya en yakin',
+    },
+  },
+  en: {
+    title: 'Rare Travel Plan', subtitle: 'Choose start and destination, and automatically fetch the best rare social posts along the route.',
+    stops: 'Number of stops', sort: 'Sort', corridor: 'Route corridor (km)', categories: 'Categories (multi-select)', up: 'Up', down: 'Down',
+    categoryPick: 'Select category', clear: 'Clear', allCategories: 'All categories', selectedCategoryCount: '{count} categories selected', allIncluded: 'If none selected, all categories are included',
+    searchLabel: 'Search keyword (optional)', searchPlaceholder: 'Example: antique, collection, figure', nearbyFilter: 'Nearby filter (OSRM route + current location)',
+    useMyLocation: 'Use my location', nearbyRadius: 'Nearby radius (km)', locationReady: 'Location ready: {lat}, {lng}', preparingPlan: 'Preparing plan...',
+    createPlan: 'Create rare travel plan', openAllPins: 'Open all social pins on map', saving: 'Saving...', savePlan: 'Save plan', starting: 'Starting...',
+    startLive: 'Start Live Plan', createShareLink: 'Create share link', summaryTitle: 'Plan summary', route: 'Route:', distance: 'Distance:', duration: 'Duration:',
+    foundPosts: 'Found posts:', openRouteInGoogle: 'Open full route in Google Maps', fallbackRoute: 'Routing service is temporarily unavailable. Plan was created with a straight-line fallback.',
+    startPoint: 'Start', destination: 'Destination', stop: 'Stop', rarePost: 'Rare post', openPost: 'Open post', openOnMap: 'Open on map',
+    routeStops: 'Route stops ({count} selected)', noLocationProvided: 'Location not specified', toRouteKm: 'km to route', googleMaps: 'Google Maps',
+    savedPlans: 'My saved plans', savedPlansDesc: 'If signed in, plans are linked to your profile; otherwise stored in this browser.', liveEditArea: 'Live editing area',
+    liveEditDesc: 'In active sessions you can save/edit add-remove; route is published only when you press "complete".', noSavedPlans: 'No saved plans yet.',
+    livePlanBadge: 'Live Plan', completedBadge: 'Completed', continueToEdit: 'Stops: {count} · Click to continue · {date}', completedSessions: 'Completed live sessions',
+    clickToEdit: 'Stops: {count} · Click to edit', cityNotFoundManual: 'City location not found. Please enter start and destination manually.', cityLocationFetchFailed: 'City location could not be fetched. Please enter start and destination manually.',
+    browserGeoNotSupported: 'Your browser does not support geolocation.', geoPermissionDenied: 'Location permission denied or location unavailable.', startEndRequired: 'Start and destination are required. You can enter text or lat,lng.',
+    planCreateFailed: 'Plan could not be created', saveSuccess: 'Plan saved.', saveFailed: 'Plan could not be saved. If table is missing, run migrations.', loginRequiredForLive: 'You need to sign in to start a live plan.',
+    liveStarted: 'Live plan started!', liveStartFailed: 'Live plan could not be started.', shareCopied: 'Share link copied to clipboard.', shareLinkPrefix: 'Share link:', defaultStart: 'Start', defaultEnd: 'Last stop',
+    currentLocationTitle: 'Use my current location', sortOptions: { likes: 'Most likes', shares: 'Most shares', likes_shares: 'Likes + shares', recent: 'Most recent posts', route_proximity: 'Closest to route' },
+  },
+  de: {
+    title: 'Seltener Reiseplan', subtitle: 'Wahlen Sie Start und Ziel und laden Sie seltene soziale Beitrage entlang der Route automatisch.',
+    stops: 'Anzahl Stopps', sort: 'Sortierung', corridor: 'Routenkorridor (km)', categories: 'Kategorien (Mehrfachauswahl)', up: 'Hoch', down: 'Runter',
+    categoryPick: 'Kategorie wahlen', clear: 'Loschen', allCategories: 'Alle Kategorien', selectedCategoryCount: '{count} Kategorien ausgewahlt', allIncluded: 'Wenn nichts ausgewahlt ist, werden alle Kategorien einbezogen',
+    searchLabel: 'Suchbegriff (optional)', searchPlaceholder: 'Beispiel: antik, sammlung, figur', nearbyFilter: 'In der Nahe Filter (OSRM-Route + aktueller Standort)',
+    useMyLocation: 'Meinen Standort verwenden', nearbyRadius: 'Radius in der Nahe (km)', locationReady: 'Standort bereit: {lat}, {lng}', preparingPlan: 'Plan wird vorbereitet...',
+    createPlan: 'Seltenen Reiseplan erstellen', openAllPins: 'Alle sozialen Pins auf der Karte offnen', saving: 'Wird gespeichert...', savePlan: 'Plan speichern', starting: 'Wird gestartet...',
+    startLive: 'Live-Plan starten', createShareLink: 'Freigabelink erstellen', summaryTitle: 'Planubersicht', route: 'Route:', distance: 'Entfernung:', duration: 'Dauer:',
+    foundPosts: 'Gefundene Beitrage:', openRouteInGoogle: 'Gesamte Route in Google Maps offnen', fallbackRoute: 'Routing-Dienst ist vorubergehend nicht verfugbar. Plan wurde als Luftlinie erstellt.',
+    startPoint: 'Start', destination: 'Ziel', stop: 'Stopp', rarePost: 'Seltener Beitrag', openPost: 'Beitrag offnen', openOnMap: 'Auf Karte offnen',
+    routeStops: 'Routenstopps ({count} ausgewahlt)', noLocationProvided: 'Kein Standort angegeben', toRouteKm: 'km zur Route', googleMaps: 'Google Maps',
+    savedPlans: 'Meine gespeicherten Plane', savedPlansDesc: 'Wenn angemeldet, mit Ihrem Profil verknupft; sonst in diesem Browser gespeichert.', liveEditArea: 'Live-Bearbeitungsbereich',
+    liveEditDesc: 'In aktiven Sitzungen konnen Sie speichern/bearbeiten; veroffentlicht wird erst nach "abschlieBen".', noSavedPlans: 'Noch kein gespeicherter Plan.',
+    livePlanBadge: 'Live-Plan', completedBadge: 'Abgeschlossen', continueToEdit: 'Stopps: {count} · Zum Fortsetzen klicken · {date}', completedSessions: 'Abgeschlossene Live-Sitzungen',
+    clickToEdit: 'Stopps: {count} · Zum Bearbeiten klicken', cityNotFoundManual: 'Stadtposition nicht gefunden. Bitte Start und Ziel manuell eingeben.', cityLocationFetchFailed: 'Stadtposition konnte nicht abgerufen werden. Bitte Start und Ziel manuell eingeben.',
+    browserGeoNotSupported: 'Ihr Browser unterstutzt keine Geolokalisierung.', geoPermissionDenied: 'Standortberechtigung verweigert oder Standort nicht verfugbar.', startEndRequired: 'Start und Ziel sind erforderlich. Sie konnen Text oder Lat,Lng eingeben.',
+    planCreateFailed: 'Plan konnte nicht erstellt werden', saveSuccess: 'Plan gespeichert.', saveFailed: 'Plan konnte nicht gespeichert werden. Falls Tabelle fehlt, Migration ausfuhren.', loginRequiredForLive: 'Zum Starten eines Live-Plans bitte anmelden.',
+    liveStarted: 'Live-Plan gestartet!', liveStartFailed: 'Live-Plan konnte nicht gestartet werden.', shareCopied: 'Freigabelink in Zwischenablage kopiert.', shareLinkPrefix: 'Freigabelink:', defaultStart: 'Start', defaultEnd: 'Letzter Stopp',
+    currentLocationTitle: 'Meinen aktuellen Standort verwenden', sortOptions: { likes: 'Meiste Likes', shares: 'Meiste Shares', likes_shares: 'Likes + Shares', recent: 'Neueste Beitrage', route_proximity: 'Am nachsten zur Route' },
+  },
+  fr: {
+    title: 'Plan de voyage rare', subtitle: 'Choisissez depart et arrivee, puis chargez automatiquement les publications rares le long de l\'itineraire.',
+    stops: 'Nombre d\'arrets', sort: 'Tri', corridor: 'Corridor de route (km)', categories: 'Categories (selection multiple)', up: 'Haut', down: 'Bas',
+    categoryPick: 'Choisir categorie', clear: 'Effacer', allCategories: 'Toutes les categories', selectedCategoryCount: '{count} categories selectionnees', allIncluded: 'Si rien n\'est selectionne, toutes les categories sont incluses',
+    searchLabel: 'Mot-cle (optionnel)', searchPlaceholder: 'Exemple: antique, collection, figurine', nearbyFilter: 'Filtre a proximite (route OSRM + position actuelle)',
+    useMyLocation: 'Utiliser ma position', nearbyRadius: 'Rayon a proximite (km)', locationReady: 'Position prete: {lat}, {lng}', preparingPlan: 'Preparation du plan...',
+    createPlan: 'Creer un plan de voyage rare', openAllPins: 'Ouvrir tous les pins sociaux sur la carte', saving: 'Enregistrement...', savePlan: 'Enregistrer le plan', starting: 'Demarrage...',
+    startLive: 'Demarrer plan live', createShareLink: 'Creer lien de partage', summaryTitle: 'Resume du plan', route: 'Itineraire:', distance: 'Distance:', duration: 'Duree:',
+    foundPosts: 'Publications trouvees:', openRouteInGoogle: 'Ouvrir l\'itineraire complet dans Google Maps', fallbackRoute: 'Service de routage indisponible temporairement. Plan cree en mode ligne droite.',
+    startPoint: 'Depart', destination: 'Arrivee', stop: 'Arret', rarePost: 'Publication rare', openPost: 'Ouvrir la publication', openOnMap: 'Ouvrir sur la carte',
+    routeStops: 'Arrets de route ({count} selectionnes)', noLocationProvided: 'Position non specifiee', toRouteKm: 'km jusqu\'a la route', googleMaps: 'Google Maps',
+    savedPlans: 'Mes plans enregistres', savedPlansDesc: 'Connecte: lie a votre profil, sinon stocke dans ce navigateur.', liveEditArea: 'Zone d\'edition live',
+    liveEditDesc: 'Dans les sessions actives, vous pouvez modifier; publication seulement apres "terminer".', noSavedPlans: 'Aucun plan enregistre pour le moment.',
+    livePlanBadge: 'Plan live', completedBadge: 'Termine', continueToEdit: 'Arrets: {count} · Cliquer pour continuer · {date}', completedSessions: 'Sessions live terminees',
+    clickToEdit: 'Arrets: {count} · Cliquer pour modifier', cityNotFoundManual: 'Position de ville introuvable. Saisissez depart et arrivee manuellement.', cityLocationFetchFailed: 'Position de ville indisponible. Saisissez depart et arrivee manuellement.',
+    browserGeoNotSupported: 'Votre navigateur ne prend pas en charge la geolocalisation.', geoPermissionDenied: 'Autorisation de localisation refusee ou position indisponible.', startEndRequired: 'Le depart et l\'arrivee sont requis. Vous pouvez saisir texte ou lat,lng.',
+    planCreateFailed: 'Impossible de creer le plan', saveSuccess: 'Plan enregistre.', saveFailed: 'Impossible d\'enregistrer le plan. Lancez les migrations si la table manque.', loginRequiredForLive: 'Connectez-vous pour demarrer un plan live.',
+    liveStarted: 'Plan live demarre !', liveStartFailed: 'Impossible de demarrer le plan live.', shareCopied: 'Lien de partage copie dans le presse-papiers.', shareLinkPrefix: 'Lien de partage:', defaultStart: 'Depart', defaultEnd: 'Dernier arret',
+    currentLocationTitle: 'Utiliser ma position actuelle', sortOptions: { likes: 'Le plus de likes', shares: 'Le plus de partages', likes_shares: 'Likes + partages', recent: 'Publications recentes', route_proximity: 'Le plus proche de la route' },
+  },
+  es: {
+    title: 'Plan de viaje raro', subtitle: 'Elige origen y destino y carga automaticamente publicaciones raras en la ruta.',
+    stops: 'Numero de paradas', sort: 'Ordenar', corridor: 'Corredor de ruta (km)', categories: 'Categorias (seleccion multiple)', up: 'Arriba', down: 'Abajo',
+    categoryPick: 'Seleccionar categoria', clear: 'Limpiar', allCategories: 'Todas las categorias', selectedCategoryCount: '{count} categorias seleccionadas', allIncluded: 'Si no seleccionas ninguna, se incluyen todas',
+    searchLabel: 'Palabra clave (opcional)', searchPlaceholder: 'Ejemplo: antiguedad, coleccion, figura', nearbyFilter: 'Filtro cercanos (ruta OSRM + ubicacion actual)',
+    useMyLocation: 'Usar mi ubicacion', nearbyRadius: 'Radio cercano (km)', locationReady: 'Ubicacion lista: {lat}, {lng}', preparingPlan: 'Preparando plan...',
+    createPlan: 'Crear plan de viaje raro', openAllPins: 'Abrir todos los pines sociales en el mapa', saving: 'Guardando...', savePlan: 'Guardar plan', starting: 'Iniciando...',
+    startLive: 'Iniciar plan en vivo', createShareLink: 'Crear enlace para compartir', summaryTitle: 'Resumen del plan', route: 'Ruta:', distance: 'Distancia:', duration: 'Duracion:',
+    foundPosts: 'Publicaciones encontradas:', openRouteInGoogle: 'Abrir ruta completa en Google Maps', fallbackRoute: 'Servicio de rutas no disponible temporalmente. Se creo en modo linea recta.',
+    startPoint: 'Inicio', destination: 'Destino', stop: 'Parada', rarePost: 'Publicacion rara', openPost: 'Abrir publicacion', openOnMap: 'Abrir en mapa',
+    routeStops: 'Paradas de ruta ({count} seleccionadas)', noLocationProvided: 'Ubicacion no especificada', toRouteKm: 'km hasta la ruta', googleMaps: 'Google Maps',
+    savedPlans: 'Mis planes guardados', savedPlansDesc: 'Si inicias sesion, se guarda en tu perfil; si no, en este navegador.', liveEditArea: 'Area de edicion en vivo',
+    liveEditDesc: 'En sesiones activas puedes editar; solo se publica al pulsar "completar".', noSavedPlans: 'Aun no hay planes guardados.',
+    livePlanBadge: 'Plan en vivo', completedBadge: 'Completado', continueToEdit: 'Paradas: {count} · Clic para continuar · {date}', completedSessions: 'Sesiones en vivo completadas',
+    clickToEdit: 'Paradas: {count} · Clic para editar', cityNotFoundManual: 'No se encontro la ubicacion de la ciudad. Introduce origen y destino manualmente.', cityLocationFetchFailed: 'No se pudo obtener la ubicacion de la ciudad. Introduce origen y destino manualmente.',
+    browserGeoNotSupported: 'Tu navegador no soporta geolocalizacion.', geoPermissionDenied: 'Permiso de ubicacion denegado o ubicacion no disponible.', startEndRequired: 'Origen y destino son obligatorios. Puedes ingresar texto o lat,lng.',
+    planCreateFailed: 'No se pudo crear el plan', saveSuccess: 'Plan guardado.', saveFailed: 'No se pudo guardar el plan. Si falta la tabla, ejecuta migraciones.', loginRequiredForLive: 'Debes iniciar sesion para iniciar un plan en vivo.',
+    liveStarted: 'Plan en vivo iniciado!', liveStartFailed: 'No se pudo iniciar el plan en vivo.', shareCopied: 'Enlace copiado al portapapeles.', shareLinkPrefix: 'Enlace para compartir:', defaultStart: 'Inicio', defaultEnd: 'Ultima parada',
+    currentLocationTitle: 'Usar mi ubicacion actual', sortOptions: { likes: 'Mas likes', shares: 'Mas compartidos', likes_shares: 'Likes + compartidos', recent: 'Publicaciones mas recientes', route_proximity: 'Mas cerca de la ruta' },
+  },
+  ru: {
+    title: 'Plan redkogo puteshestviya', subtitle: 'Vyberite start i finish, a redkie posty po marshrutu podgruzhatsya avtomaticheski.',
+    stops: 'Kolichestvo ostanovok', sort: 'Sortirovka', corridor: 'Koridor marshruta (km)', categories: 'Kategorii (mul tiselect)', up: 'Vverkh', down: 'Vniz',
+    categoryPick: 'Vybrat kategoriyu', clear: 'Ochistit', allCategories: 'Vse kategorii', selectedCategoryCount: 'Vybrano kategoriy: {count}', allIncluded: 'Esli nichego ne vybrano, vklyuchayutsya vse kategorii',
+    searchLabel: 'Klyuchevoe slovo (neobyazatelno)', searchPlaceholder: 'Primer: antik, kollektsiya, figurka', nearbyFilter: 'Filtr ryadom (OSRM + tekushchaya lokatsiya)',
+    useMyLocation: 'Ispolzovat moyu lokatsiyu', nearbyRadius: 'Radius ryadom (km)', locationReady: 'Lokatsiya gotova: {lat}, {lng}', preparingPlan: 'Podgotovka plana...',
+    createPlan: 'Sozdat plan redkogo puteshestviya', openAllPins: 'Otkryt vse socialnye piny na karte', saving: 'Sohranenie...', savePlan: 'Sohranit plan', starting: 'Zapusk...',
+    startLive: 'Zapustit live-plan', createShareLink: 'Sozdat ssylku', summaryTitle: 'Svodka plana', route: 'Marshrut:', distance: 'Rasstoyanie:', duration: 'Dlitelnost:',
+    foundPosts: 'Naydeno postov:', openRouteInGoogle: 'Otkryt ves marshrut v Google Maps', fallbackRoute: 'Servis marshrutizatsii vremenno nedostupen. Plan postroen po pryamoy.',
+    startPoint: 'Start', destination: 'Finish', stop: 'Stop', rarePost: 'Redkiy post', openPost: 'Otkryt post', openOnMap: 'Otkryt na karte',
+    routeStops: 'Ostanovki marshruta ({count} vybrano)', noLocationProvided: 'Lokatsiya ne ukazana', toRouteKm: 'km do marshruta', googleMaps: 'Google Maps',
+    savedPlans: 'Moi sohranennye plany', savedPlansDesc: 'Pri vhode privyazyvaetsya k profilyu, inache hranitsya v etom brauzere.', liveEditArea: 'Zona live-redaktirovaniya',
+    liveEditDesc: 'V aktivnyh sessiyah mozhno redaktirovat; publikuetsya tolko posle "zavershit".', noSavedPlans: 'Poka net sohranennyh planov.',
+    livePlanBadge: 'Live-plan', completedBadge: 'Zavershen', continueToEdit: 'Ostanovki: {count} · Kliknite chtoby prodolzhit · {date}', completedSessions: 'Zavershennye live-sessii',
+    clickToEdit: 'Ostanovki: {count} · Kliknite chtoby redaktirovat', cityNotFoundManual: 'Ne udalos nayti lokatsiyu goroda. Vvedite start i finish vruchnuyu.', cityLocationFetchFailed: 'Ne udalos poluchit lokatsiyu goroda. Vvedite start i finish vruchnuyu.',
+    browserGeoNotSupported: 'Vash brauzer ne podderzhivaet geolokatsiyu.', geoPermissionDenied: 'Dostup k geolokatsii zapreshchen ili lokatsiya nedostupna.', startEndRequired: 'Nuzhny start i finish. Mozhno vvesti tekst ili lat,lng.',
+    planCreateFailed: 'Ne udalos sozdat plan', saveSuccess: 'Plan sohranen.', saveFailed: 'Ne udalos sohranit plan. Esli net tablicy, zapustite migracii.', loginRequiredForLive: 'Voydite, chtoby zapustit live-plan.',
+    liveStarted: 'Live-plan zapushchen!', liveStartFailed: 'Ne udalos zapustit live-plan.', shareCopied: 'Ssylka skopirovana v буфер обмена.', shareLinkPrefix: 'Ssylka:', defaultStart: 'Start', defaultEnd: 'Poslednyaya ostanovka',
+    currentLocationTitle: 'Ispolzovat tekushchuyu lokatsiyu', sortOptions: { likes: 'Bolshe vsego лайков', shares: 'Bolshe vsego repostov', likes_shares: 'Lajki + reposty', recent: 'Noveyshie posty', route_proximity: 'Blizhe vsego k marshrutu' },
+  },
+} as const
+
+const localeToIntl: Record<string, string> = {
+  tr: 'tr-TR',
+  en: 'en-US',
+  de: 'de-DE',
+  fr: 'fr-FR',
+  es: 'es-ES',
+  ru: 'ru-RU',
+}
 
 function makeCircleIcon(color: string, label?: string) {
   const size = 32
@@ -281,6 +467,14 @@ export default function RareTravelPlanner() {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const locale = useCurrentLocale()
+  const t = (PLANNER_TEXT as any)[locale] || PLANNER_TEXT.tr
+  const dateLocale = localeToIntl[locale] || 'tr-TR'
+
+  const sortOptions = SORT_OPTION_VALUES.map((value) => ({
+    value,
+    label: t.sortOptions[value] || PLANNER_TEXT.tr.sortOptions[value],
+  }))
 
   const [fromLocation, setFromLocation] = useState<{ name: string; latitude: number | null; longitude: number | null; city: string } | null>({ name: 'Istanbul', latitude: null, longitude: null, city: '' })
   const [toLocation, setToLocation] = useState<{ name: string; latitude: number | null; longitude: number | null; city: string } | null>({ name: 'Ankara', latitude: null, longitude: null, city: '' })
@@ -338,11 +532,11 @@ export default function RareTravelPlanner() {
   }, [result])
 
   const categorySummary = useMemo(() => {
-    if (selectedCategories.length === 0) return 'Tum kategoriler'
+    if (selectedCategories.length === 0) return t.allCategories
     if (selectedCategories.length === 1) return selectedCategories[0]
     if (selectedCategories.length === 2) return `${selectedCategories[0]}, ${selectedCategories[1]}`
     return `${selectedCategories[0]}, ${selectedCategories[1]} +${selectedCategories.length - 2}`
-  }, [selectedCategories])
+  }, [selectedCategories, t.allCategories])
 
   const activeEditableSessions = useMemo(
     () => activeLivePlans.filter((item) => item.status === 'active'),
@@ -636,7 +830,7 @@ export default function RareTravelPlanner() {
           )
           const geoData = await res.json()
           if (!Array.isArray(geoData) || geoData.length === 0) {
-            setError('Sehir konumu bulunamadi. Lutfen baslangic ve varis adresini manuel girin.')
+            setError(t.cityNotFoundManual)
             setLoading(false)
             return
           }
@@ -678,7 +872,7 @@ export default function RareTravelPlanner() {
           setActiveQuery(params.toString())
           router.replace(`${pathname}?${params.toString()}`, { scroll: false })
         } catch {
-          setError('Sehir konumu alinamadi. Lutfen baslangic ve varis adresini manuel girin.')
+          setError(t.cityLocationFetchFailed)
           setLoading(false)
         }
       }
@@ -729,7 +923,7 @@ export default function RareTravelPlanner() {
   const requestCurrentLocation = () => {
     setError('')
     if (!navigator.geolocation) {
-      setError('Tarayici konum servisini desteklemiyor.')
+      setError(t.browserGeoNotSupported)
       return
     }
 
@@ -740,7 +934,7 @@ export default function RareTravelPlanner() {
           lng: pos.coords.longitude,
         })
       },
-      () => setError('Konum izni verilmedi veya konum alinamadi.'),
+      () => setError(t.geoPermissionDenied),
       { enableHighAccuracy: true, timeout: 10000 },
     )
   }
@@ -753,7 +947,7 @@ export default function RareTravelPlanner() {
     try {
       // fromLocation ve toLocation kontrolü
       if (!fromLocation?.name?.trim() || !toLocation?.name?.trim()) {
-        setError('Başlangıç ve varış konumu gerekli. Metin veya enlem,boylam girebilirsin.')
+        setError(t.startEndRequired)
         setLoading(false)
         return
       }
@@ -764,7 +958,7 @@ export default function RareTravelPlanner() {
 
       const res = await fetch(`/api/rare-travel-plan?${query}`)
       const data = await res.json()
-      if (!res.ok) throw new Error(data?.error || 'Plan olusturulamadi')
+      if (!res.ok) throw new Error(data?.error || t.planCreateFailed)
       setResult(data)
 
       if (selectedCategories.length === 0 && Array.isArray(data?.categoryOptions) && data.categoryOptions.length > 0) {
@@ -773,9 +967,9 @@ export default function RareTravelPlanner() {
     } catch (err: any) {
       // Backend "Başlangıç ve varış konumu gerekli" diyorsa, kullanıcıya metinle de plan oluşturulabileceğini belirt
       if (err?.message?.includes('Baslangic ve varis konumu gerekli')) {
-        setError('Başlangıç ve varış konumu gerekli. Metin veya enlem,boylam girebilirsin.')
+        setError(t.startEndRequired)
       } else {
-        setError(err?.message || 'Plan olusturulamadi')
+        setError(err?.message || t.planCreateFailed)
       }
     } finally {
       setLoading(false)
@@ -789,12 +983,12 @@ export default function RareTravelPlanner() {
       const params = buildPlannerParams().toString()
       const fromInput = fromLocation?.name?.trim() || ''
       const toInput = toLocation?.name?.trim() || ''
-      const fromLabel = (fromInput && !isLatLngLike(fromInput) ? fromInput : (result?.meta?.from || fromInput || 'Baslangic'))
+      const fromLabel = (fromInput && !isLatLngLike(fromInput) ? fromInput : (result?.meta?.from || fromInput || t.defaultStart))
       const lastStopLabel = getLastStopLabel(result)
       const toLabel =
         (toInput && !isLatLngLike(toInput)
           ? toInput
-          : (result?.meta?.to || lastStopLabel || toInput || 'Son durak'))
+          : (result?.meta?.to || lastStopLabel || toInput || t.defaultEnd))
       const title = `${fromLabel} -> ${toLabel}`
       const {
         data: { user },
@@ -828,10 +1022,10 @@ export default function RareTravelPlanner() {
         localStorage.setItem('rare_travel_plans_local', JSON.stringify(next))
       }
 
-      setSaveMessage('Plan kaydedildi.')
+      setSaveMessage(t.saveSuccess)
       await loadSavedPlans()
     } catch {
-      setSaveMessage('Plan kaydedilemedi. Tablo hazir degilse migration calistirilmali.')
+      setSaveMessage(t.saveFailed)
     } finally {
       setSavingPlan(false)
     }
@@ -843,7 +1037,7 @@ export default function RareTravelPlanner() {
       data: { user },
     } = await supabase.auth.getUser()
     if (!user) {
-      setError('Canli plan baslatmak icin giris yapmalısiniz.')
+      setError(t.loginRequiredForLive)
       return
     }
     setLiveSessionStarting(true)
@@ -854,10 +1048,10 @@ export default function RareTravelPlanner() {
       const toInput = toLocation?.name?.trim() || ''
       const fromLabel = fromInput && !isLatLngLike(fromInput)
         ? fromInput
-        : 'Baslangic'
+        : t.defaultStart
       const toLabel = toInput && !isLatLngLike(toInput)
         ? toInput
-        : 'Son durak'
+        : t.defaultEnd
       const title = `${fromLabel} -> ${toLabel}`
 
       const { data: planData, error: planErr } = await supabase
@@ -886,13 +1080,13 @@ export default function RareTravelPlanner() {
 
       setLiveSessionId(sessionData.id)
       setLiveSessionActive(true)
-      setSaveMessage('Canli plan baslatildi!')
+      setSaveMessage(t.liveStarted)
       await loadSavedPlans()
       setTimeout(() => {
         router.push(`/rare-travel-plan/live/${sessionData.id}`)
       }, 800)
     } catch (err: any) {
-      setError(err?.message || 'Canli plan baslatılamadı.')
+      setError(err?.message || t.liveStartFailed)
     } finally {
       setLiveSessionStarting(false)
     }
@@ -905,7 +1099,7 @@ export default function RareTravelPlanner() {
       data: { user },
     } = await supabase.auth.getUser()
     if (!user) {
-      setError('Canli plan baslatmak icin giris yapmalısiniz.')
+      setError(t.loginRequiredForLive)
       return
     }
     setLiveSessionStarting(true)
@@ -916,11 +1110,11 @@ export default function RareTravelPlanner() {
       const toInput = toLocation?.name?.trim() || ''
       const fromLabel = fromInput && !isLatLngLike(fromInput)
         ? fromInput
-        : result?.meta?.from || fromInput || 'Baslangic'
+        : result?.meta?.from || fromInput || t.defaultStart
       const lastStopLabel = getLastStopLabel(result)
       const toLabel = toInput && !isLatLngLike(toInput)
         ? toInput
-        : result?.meta?.to || lastStopLabel || toInput || 'Son durak'
+        : result?.meta?.to || lastStopLabel || toInput || t.defaultEnd
       const title = `${fromLabel} -> ${toLabel}`
 
       // Önce planı kaydet
@@ -971,13 +1165,13 @@ export default function RareTravelPlanner() {
 
       setLiveSessionId(sessionData.id)
       setLiveSessionActive(true)
-      setSaveMessage('Canli plan baslatildi!')
+      setSaveMessage(t.liveStarted)
       await loadSavedPlans()
       setTimeout(() => {
         router.push(`/rare-travel-plan/live/${sessionData.id}`)
       }, 800)
     } catch (err: any) {
-      setError(err?.message || 'Canli plan baslatılamadı.')
+      setError(err?.message || t.liveStartFailed)
     } finally {
       setLiveSessionStarting(false)
     }
@@ -989,18 +1183,18 @@ export default function RareTravelPlanner() {
     const url = `${window.location.origin}${pathname}?${params}`
     try {
       await navigator.clipboard.writeText(url)
-      setSaveMessage('Paylasim linki panoya kopyalandi.')
+      setSaveMessage(t.shareCopied)
     } catch {
-      setSaveMessage(`Paylasim linki: ${url}`)
+      setSaveMessage(`${t.shareLinkPrefix} ${url}`)
     }
   }
 
   return (
     <section className="space-y-4">
       <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-cyan-50 p-4 md:p-5">
-        <h2 className="text-lg font-bold text-gray-900">Nadir Seyahat Plani</h2>
+        <h2 className="text-lg font-bold text-gray-900">{t.title}</h2>
         <p className="mt-1 text-sm text-gray-600">
-          Baslangic ve varis konumunu sec, yol uzerindeki en iyi nadir sosyal paylasimlari otomatik getir.
+          {t.subtitle}
         </p>
 
         <div className="mt-4 grid gap-3 md:grid-cols-2">
@@ -1037,7 +1231,7 @@ export default function RareTravelPlanner() {
 
         <div className="mt-3 grid gap-3 md:grid-cols-3">
           <label className="text-sm font-medium text-gray-700">
-            Durak sayisi
+            {t.stops}
             <input
               type="number"
               min={1}
@@ -1049,20 +1243,20 @@ export default function RareTravelPlanner() {
           </label>
 
           <label className="text-sm font-medium text-gray-700">
-            Siralama
+            {t.sort}
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
               className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm outline-none ring-emerald-100 focus:border-emerald-400 focus:ring-2"
             >
-              {SORT_OPTIONS.map((option) => (
+              {sortOptions.map((option) => (
                 <option key={option.value} value={option.value}>{option.label}</option>
               ))}
             </select>
           </label>
 
           <label className="text-sm font-medium text-gray-700">
-            Rota koridoru (km)
+            {t.corridor}
             <input
               type="number"
               min={1}
@@ -1076,7 +1270,7 @@ export default function RareTravelPlanner() {
 
         <div className="mt-3 grid gap-3 md:grid-cols-2">
           <label className="text-sm font-medium text-gray-700">
-            Kategoriler (birden fazla secilebilir)
+            {t.categories}
             <div ref={categoryMenuRef} className="relative mt-1">
               <button
                 type="button"
@@ -1086,19 +1280,19 @@ export default function RareTravelPlanner() {
                 <span className={selectedCategories.length > 0 ? 'text-gray-900' : 'text-gray-500'}>
                   {categorySummary}
                 </span>
-                <span className="ml-3 text-xs text-gray-400">{categoryMenuOpen ? 'Yukari' : 'Asagi'}</span>
+                <span className="ml-3 text-xs text-gray-400">{categoryMenuOpen ? t.up : t.down}</span>
               </button>
 
               {categoryMenuOpen && (
                 <div className="absolute z-20 mt-2 w-full rounded-xl border border-gray-200 bg-white p-2 shadow-xl">
                   <div className="mb-2 flex items-center justify-between gap-2 border-b border-gray-100 pb-2">
-                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">Kategori sec</p>
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">{t.categoryPick}</p>
                     <button
                       type="button"
                       onClick={() => setSelectedCategories([])}
                       className="text-xs font-medium text-emerald-700 hover:text-emerald-800"
                     >
-                      Temizle
+                      {t.clear}
                     </button>
                   </div>
 
@@ -1110,7 +1304,7 @@ export default function RareTravelPlanner() {
                         onChange={() => setSelectedCategories([])}
                         className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
                       />
-                      <span className="text-sm text-gray-700">Tum kategoriler</span>
+                      <span className="text-sm text-gray-700">{t.allCategories}</span>
                     </label>
 
                     {categoryOptions.map((cat) => {
@@ -1131,8 +1325,8 @@ export default function RareTravelPlanner() {
 
                   <p className="mt-2 border-t border-gray-100 pt-2 text-xs text-gray-500">
                     {selectedCategories.length > 0
-                      ? `${selectedCategories.length} kategori secildi`
-                      : 'Kategori secmezsen tumu dahil edilir'}
+                      ? t.selectedCategoryCount.replace('{count}', String(selectedCategories.length))
+                      : t.allIncluded}
                   </p>
                 </div>
               )}
@@ -1140,11 +1334,11 @@ export default function RareTravelPlanner() {
           </label>
 
           <label className="text-sm font-medium text-gray-700">
-            Arama kelimesi (opsiyonel)
+            {t.searchLabel}
             <input
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
-              placeholder="Ornek: antika, koleksiyon, fig\u00fcr"
+              placeholder={t.searchPlaceholder}
               className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm outline-none ring-emerald-100 focus:border-emerald-400 focus:ring-2"
             />
           </label>
@@ -1157,7 +1351,7 @@ export default function RareTravelPlanner() {
               checked={nearbyOnly}
               onChange={(e) => setNearbyOnly(e.target.checked)}
             />
-            Yakinimdakiler filtresi (OSRM rota + mevcut konum)
+            {t.nearbyFilter}
           </label>
 
           {nearbyOnly && (
@@ -1167,11 +1361,11 @@ export default function RareTravelPlanner() {
                 onClick={requestCurrentLocation}
                 className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-100"
               >
-                Konumumu kullan
+                {t.useMyLocation}
               </button>
 
               <label className="text-sm font-medium text-gray-700">
-                Yakindaki yaricap (km)
+                {t.nearbyRadius}
                 <input
                   type="number"
                   min={1}
@@ -1186,7 +1380,9 @@ export default function RareTravelPlanner() {
 
           {currentLocation && nearbyOnly && (
             <p className="mt-2 text-xs text-gray-500">
-              Konum hazir: {currentLocation.lat.toFixed(5)}, {currentLocation.lng.toFixed(5)}
+              {t.locationReady
+                .replace('{lat}', currentLocation.lat.toFixed(5))
+                .replace('{lng}', currentLocation.lng.toFixed(5))}
             </p>
           )}
         </div>
@@ -1198,14 +1394,14 @@ export default function RareTravelPlanner() {
             disabled={loading}
             className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300"
           >
-            {loading ? 'Plan hazirlaniyor...' : 'Nadir seyahat planini olustur'}
+            {loading ? t.preparingPlan : t.createPlan}
           </button>
 
           <Link
             href="/rare-travel-map"
             className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
           >
-            Haritada tum sosyal pinleri ac
+            {t.openAllPins}
           </Link>
 
           <button
@@ -1214,7 +1410,7 @@ export default function RareTravelPlanner() {
             disabled={savingPlan}
             className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-700 hover:bg-amber-100 disabled:opacity-60"
           >
-            {savingPlan ? 'Kaydediliyor...' : 'Plani kaydet'}
+            {savingPlan ? t.saving : t.savePlan}
           </button>
 
           {/* Plan yoksa üstte, plan varsa aşağıda buton */}
@@ -1225,7 +1421,7 @@ export default function RareTravelPlanner() {
               disabled={liveSessionStarting}
               className="rounded-xl border border-red-300 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:opacity-60"
             >
-              {liveSessionStarting ? 'Baslatiliyor...' : '🔴 Canli Plan Başlat'}
+              {liveSessionStarting ? t.starting : `🔴 ${t.startLive}`}
             </button>
           )}
           {result && (
@@ -1235,7 +1431,7 @@ export default function RareTravelPlanner() {
               disabled={liveSessionStarting}
               className="rounded-xl border border-red-300 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:opacity-60"
             >
-              {liveSessionStarting ? 'Baslatiliyor...' : '🔴 Canli Plan Başlat'}
+              {liveSessionStarting ? t.starting : `🔴 ${t.startLive}`}
             </button>
           )}
 
@@ -1244,7 +1440,7 @@ export default function RareTravelPlanner() {
             onClick={sharePlan}
             className="rounded-xl border border-blue-300 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100"
           >
-            Paylasim linki olustur
+            {t.createShareLink}
           </button>
         </div>
 
@@ -1260,12 +1456,12 @@ export default function RareTravelPlanner() {
       {result && (
         <>
           <div className="rounded-2xl border border-gray-200 bg-white p-4 md:p-5">
-            <h3 className="text-base font-bold text-gray-900">Plan ozeti</h3>
+            <h3 className="text-base font-bold text-gray-900">{t.summaryTitle}</h3>
             <div className="mt-3 grid gap-2 text-sm text-gray-700 md:grid-cols-4">
-              <p><span className="font-semibold">Rota:</span> {result.meta.from} {'->'} {result.meta.to}</p>
-              <p><span className="font-semibold">Mesafe:</span> {result.meta.routeDistanceKm} km</p>
-              <p><span className="font-semibold">Sure:</span> ~{result.meta.routeDurationMin} dk</p>
-              <p><span className="font-semibold">Bulunan paylasim:</span> {result.meta.foundPosts}</p>
+              <p><span className="font-semibold">{t.route}</span> {result.meta.from} {'->'} {result.meta.to}</p>
+              <p><span className="font-semibold">{t.distance}</span> {result.meta.routeDistanceKm} km</p>
+              <p><span className="font-semibold">{t.duration}</span> ~{result.meta.routeDurationMin} dk</p>
+              <p><span className="font-semibold">{t.foundPosts}</span> {result.meta.foundPosts}</p>
             </div>
             {result.posts.length > 0 && (() => {
               const origin = `${result.route.from.lat},${result.route.from.lng}`
@@ -1282,13 +1478,13 @@ export default function RareTravelPlanner() {
                   rel="noopener noreferrer"
                   className="mt-4 inline-flex items-center gap-2 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 transition"
                 >
-                  <span>🗺️</span> Google Maps'te Tum Rotayi Ac
+                  <span>🗺️</span> {t.openRouteInGoogle}
                 </a>
               )
             })()}
             {result.meta.routeIsFallback && (
               <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                Rota servisinde gecici kesinti var. Plan, acil modda dogrusal guzergahla olusturuldu.
+                {t.fallbackRoute}
               </p>
             )}
           </div>
@@ -1308,11 +1504,11 @@ export default function RareTravelPlanner() {
                 )}
 
                 <Marker position={[result.route.from.lat, result.route.from.lng]} icon={startIcon}>
-                  <Popup>Baslangic</Popup>
+                  <Popup>{t.startPoint}</Popup>
                 </Marker>
 
                 <Marker position={[result.route.to.lat, result.route.to.lng]} icon={endIcon}>
-                  <Popup>Varis</Popup>
+                  <Popup>{t.destination}</Popup>
                 </Marker>
 
                 {result.posts.map((post) => (
@@ -1324,16 +1520,16 @@ export default function RareTravelPlanner() {
                     <Popup>
                       <div className="w-48">
                         {post.image_url ? (
-                          <img src={post.image_url} alt={post.title || 'Nadir paylasim'} className="h-24 w-full rounded-md object-cover" loading="lazy" />
+                          <img src={post.image_url} alt={post.title || t.rarePost} className="h-24 w-full rounded-md object-cover" loading="lazy" />
                         ) : null}
-                        <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-amber-500">Durak {post.stop_index}</p>
-                        <p className="line-clamp-2 text-sm font-semibold text-gray-900">{post.title || 'Nadir paylasim'}</p>
+                        <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-amber-500">{t.stop} {post.stop_index}</p>
+                        <p className="line-clamp-2 text-sm font-semibold text-gray-900">{post.title || t.rarePost}</p>
                         <p className="mt-0.5 text-xs text-gray-500">{[post.city, post.location_name, post.category].filter(Boolean).join(' · ')}</p>
                         <p className="mt-0.5 text-xs text-gray-600">❤️ {post.likes_count} | 🔁 {post.shares_count} | {post.distance_to_route_km} km</p>
                         <div className="mt-2 flex items-center gap-2">
-                          <a href={buildSocialPath(post.id, post.title || post.description || '')} className="text-xs font-semibold text-blue-600 hover:text-blue-700">Paylasimi ac</a>
+                          <a href={buildSocialPath(post.id, post.title || post.description || '')} className="text-xs font-semibold text-blue-600 hover:text-blue-700">{t.openPost}</a>
                           <span className="text-gray-300">|</span>
-                          <a href={`https://www.google.com/maps/dir/?api=1&destination=${post.latitude},${post.longitude}`} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-emerald-600 hover:text-emerald-700">Haritada ac</a>
+                          <a href={`https://www.google.com/maps/dir/?api=1&destination=${post.latitude},${post.longitude}`} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-emerald-600 hover:text-emerald-700">{t.openOnMap}</a>
                         </div>
                       </div>
                     </Popup>
@@ -1344,32 +1540,32 @@ export default function RareTravelPlanner() {
           </div>
 
           <div className="rounded-2xl border border-gray-200 bg-white p-4 md:p-5">
-            <h3 className="text-base font-bold text-gray-900">Rota durakları ({result.posts.length} seçildi)</h3>
+            <h3 className="text-base font-bold text-gray-900">{t.routeStops.replace('{count}', String(result.posts.length))}</h3>
             <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {result.posts.map((post) => (
                 <article key={post.id} className="overflow-hidden rounded-xl border border-gray-200 bg-white">
                   {post.image_url ? (
-                    <img src={post.image_url} alt={post.title || 'Nadir paylasim'} className="h-40 w-full object-cover" loading="lazy" />
+                    <img src={post.image_url} alt={post.title || t.rarePost} className="h-40 w-full object-cover" loading="lazy" />
                   ) : (
                     <div className="flex h-40 w-full items-center justify-center bg-gray-100">
                       <span className="text-3xl font-bold text-amber-400">{post.stop_index}</span>
                     </div>
                   )}
                   <div className="p-3">
-                    <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-amber-500">Durak {post.stop_index}</p>
-                    <p className="line-clamp-2 text-sm font-semibold text-gray-900">{post.title || 'Nadir paylasim'}</p>
+                    <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-amber-500">{t.stop} {post.stop_index}</p>
+                    <p className="line-clamp-2 text-sm font-semibold text-gray-900">{post.title || t.rarePost}</p>
                     <p className="mt-1 text-xs text-gray-500">
-                      {[post.city, post.location_name, post.category].filter(Boolean).join(' · ') || 'Konum belirtilmemis'}
+                      {[post.city, post.location_name, post.category].filter(Boolean).join(' · ') || t.noLocationProvided}
                     </p>
                     <p className="mt-2 text-xs text-gray-600">
-                      ❤️ {post.likes_count} &nbsp;🔁 {post.shares_count} &nbsp;📍 {post.distance_to_route_km} km rotaya
+                      ❤️ {post.likes_count} &nbsp;🔁 {post.shares_count} &nbsp;📍 {post.distance_to_route_km} {t.toRouteKm}
                     </p>
                     <div className="mt-3 flex flex-wrap items-center gap-2">
                       <Link
                         href={buildSocialPath(post.id, post.title || post.description || '')}
                         className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
                       >
-                        Paylasimi ac
+                        {t.openPost}
                       </Link>
                       <a
                         href={`https://www.google.com/maps/dir/?api=1&destination=${post.latitude},${post.longitude}`}
@@ -1377,7 +1573,7 @@ export default function RareTravelPlanner() {
                         rel="noopener noreferrer"
                         className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
                       >
-                        Google Haritalar
+                        {t.googleMaps}
                       </a>
                     </div>
                   </div>
@@ -1389,17 +1585,17 @@ export default function RareTravelPlanner() {
       )}
 
       <div className="rounded-2xl border border-gray-200 bg-white p-4 md:p-5">
-        <h3 className="text-base font-bold text-gray-900">Kayitli planlarim</h3>
-        <p className="mt-1 text-xs text-gray-500">Hesaba girisliysen profiline bagli saklanir, degilsen bu tarayicida tutulur.</p>
+        <h3 className="text-base font-bold text-gray-900">{t.savedPlans}</h3>
+        <p className="mt-1 text-xs text-gray-500">{t.savedPlansDesc}</p>
 
         <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Canli duzenleme alanin</p>
-          <p className="mt-1 text-xs text-emerald-800">Buradaki aktif oturumlarda ara kaydet, ekle-cikar-duzenle yap; sadece sen "tamamla" dediginde rota yayina cikar.</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">{t.liveEditArea}</p>
+          <p className="mt-1 text-xs text-emerald-800">{t.liveEditDesc}</p>
         </div>
 
         <div className="mt-3 space-y-2">
           {activeEditableSessions.length === 0 && savedPlans.length === 0 && (
-            <p className="text-sm text-gray-500">Henuz kayitli plan yok.</p>
+            <p className="text-sm text-gray-500">{t.noSavedPlans}</p>
           )}
           {activeEditableSessions.map((plan) => (
             <button
@@ -1410,16 +1606,16 @@ export default function RareTravelPlanner() {
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm font-semibold text-gray-900">{plan.title}</p>
-                <span className="rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">Canli Plan</span>
+                <span className="rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">{t.livePlanBadge}</span>
               </div>
               <p className="mt-1 text-xs text-gray-600">{plan.from_location} {'->'} {plan.to_location}</p>
-              <p className="mt-1 text-xs font-medium text-red-700">Durak: {plan.stops_count} · Devam etmek icin tikla · {new Date(plan.started_at).toLocaleString('tr-TR')}</p>
+              <p className="mt-1 text-xs font-medium text-red-700">{t.continueToEdit.replace('{count}', String(plan.stops_count)).replace('{date}', new Date(plan.started_at).toLocaleString(dateLocale))}</p>
             </button>
           ))}
 
           {completedLiveSessions.length > 0 && (
             <div className="pt-2">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Tamamlanan canli oturumlar</p>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">{t.completedSessions}</p>
               <div className="space-y-2">
                 {completedLiveSessions.map((plan) => (
                   <button
@@ -1430,10 +1626,10 @@ export default function RareTravelPlanner() {
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <p className="text-sm font-semibold text-gray-900">{plan.title}</p>
-                      <span className="rounded-full bg-slate-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">Tamamlandi</span>
+                      <span className="rounded-full bg-slate-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">{t.completedBadge}</span>
                     </div>
                     <p className="mt-1 text-xs text-gray-600">{plan.from_location} {'->'} {plan.to_location}</p>
-                    <p className="mt-1 text-xs font-medium text-slate-700">Durak: {plan.stops_count} · Duzenlemek icin tikla</p>
+                    <p className="mt-1 text-xs font-medium text-slate-700">{t.clickToEdit.replace('{count}', String(plan.stops_count))}</p>
                   </button>
                 ))}
               </div>
@@ -1448,7 +1644,7 @@ export default function RareTravelPlanner() {
               className="w-full rounded-xl border border-gray-200 p-3 text-left hover:bg-gray-50"
             >
               <p className="text-sm font-semibold text-gray-900">{plan.title}</p>
-              <p className="mt-1 text-xs text-gray-600">{new Date(plan.created_at).toLocaleString('tr-TR')}</p>
+              <p className="mt-1 text-xs text-gray-600">{new Date(plan.created_at).toLocaleString(dateLocale)}</p>
             </button>
           ))}
         </div>
