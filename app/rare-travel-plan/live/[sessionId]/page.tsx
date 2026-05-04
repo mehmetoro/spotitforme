@@ -8,6 +8,384 @@ import { supabase } from '@/lib/supabase'
 import CreatePostModal, { TripPostModalPayload } from '@/components/social/CreatePostModal'
 import { MapContainer, Marker, Popup, Polyline, TileLayer } from 'react-leaflet'
 import L from 'leaflet'
+import { useCurrentLocale } from '@/hooks/useCurrentLocale'
+
+const LIVE_SESSION_TEXT = {
+  tr: {
+    loading: 'Oturum yükleniyor...',
+    errorLogin: 'Giriş yapmalısınız.',
+    errorSessionNotFound: 'Oturum bulunamadı.',
+    errorPrivate: 'Bu rota sadece sahibi tarafından görüntülenebilir.',
+    errorPlanNotFound: 'Plan bulunamadı.',
+    errorLoad: 'Veri yüklenemedi.',
+    errorSaveRoute: 'Durak düzeni kaydedilemedi.',
+    errorComplete: 'Oturum tamamlanamadı.',
+    backToPlans: 'Planlara dön',
+    pageTitle: 'Nadir Seyahat Planı',
+    elapsed: (h: number, m: number) => `Geçen süre: ${h}s ${m}dk`,
+    noStopsWarning: 'Bu canlı oturumda durak yok.',
+    suggestedSession: (n: number) => `Durak içeren başka bir canlı oturum bulundu (${n} durak).`,
+    goToSuggested: 'Duraklı oturuma geç',
+    planInfo: 'Plan Bilgileri',
+    start: 'Başlangıç',
+    end: 'Varış',
+    distance: 'Mesafe',
+    duration: 'Süre',
+    openGoogleMaps: "Google Haritalar'da Aç",
+    routeUpdating: 'Rota duraklara göre güncelleniyor...',
+    markerStart: (loc: string) => `Başlangıç: ${loc}`,
+    markerEnd: (loc: string) => `Varış: ${loc}`,
+    noLocation: 'Konum yok',
+    stopTime: 'Saat',
+    addOwnPost: 'Kendi paylaşımını durağa ekle',
+    selectOwnPost: 'Kendi sosyal paylaşımını seç...',
+    addToStop: 'Durağa ekle',
+    createStopSection: 'Yeni durak oluştur',
+    createStopDesc: 'Durağı tek adımda oluştur ve rota listesine otomatik ekle.',
+    createStopBtn: 'Yeni durak oluştur',
+    createStopModalTitle: 'Yeni Durak Oluştur',
+    createStopModalSubmit: 'Durak Oluştur',
+    stopPostsTitle: (n: number) => `Durak paylaşımları (${n})`,
+    intermediateSave: 'Ara kaydet',
+    saving: 'Kaydediliyor...',
+    stopsFeedNote: "Bu listedeki içerikler sadece bu seyahat rotasında görünür. Nadir feed'e ayrıca düşmez.",
+    noStopsAdded: 'Henüz durak paylaşımı eklenmedi.',
+    remove: 'Çıkar',
+    shareFlow: 'Paylaşım akışı (durağın altında)',
+    noPostsToShow: 'Gösterilecek paylaşım yok.',
+    like: 'Beğeni',
+    comment: 'Yorum',
+    share: 'Paylaş',
+    noDescription: 'Bu durak için açıklama eklenmedi.',
+    stopBadge: (n: number) => `Durak #${n}`,
+    draftSaveDesc: 'Ekle-çıkar-düzenle değişikliklerini ara kaydedip daha sonra devam edebilirsin.',
+    saveDraftAndExit: 'Taslağa kaydet ve planlara dön',
+    savingDraft: 'Taslak kaydediliyor...',
+    completedMsg: 'Bu rota tamamlanmış durumda. Düzenlemeleri kaydedip yeniden yayınlayabilirsin.',
+    activeMsg: 'Varışa geldiğinde bitirip seyahat rotaları akışına yayınlayabilirsin.',
+    visibility: 'Oturum görünürlüğü',
+    private: 'Özel',
+    followers: 'Takipçiler',
+    public: 'Genel',
+    republish: 'Düzenlemeleri yeniden yayınla',
+    complete: 'Seyahati tamamla ve rota olarak yayınla',
+    currentLocationLabel: 'Mevcut konumumu kullan',
+    defaultPostTitle: 'Seyahat paylaşımı',
+    defaultCategory: 'Seyahat',
+  },
+  en: {
+    loading: 'Loading session...',
+    errorLogin: 'You must be logged in.',
+    errorSessionNotFound: 'Session not found.',
+    errorPrivate: 'This route can only be viewed by its owner.',
+    errorPlanNotFound: 'Plan not found.',
+    errorLoad: 'Failed to load data.',
+    errorSaveRoute: 'Could not save stop order.',
+    errorComplete: 'Could not complete session.',
+    backToPlans: 'Back to plans',
+    pageTitle: 'Rare Travel Plan',
+    elapsed: (h: number, m: number) => `Elapsed: ${h}h ${m}m`,
+    noStopsWarning: 'This live session has no stops.',
+    suggestedSession: (n: number) => `Another live session with stops was found (${n} stops).`,
+    goToSuggested: 'Go to session with stops',
+    planInfo: 'Plan Details',
+    start: 'Start',
+    end: 'End',
+    distance: 'Distance',
+    duration: 'Duration',
+    openGoogleMaps: 'Open in Google Maps',
+    routeUpdating: 'Route is being updated based on stops...',
+    markerStart: (loc: string) => `Start: ${loc}`,
+    markerEnd: (loc: string) => `End: ${loc}`,
+    noLocation: 'No location',
+    stopTime: 'Time',
+    addOwnPost: 'Add your post as a stop',
+    selectOwnPost: 'Select your social post...',
+    addToStop: 'Add to stop',
+    createStopSection: 'Create new stop',
+    createStopDesc: 'Create a stop in one step and automatically add it to the route.',
+    createStopBtn: 'Create new stop',
+    createStopModalTitle: 'Create New Stop',
+    createStopModalSubmit: 'Create Stop',
+    stopPostsTitle: (n: number) => `Stop posts (${n})`,
+    intermediateSave: 'Save progress',
+    saving: 'Saving...',
+    stopsFeedNote: 'The content in this list only appears in this travel route. It does not appear in the Rare feed.',
+    noStopsAdded: 'No stop posts added yet.',
+    remove: 'Remove',
+    shareFlow: 'Post flow (below stops)',
+    noPostsToShow: 'No posts to show.',
+    like: 'Like',
+    comment: 'Comment',
+    share: 'Share',
+    noDescription: 'No description added for this stop.',
+    stopBadge: (n: number) => `Stop #${n}`,
+    draftSaveDesc: 'You can save your add/remove/edit changes as a draft and continue later.',
+    saveDraftAndExit: 'Save as draft and return to plans',
+    savingDraft: 'Saving draft...',
+    completedMsg: 'This route is completed. You can save your edits and republish.',
+    activeMsg: 'When you arrive, you can finish and publish to travel routes feed.',
+    visibility: 'Session visibility',
+    private: 'Private',
+    followers: 'Followers',
+    public: 'Public',
+    republish: 'Republish with edits',
+    complete: 'Complete trip and publish as route',
+    currentLocationLabel: 'Use my current location',
+    defaultPostTitle: 'Travel post',
+    defaultCategory: 'Travel',
+  },
+  de: {
+    loading: 'Sitzung wird geladen...',
+    errorLogin: 'Sie müssen angemeldet sein.',
+    errorSessionNotFound: 'Sitzung nicht gefunden.',
+    errorPrivate: 'Diese Route kann nur vom Eigentümer angezeigt werden.',
+    errorPlanNotFound: 'Plan nicht gefunden.',
+    errorLoad: 'Daten konnten nicht geladen werden.',
+    errorSaveRoute: 'Stopp-Reihenfolge konnte nicht gespeichert werden.',
+    errorComplete: 'Sitzung konnte nicht abgeschlossen werden.',
+    backToPlans: 'Zurück zu Plänen',
+    pageTitle: 'Seltener Reiseplan',
+    elapsed: (h: number, m: number) => `Vergangen: ${h}h ${m}min`,
+    noStopsWarning: 'Diese Live-Sitzung hat keine Stopps.',
+    suggestedSession: (n: number) => `Eine andere Live-Sitzung mit Stopps wurde gefunden (${n} Stopps).`,
+    goToSuggested: 'Zur Sitzung mit Stopps',
+    planInfo: 'Plandetails',
+    start: 'Start',
+    end: 'Ziel',
+    distance: 'Entfernung',
+    duration: 'Dauer',
+    openGoogleMaps: 'In Google Maps öffnen',
+    routeUpdating: 'Route wird basierend auf Stopps aktualisiert...',
+    markerStart: (loc: string) => `Start: ${loc}`,
+    markerEnd: (loc: string) => `Ziel: ${loc}`,
+    noLocation: 'Kein Standort',
+    stopTime: 'Zeit',
+    addOwnPost: 'Eigenen Beitrag als Stopp hinzufügen',
+    selectOwnPost: 'Eigenen Beitrag auswählen...',
+    addToStop: 'Zum Stopp hinzufügen',
+    createStopSection: 'Neuen Stopp erstellen',
+    createStopDesc: 'Erstelle einen Stopp in einem Schritt und füge ihn automatisch zur Route hinzu.',
+    createStopBtn: 'Neuen Stopp erstellen',
+    createStopModalTitle: 'Neuen Stopp erstellen',
+    createStopModalSubmit: 'Stopp erstellen',
+    stopPostsTitle: (n: number) => `Stopp-Beiträge (${n})`,
+    intermediateSave: 'Zwischenspeichern',
+    saving: 'Wird gespeichert...',
+    stopsFeedNote: 'Der Inhalt dieser Liste erscheint nur in dieser Reiseroute. Er erscheint nicht im Rare-Feed.',
+    noStopsAdded: 'Noch keine Stopp-Beiträge hinzugefügt.',
+    remove: 'Entfernen',
+    shareFlow: 'Beitragsfluss (unter Stopps)',
+    noPostsToShow: 'Keine Beiträge zum Anzeigen.',
+    like: 'Gefällt mir',
+    comment: 'Kommentar',
+    share: 'Teilen',
+    noDescription: 'Für diesen Stopp wurde keine Beschreibung hinzugefügt.',
+    stopBadge: (n: number) => `Stopp #${n}`,
+    draftSaveDesc: 'Sie können Ihre Änderungen als Entwurf speichern und später fortfahren.',
+    saveDraftAndExit: 'Als Entwurf speichern und zurück zu Plänen',
+    savingDraft: 'Entwurf wird gespeichert...',
+    completedMsg: 'Diese Route ist abgeschlossen. Sie können Bearbeitungen speichern und erneut veröffentlichen.',
+    activeMsg: 'Wenn Sie ankommen, können Sie abschließen und in den Reiseroutenstream veröffentlichen.',
+    visibility: 'Sitzungssichtbarkeit',
+    private: 'Privat',
+    followers: 'Follower',
+    public: 'Öffentlich',
+    republish: 'Bearbeitungen erneut veröffentlichen',
+    complete: 'Reise abschließen und als Route veröffentlichen',
+    currentLocationLabel: 'Meinen aktuellen Standort verwenden',
+    defaultPostTitle: 'Reisebeitrag',
+    defaultCategory: 'Travel',
+  },
+  fr: {
+    loading: 'Chargement de la session...',
+    errorLogin: 'Vous devez être connecté.',
+    errorSessionNotFound: 'Session introuvable.',
+    errorPrivate: "Cet itinéraire ne peut être consulté que par son propriétaire.",
+    errorPlanNotFound: 'Plan introuvable.',
+    errorLoad: 'Impossible de charger les données.',
+    errorSaveRoute: "Impossible de sauvegarder l'ordre des arrêts.",
+    errorComplete: 'Impossible de terminer la session.',
+    backToPlans: 'Retour aux plans',
+    pageTitle: 'Plan de voyage rare',
+    elapsed: (h: number, m: number) => `Temps écoulé: ${h}h ${m}min`,
+    noStopsWarning: "Cette session en direct n'a pas d'arrêts.",
+    suggestedSession: (n: number) => `Une autre session en direct avec des arrêts a été trouvée (${n} arrêts).`,
+    goToSuggested: 'Aller à la session avec arrêts',
+    planInfo: 'Détails du plan',
+    start: 'Départ',
+    end: 'Arrivée',
+    distance: 'Distance',
+    duration: 'Durée',
+    openGoogleMaps: 'Ouvrir dans Google Maps',
+    routeUpdating: "Itinéraire mis à jour selon les arrêts...",
+    markerStart: (loc: string) => `Départ: ${loc}`,
+    markerEnd: (loc: string) => `Arrivée: ${loc}`,
+    noLocation: 'Pas de localisation',
+    stopTime: 'Heure',
+    addOwnPost: 'Ajouter votre publication comme arrêt',
+    selectOwnPost: 'Sélectionner votre publication...',
+    addToStop: "Ajouter à l'arrêt",
+    createStopSection: 'Créer un nouvel arrêt',
+    createStopDesc: "Créez un arrêt en une étape et ajoutez-le automatiquement à l'itinéraire.",
+    createStopBtn: 'Créer un nouvel arrêt',
+    createStopModalTitle: 'Créer un nouvel arrêt',
+    createStopModalSubmit: "Créer l'arrêt",
+    stopPostsTitle: (n: number) => `Publications d'arrêts (${n})`,
+    intermediateSave: 'Sauvegarde intermédiaire',
+    saving: 'Enregistrement...',
+    stopsFeedNote: "Le contenu de cette liste n'apparaît que dans cet itinéraire. Il n'apparaît pas dans le fil Rare.",
+    noStopsAdded: "Aucune publication d'arrêt ajoutée.",
+    remove: 'Supprimer',
+    shareFlow: 'Flux de publications (sous les arrêts)',
+    noPostsToShow: 'Aucune publication à afficher.',
+    like: "J'aime",
+    comment: 'Commentaire',
+    share: 'Partager',
+    noDescription: 'Aucune description ajoutée pour cet arrêt.',
+    stopBadge: (n: number) => `Arrêt #${n}`,
+    draftSaveDesc: 'Vous pouvez sauvegarder vos modifications en tant que brouillon et continuer plus tard.',
+    saveDraftAndExit: 'Sauvegarder en brouillon et revenir aux plans',
+    savingDraft: 'Sauvegarde du brouillon...',
+    completedMsg: 'Cet itinéraire est terminé. Vous pouvez sauvegarder vos modifications et republier.',
+    activeMsg: "À l'arrivée, vous pouvez terminer et publier dans le flux des itinéraires.",
+    visibility: 'Visibilité de la session',
+    private: 'Privé',
+    followers: 'Abonnés',
+    public: 'Public',
+    republish: 'Republier avec modifications',
+    complete: 'Terminer le voyage et publier comme itinéraire',
+    currentLocationLabel: 'Utiliser ma position actuelle',
+    defaultPostTitle: 'Publication de voyage',
+    defaultCategory: 'Travel',
+  },
+  es: {
+    loading: 'Cargando sesión...',
+    errorLogin: 'Debe iniciar sesión.',
+    errorSessionNotFound: 'Sesión no encontrada.',
+    errorPrivate: 'Esta ruta solo puede ser vista por su propietario.',
+    errorPlanNotFound: 'Plan no encontrado.',
+    errorLoad: 'No se pudieron cargar los datos.',
+    errorSaveRoute: 'No se pudo guardar el orden de paradas.',
+    errorComplete: 'No se pudo completar la sesión.',
+    backToPlans: 'Volver a los planes',
+    pageTitle: 'Plan de viaje raro',
+    elapsed: (h: number, m: number) => `Transcurrido: ${h}h ${m}min`,
+    noStopsWarning: 'Esta sesión en vivo no tiene paradas.',
+    suggestedSession: (n: number) => `Se encontró otra sesión en vivo con paradas (${n} paradas).`,
+    goToSuggested: 'Ir a la sesión con paradas',
+    planInfo: 'Detalles del plan',
+    start: 'Inicio',
+    end: 'Destino',
+    distance: 'Distancia',
+    duration: 'Duración',
+    openGoogleMaps: 'Abrir en Google Maps',
+    routeUpdating: 'La ruta se actualiza según las paradas...',
+    markerStart: (loc: string) => `Inicio: ${loc}`,
+    markerEnd: (loc: string) => `Destino: ${loc}`,
+    noLocation: 'Sin ubicación',
+    stopTime: 'Hora',
+    addOwnPost: 'Agregar tu publicación como parada',
+    selectOwnPost: 'Seleccionar tu publicación...',
+    addToStop: 'Agregar a parada',
+    createStopSection: 'Crear nueva parada',
+    createStopDesc: 'Crea una parada en un paso y agrégala automáticamente a la ruta.',
+    createStopBtn: 'Crear nueva parada',
+    createStopModalTitle: 'Crear nueva parada',
+    createStopModalSubmit: 'Crear parada',
+    stopPostsTitle: (n: number) => `Publicaciones de paradas (${n})`,
+    intermediateSave: 'Guardado intermedio',
+    saving: 'Guardando...',
+    stopsFeedNote: 'El contenido de esta lista solo aparece en esta ruta de viaje. No aparece en el feed Rare.',
+    noStopsAdded: 'Aún no se han agregado publicaciones de paradas.',
+    remove: 'Quitar',
+    shareFlow: 'Flujo de publicaciones (debajo de paradas)',
+    noPostsToShow: 'No hay publicaciones para mostrar.',
+    like: 'Me gusta',
+    comment: 'Comentario',
+    share: 'Compartir',
+    noDescription: 'No se agregó descripción para esta parada.',
+    stopBadge: (n: number) => `Parada #${n}`,
+    draftSaveDesc: 'Puedes guardar los cambios como borrador y continuar más tarde.',
+    saveDraftAndExit: 'Guardar como borrador y volver a planes',
+    savingDraft: 'Guardando borrador...',
+    completedMsg: 'Esta ruta está completada. Puedes guardar tus ediciones y volver a publicar.',
+    activeMsg: 'Al llegar, puedes finalizar y publicar en el feed de rutas de viaje.',
+    visibility: 'Visibilidad de la sesión',
+    private: 'Privado',
+    followers: 'Seguidores',
+    public: 'Público',
+    republish: 'Volver a publicar con ediciones',
+    complete: 'Completar viaje y publicar como ruta',
+    currentLocationLabel: 'Usar mi ubicación actual',
+    defaultPostTitle: 'Publicación de viaje',
+    defaultCategory: 'Travel',
+  },
+  ru: {
+    loading: 'Загрузка сессии...',
+    errorLogin: 'Необходимо войти в систему.',
+    errorSessionNotFound: 'Сессия не найдена.',
+    errorPrivate: 'Этот маршрут доступен только его владельцу.',
+    errorPlanNotFound: 'План не найден.',
+    errorLoad: 'Не удалось загрузить данные.',
+    errorSaveRoute: 'Не удалось сохранить порядок остановок.',
+    errorComplete: 'Не удалось завершить сессию.',
+    backToPlans: 'Назад к планам',
+    pageTitle: 'Редкий план путешествия',
+    elapsed: (h: number, m: number) => `Прошло: ${h}ч ${m}мин`,
+    noStopsWarning: 'В этой прямой сессии нет остановок.',
+    suggestedSession: (n: number) => `Найдена другая прямая сессия с остановками (${n} остановок).`,
+    goToSuggested: 'Перейти к сессии с остановками',
+    planInfo: 'Детали плана',
+    start: 'Начало',
+    end: 'Прибытие',
+    distance: 'Расстояние',
+    duration: 'Продолжительность',
+    openGoogleMaps: 'Открыть в Google Maps',
+    routeUpdating: 'Маршрут обновляется на основе остановок...',
+    markerStart: (loc: string) => `Начало: ${loc}`,
+    markerEnd: (loc: string) => `Прибытие: ${loc}`,
+    noLocation: 'Нет местоположения',
+    stopTime: 'Время',
+    addOwnPost: 'Добавить свой пост как остановку',
+    selectOwnPost: 'Выберите свой пост...',
+    addToStop: 'Добавить к остановке',
+    createStopSection: 'Создать новую остановку',
+    createStopDesc: 'Создайте остановку за один шаг и автоматически добавьте в маршрут.',
+    createStopBtn: 'Создать новую остановку',
+    createStopModalTitle: 'Создать новую остановку',
+    createStopModalSubmit: 'Создать остановку',
+    stopPostsTitle: (n: number) => `Посты остановок (${n})`,
+    intermediateSave: 'Сохранить прогресс',
+    saving: 'Сохранение...',
+    stopsFeedNote: 'Контент этого списка отображается только в этом маршруте путешествия. Он не появляется в ленте Rare.',
+    noStopsAdded: 'Посты остановок ещё не добавлены.',
+    remove: 'Удалить',
+    shareFlow: 'Поток публикаций (под остановками)',
+    noPostsToShow: 'Нет публикаций для отображения.',
+    like: 'Нравится',
+    comment: 'Комментарий',
+    share: 'Поделиться',
+    noDescription: 'Описание для этой остановки не добавлено.',
+    stopBadge: (n: number) => `Остановка #${n}`,
+    draftSaveDesc: 'Вы можете сохранить изменения как черновик и продолжить позже.',
+    saveDraftAndExit: 'Сохранить как черновик и вернуться к планам',
+    savingDraft: 'Сохранение черновика...',
+    completedMsg: 'Этот маршрут завершён. Вы можете сохранить правки и переопубликовать.',
+    activeMsg: 'По прибытии вы можете завершить и опубликовать в ленте маршрутов.',
+    visibility: 'Видимость сессии',
+    private: 'Приватный',
+    followers: 'Подписчики',
+    public: 'Публичный',
+    republish: 'Переопубликовать с правками',
+    complete: 'Завершить поездку и опубликовать как маршрут',
+    currentLocationLabel: 'Использовать моё текущее местоположение',
+    defaultPostTitle: 'Публикация путешествия',
+    defaultCategory: 'Travel',
+  },
+} as const
+
+type LocaleKey = keyof typeof LIVE_SESSION_TEXT
 
 type LatLng = { lat: number; lng: number }
 
@@ -125,6 +503,7 @@ function LocationAutocomplete({
   placeholder,
   showCurrentLocation,
   onCurrentLocation,
+  currentLocationLabel,
 }: {
   value: string
   onChange: (val: string) => void
@@ -132,6 +511,7 @@ function LocationAutocomplete({
   placeholder?: string
   showCurrentLocation?: boolean
   onCurrentLocation?: () => void
+  currentLocationLabel?: string
 }) {
   const [suggestions, setSuggestions] = useState<NominatimResult[]>([])
   const [open, setOpen] = useState(false)
@@ -190,7 +570,7 @@ function LocationAutocomplete({
         {showCurrentLocation && onCurrentLocation && (
           <button
             type="button"
-            title="Mevcut konumumu kullan"
+            title={currentLocationLabel || 'Use current location'}
             onClick={onCurrentLocation}
             className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
           >
@@ -409,6 +789,9 @@ export default function LiveTravelSessionPage() {
   const sessionId = params.sessionId as string
   const isRouteReadonly = searchParams.get('mode') === 'route'
   const canEditSession = !isRouteReadonly
+
+  const locale = useCurrentLocale()
+  const t = LIVE_SESSION_TEXT[(locale as LocaleKey)] ?? LIVE_SESSION_TEXT.tr
 
   const [session, setSession] = useState<LiveTravelSession | null>(null)
   const [plan, setPlan] = useState<SavedTravelPlan | null>(null)
@@ -727,7 +1110,7 @@ export default function LiveTravelSessionPage() {
       } = await supabase.auth.getUser()
       if (user) await loadTripPosts()
     } catch (err: any) {
-      setError(err?.message || 'Durak düzeni kaydedilemedi.')
+      setError(err?.message || t.errorSaveRoute)
     } finally {
       setSavingEdits(false)
     }
@@ -798,7 +1181,7 @@ export default function LiveTravelSessionPage() {
       title: payload.title,
       description: payload.description,
       image_url: payload.imageUrl,
-      category: payload.category || 'Seyahat',
+      category: payload.category || t.defaultCategory,
       location_name: payload.locationName,
       city: payload.city,
       latitude: payload.latitude,
@@ -813,6 +1196,31 @@ export default function LiveTravelSessionPage() {
     }
 
     await loadTripPosts()
+
+    // Yeni eklenen durak postunu bul ve çevirilerini kaydet
+    if (payload.title) {
+      const { data: newPost } = await supabase
+        .from('live_trip_posts')
+        .select('id')
+        .eq('session_id', sessionId)
+        .eq('user_id', session.user_id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
+      if (newPost?.id) {
+        fetch('/api/save-translations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            entity: 'live_trip_post',
+            recordId: newPost.id,
+            title: payload.title,
+            description: payload.description || '',
+            sourceLanguage: 'tr',
+          }),
+        }).catch((err) => console.warn('Live trip post translation error:', err))
+      }
+    }
   }
 
   useEffect(() => {
@@ -823,7 +1231,7 @@ export default function LiveTravelSessionPage() {
         } = await supabase.auth.getUser()
 
         if (!user) {
-          setError('Giris yapmalısiniz.')
+          setError(t.errorLogin)
           setLoading(false)
           return
         }
@@ -836,7 +1244,7 @@ export default function LiveTravelSessionPage() {
           .single()
 
         if (sessionErr || !sessionData) {
-          setError('Oturum bulunamadı.')
+          setError(t.errorSessionNotFound)
           setLoading(false)
           return
         }
@@ -850,7 +1258,7 @@ export default function LiveTravelSessionPage() {
 
         // Eğer private ise sadece sahibi görebilir
         if (sessionVisibility === 'private' && sessionData.user_id !== user.id) {
-          setError('Bu rota sadece sahibi tarafından görüntülenebilir.')
+          setError(t.errorPrivate)
           setLoading(false)
           return
         }
@@ -863,7 +1271,7 @@ export default function LiveTravelSessionPage() {
           .single()
 
         if (planErr || !planData) {
-          setError('Plan bulunamadı.')
+          setError(t.errorPlanNotFound)
           setLoading(false)
           return
         }
@@ -883,7 +1291,7 @@ export default function LiveTravelSessionPage() {
         }
         setLoading(false)
       } catch (err: any) {
-        setError(err?.message || 'Veri yüklenemedi.')
+        setError(err?.message || t.errorLoad)
         setLoading(false)
       }
     }
@@ -1014,7 +1422,7 @@ export default function LiveTravelSessionPage() {
         router.push(`/rare-travel-plan/live/${sessionId}/summary`)
       }, 800)
     } catch (err: any) {
-      setError(err?.message || 'Oturum tamamlanamadı.')
+      setError(err?.message || t.errorComplete)
     } finally {
       setCompleting(false)
     }
@@ -1025,7 +1433,7 @@ export default function LiveTravelSessionPage() {
       <section className="space-y-4 p-4 md:p-6">
         <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center">
           <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-emerald-300 border-t-emerald-600" />
-          <p className="mt-3 text-sm text-gray-600">Oturum yükleniyor...</p>
+          <p className="mt-3 text-sm text-gray-600">{t.loading}</p>
         </div>
       </section>
     )
@@ -1035,9 +1443,9 @@ export default function LiveTravelSessionPage() {
     return (
       <section className="space-y-4 p-4 md:p-6">
         <div className="rounded-2xl border border-red-200 bg-red-50 p-4">
-          <p className="text-sm font-semibold text-red-700">{error || 'Oturum bulunamadı.'}</p>
+          <p className="text-sm font-semibold text-red-700">{error || t.errorSessionNotFound}</p>
           <Link href="/rare-travel-plan" className="mt-3 inline-block text-sm font-semibold text-red-700 hover:underline">
-            Planlara dön
+            {t.backToPlans}
           </Link>
         </div>
       </section>
@@ -1069,30 +1477,30 @@ export default function LiveTravelSessionPage() {
         onClose={() => setShowTripPostModal(false)}
         onPostCreated={() => setShowTripPostModal(false)}
         mode="trip_only"
-        headerTitle="Yeni Durak Olustur"
-        submitLabel="Durak Olustur"
+        headerTitle={t.createStopModalTitle}
+        submitLabel={t.createStopModalSubmit}
         onTripPostCreated={handleTripModalCreated}
       />
 
       <div className="rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-pink-50 p-4 md:p-5">
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-2xl font-extrabold text-gray-900">{plan.title || 'Nadir Seyahat Planı'}</h1>
+            <h1 className="text-2xl font-extrabold text-gray-900">{plan.title || t.pageTitle}</h1>
             <p className="mt-1 text-sm text-gray-600">{plan.from_location} → {plan.to_location}</p>
-            <p className="mt-2 text-xs font-semibold text-red-600">Geçen süre: {hours}h {minutes}m</p>
+            <p className="mt-2 text-xs font-semibold text-red-600">{t.elapsed(hours, minutes)}</p>
           </div>
           {session.status === 'active' && !isRouteReadonly && <div className="flex h-3 w-3 animate-pulse rounded-full bg-red-600" />}
         </div>
         {suggestedSessionId && (
           <div className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3">
-            <p className="text-sm font-semibold text-amber-800">Bu canli oturumda durak yok.</p>
-            <p className="mt-1 text-xs text-amber-700">Durak iceren baska bir canli oturum bulundu ({suggestedSessionStops} durak).</p>
+            <p className="text-sm font-semibold text-amber-800">{t.noStopsWarning}</p>
+            <p className="mt-1 text-xs text-amber-700">{t.suggestedSession(suggestedSessionStops)}</p>
             <button
               type="button"
               onClick={() => router.push(`/rare-travel-plan/live/${suggestedSessionId}`)}
               className="mt-2 rounded-lg border border-amber-400 bg-white px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-100"
             >
-              Durakli oturuma gec
+              {t.goToSuggested}
             </button>
           </div>
         )}
@@ -1100,12 +1508,12 @@ export default function LiveTravelSessionPage() {
 
       {planResult && (
         <div className="rounded-2xl border border-gray-200 bg-white p-4 md:p-5">
-          <h3 className="font-bold text-gray-900">Plan Bilgileri</h3>
+          <h3 className="font-bold text-gray-900">{t.planInfo}</h3>
           <div className="mt-3 grid gap-2 text-sm text-gray-700 md:grid-cols-4">
-            <p><span className="font-semibold">Baslangic:</span> {plan.from_location}</p>
-            <p><span className="font-semibold">Varis:</span> {plan.to_location}</p>
-            <p><span className="font-semibold">Mesafe:</span> {shownDistance ?? '-'} km</p>
-            <p><span className="font-semibold">Sure:</span> ~{shownDuration ?? '-'} dk</p>
+            <p><span className="font-semibold">{t.start}:</span> {plan.from_location}</p>
+            <p><span className="font-semibold">{t.end}:</span> {plan.to_location}</p>
+            <p><span className="font-semibold">{t.distance}:</span> {shownDistance ?? '-'} km</p>
+            <p><span className="font-semibold">{t.duration}:</span> ~{shownDuration ?? '-'} dk</p>
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
             {googleMapsUrl && (
@@ -1115,12 +1523,12 @@ export default function LiveTravelSessionPage() {
                 rel="noopener noreferrer"
                 className="rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
               >
-                Google Haritalarda Aç
+              {t.openGoogleMaps}
               </a>
             )}
             {routingBusy && (
               <span className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700">
-                Rota duraklara gore guncelleniyor...
+                {t.routeUpdating}
               </span>
             )}
           </div>
@@ -1141,11 +1549,11 @@ export default function LiveTravelSessionPage() {
               )}
 
               <Marker position={[planResult.route.from.lat, planResult.route.from.lng]} icon={startIcon}>
-                <Popup>Baslangic: {plan.from_location}</Popup>
+                <Popup>{t.markerStart(plan.from_location)}</Popup>
               </Marker>
 
               <Marker position={[planResult.route.to.lat, planResult.route.to.lng]} icon={endIcon}>
-                <Popup>Varis: {plan.to_location}</Popup>
+                <Popup>{t.markerEnd(plan.to_location)}</Popup>
               </Marker>
 
               {orderedTripPosts
@@ -1159,8 +1567,8 @@ export default function LiveTravelSessionPage() {
                     <Popup>
                       <div className="w-48">
                         <p className="text-sm font-semibold text-gray-900">{post.title}</p>
-                        <p className="mt-0.5 text-xs text-gray-500">{[post.location_name, post.city].filter(Boolean).join(' · ') || 'Konum yok'}</p>
-                        <p className="mt-0.5 text-xs text-emerald-700">Saat: {timeMapDraft[post.id] || post.visit_time || '--:--'}</p>
+                        <p className="mt-0.5 text-xs text-gray-500">{[post.location_name, post.city].filter(Boolean).join(' · ') || t.noLocation}</p>
+                        <p className="mt-0.5 text-xs text-emerald-700">{t.stopTime}: {timeMapDraft[post.id] || post.visit_time || '--:--'}</p>
                       </div>
                     </Popup>
                   </Marker>
@@ -1172,17 +1580,17 @@ export default function LiveTravelSessionPage() {
 
       {canEditSession && (
         <div className="rounded-2xl border border-gray-200 bg-white p-4 md:p-5">
-          <h3 className="text-base font-bold text-gray-900">Kendi paylasimini duraga ekle</h3>
+          <h3 className="text-base font-bold text-gray-900">{t.addOwnPost}</h3>
           <div className="mt-3 grid gap-3 md:grid-cols-3">
             <select
               value={selectedOwnPostId}
               onChange={(e) => setSelectedOwnPostId(e.target.value)}
               className="rounded-xl border border-gray-300 px-3 py-2 text-sm"
             >
-              <option value="">Kendi social postunu sec...</option>
+              <option value="">{t.selectOwnPost}</option>
               {ownPosts.map((post) => (
                 <option key={post.id} value={post.id}>
-                  {(post.title || post.content || 'Paylasim').slice(0, 70)}
+                  {(post.title || post.content || t.defaultPostTitle).slice(0, 70)}
                 </option>
               ))}
             </select>
@@ -1192,19 +1600,19 @@ export default function LiveTravelSessionPage() {
               disabled={!selectedOwnPostId}
               className="rounded-xl border border-blue-300 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100 disabled:opacity-50"
             >
-              Duraga ekle
+              {t.addToStop}
             </button>
           </div>
 
           <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Yeni durak olustur</p>
-            <p className="mt-1 text-xs text-gray-600">Duragi tek adimda olustur ve rota listesine otomatik ekle.</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{t.createStopSection}</p>
+            <p className="mt-1 text-xs text-gray-600">{t.createStopDesc}</p>
             <button
               type="button"
               onClick={() => setShowTripPostModal(true)}
               className="mt-3 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100"
             >
-              Yeni durak olustur
+              {t.createStopBtn}
             </button>
           </div>
         </div>
@@ -1212,7 +1620,7 @@ export default function LiveTravelSessionPage() {
 
       <div className="rounded-2xl border border-gray-200 bg-white p-4 md:p-5">
         <div className="flex items-center justify-between gap-2">
-          <h3 className="text-base font-bold text-gray-900">Durak paylasimlari ({orderedTripPosts.length})</h3>
+          <h3 className="text-base font-bold text-gray-900">{t.stopPostsTitle(orderedTripPosts.length)}</h3>
           {canEditSession && (
             <button
               type="button"
@@ -1220,22 +1628,22 @@ export default function LiveTravelSessionPage() {
               disabled={savingEdits}
               className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-60"
             >
-              {savingEdits ? 'Kaydediliyor...' : 'Ara kaydet'}
+              {savingEdits ? t.saving : t.intermediateSave}
             </button>
           )}
         </div>
         <p className="mt-1 text-xs text-gray-500">
-          Bu listedeki icerikler sadece bu seyahat rotasinda gorunur. Nadir feed'e ayrica dusmez.
+          {t.stopsFeedNote}
         </p>
 
         <div className="mt-3 space-y-2">
-          {orderedTripPosts.length === 0 && <p className="text-sm text-gray-500">Henuz durak paylasimi eklenmedi.</p>}
+          {orderedTripPosts.length === 0 && <p className="text-sm text-gray-500">{t.noStopsAdded}</p>}
           {orderedTripPosts.map((post, idx) => (
             <div key={post.id} className="flex flex-wrap items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 p-2">
               <span className="w-7 rounded-md bg-gray-200 px-2 py-1 text-center text-xs font-bold text-gray-700">{idx + 1}</span>
               <div className="min-w-[180px] flex-1">
                 <p className="line-clamp-1 text-sm font-semibold text-gray-900">{post.title}</p>
-                <p className="text-xs text-gray-500">{[post.location_name, post.city].filter(Boolean).join(' · ') || 'Konum yok'}</p>
+                <p className="text-xs text-gray-500">{[post.location_name, post.city].filter(Boolean).join(' · ') || t.noLocation}</p>
               </div>
               {/* Durak saatini sadece toplu plan eklemede manuel, diğer her durumda otomatik göster */}
               <input
@@ -1268,7 +1676,7 @@ export default function LiveTravelSessionPage() {
                     onClick={() => removeTripPost(post.id)}
                     className="rounded-md border border-red-300 bg-red-50 px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-100"
                   >
-                    Cikar
+                    {t.remove}
                   </button>
                 </>
               )}
@@ -1277,11 +1685,11 @@ export default function LiveTravelSessionPage() {
         </div>
 
         <div className="mt-5 border-t border-gray-200 pt-4">
-          <h4 className="text-sm font-bold text-gray-900">Paylasim akisi (duraklarin altinda)</h4>
+          <h4 className="text-sm font-bold text-gray-900">{t.shareFlow}</h4>
           <div className="mt-3 space-y-4">
-            {orderedTripPosts.length === 0 && <p className="text-sm text-gray-500">Gosterilecek paylasim yok.</p>}
+            {orderedTripPosts.length === 0 && <p className="text-sm text-gray-500">{t.noPostsToShow}</p>}
             {orderedTripPosts.map((post, idx) => {
-              const locationLine = [post.location_name, post.city].filter(Boolean).join(' · ') || 'Konum yok'
+              const locationLine = [post.location_name, post.city].filter(Boolean).join(' · ') || t.noLocation
               const shownTime = post.visit_time || '--:--'
 
               return (
@@ -1318,29 +1726,29 @@ export default function LiveTravelSessionPage() {
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5">
                           <path d="M12 21s-6.5-4.35-9-8.2C.95 9.73 2.3 5.5 6.34 4.65c2.3-.48 4.44.43 5.66 2.26 1.22-1.83 3.36-2.74 5.66-2.26 4.03.85 5.39 5.08 3.34 8.15C18.5 16.65 12 21 12 21z" />
                         </svg>
-                        <span>Begeni</span>
+                        <span>{t.like}</span>
                       </button>
                       <button type="button" className="inline-flex items-center gap-1.5 text-sm font-medium hover:text-blue-600">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5">
                           <path d="M21 12a8.5 8.5 0 01-8.5 8.5H5l-2 2v-10A8.5 8.5 0 1112 21" />
                         </svg>
-                        <span>Yorum</span>
+                        <span>{t.comment}</span>
                       </button>
                       <button type="button" className="inline-flex items-center gap-1.5 text-sm font-medium hover:text-emerald-700">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5">
                           <path d="M22 2L11 13" />
                           <path d="M22 2l-7 20-4-9-9-4 20-7z" />
                         </svg>
-                        <span>Paylas</span>
+                        <span>{t.share}</span>
                       </button>
                     </div>
 
                     <p className="text-sm leading-relaxed text-gray-700">
-                      {post.description?.trim() || 'Bu durak icin aciklama eklenmedi.'}
+                      {post.description?.trim() || t.noDescription}
                     </p>
                     <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-gray-500">
                       {post.category && <span className="rounded-full bg-gray-100 px-2 py-1">#{post.category}</span>}
-                      <span className="rounded-full bg-gray-100 px-2 py-1">Durak #{idx + 1}</span>
+                      <span className="rounded-full bg-gray-100 px-2 py-1">{t.stopBadge(idx + 1)}</span>
                     </div>
                   </div>
                 </article>
@@ -1352,31 +1760,31 @@ export default function LiveTravelSessionPage() {
 
       {canEditSession && (
         <div className="rounded-2xl border border-gray-200 bg-white p-4 md:p-5">
-          <p className="mb-3 text-sm text-gray-600">Ekle-cikar-duzenle degisikliklerini ara kaydedip daha sonra devam edebilirsin.</p>
+          <p className="mb-3 text-sm text-gray-600">{t.draftSaveDesc}</p>
           <button
             type="button"
             onClick={saveDraftAndExit}
             disabled={savingEdits}
             className="mb-3 w-full rounded-xl border border-blue-300 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700 hover:bg-blue-100 disabled:opacity-60"
           >
-            {savingEdits ? 'Taslak kaydediliyor...' : 'Taslaga kaydet ve planlara don'}
+            {savingEdits ? t.savingDraft : t.saveDraftAndExit}
           </button>
 
           <p className="mb-3 text-sm text-gray-600">
             {session.status === 'completed'
-              ? 'Bu rota tamamlanmis durumda. Duzenlemeleri kaydedip yeniden yayinlayabilirsin.'
-              : 'Varisa geldiginde bitirip seyahat rotalari akisina yayinlayabilirsin.'}
+              ? t.completedMsg
+              : t.activeMsg}
           </p>
           <div className="mb-3">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Oturum gorunurlugu</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">{t.visibility}</label>
             <select
               value={visibility}
               onChange={(e) => setVisibility(e.target.value as 'private' | 'followers' | 'public')}
               className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm"
             >
-              <option value="private">Ozel</option>
-              <option value="followers">Takipciler</option>
-              <option value="public">Genel</option>
+              <option value="private">{t.private}</option>
+              <option value="followers">{t.followers}</option>
+              <option value="public">{t.public}</option>
             </select>
           </div>
           <button
@@ -1385,7 +1793,7 @@ export default function LiveTravelSessionPage() {
             disabled={completing}
             className="w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
           >
-            {completing ? 'Kaydediliyor...' : session.status === 'completed' ? 'Duzenlemeleri yeniden yayinla' : 'Seyahati tamamla ve rota olarak yayinla'}
+            {completing ? t.saving : session.status === 'completed' ? t.republish : t.complete}
           </button>
         </div>
       )}

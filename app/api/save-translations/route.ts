@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 const TARGET_LOCALES = ['tr', 'en', 'de', 'fr', 'es', 'ru'] as const
 type TargetLocale = (typeof TARGET_LOCALES)[number]
 
-type TranslationEntity = 'spot' | 'quick_sighting' | 'collection_post' | 'social_post' | 'sighting' | 'travel_route' | 'shop_inventory'
+type TranslationEntity = 'spot' | 'quick_sighting' | 'collection_post' | 'social_post' | 'sighting' | 'travel_route' | 'shop_inventory' | 'live_trip_post'
 
 type SaveTranslationsBody = {
   entity?: TranslationEntity
@@ -60,6 +60,7 @@ function resolveTarget(entity: TranslationEntity) {
   if (entity === 'sighting') return { table: 'sighting_translations', idColumn: 'sighting_id' }
   if (entity === 'travel_route') return { table: 'travel_route_translations', idColumn: 'travel_route_id' }
   if (entity === 'shop_inventory') return { table: 'shop_inventory_translations', idColumn: 'shop_inventory_id' }
+  if (entity === 'live_trip_post') return { table: 'live_trip_post_translations', idColumn: 'live_trip_post_id' }
   return { table: 'collection_post_translations', idColumn: 'collection_post_id' }
 }
 
@@ -72,7 +73,7 @@ export async function POST(request: NextRequest) {
     const title = (body.title || '').trim()
     const description = (body.description || '').trim()
 
-    if (!entity || !['spot', 'quick_sighting', 'collection_post', 'social_post', 'sighting', 'travel_route', 'shop_inventory'].includes(entity)) {
+    if (!entity || !['spot', 'quick_sighting', 'collection_post', 'social_post', 'sighting', 'travel_route', 'shop_inventory', 'live_trip_post'].includes(entity)) {
       return NextResponse.json({ error: 'Invalid entity' }, { status: 400 })
     }
 
