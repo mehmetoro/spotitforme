@@ -477,9 +477,8 @@ export default function TravelRouteDetailPage() {
                   <Popup>
                     <div className="w-52">
                       <p className="text-sm font-semibold text-gray-900">{stop.title}</p>
-                      <p className="mt-0.5 text-xs text-gray-500">{[stop.location_name, stop.city].filter(Boolean).join(' · ') || 'Konum yok'}</p>
+                      <p className="mt-0.5 text-xs text-gray-500">{stop.description?.trim() || 'Icerik yok'}</p>
                       <p className="mt-0.5 text-xs text-emerald-700">Saat: {stop.visit_time || '--:--'}</p>
-                      {stop.description && <p className="mt-1 text-xs text-gray-700">{stop.description}</p>}
                     </div>
                   </Popup>
                 </Marker>

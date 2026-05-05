@@ -1594,7 +1594,7 @@ export default function LiveTravelSessionPage() {
                     <Popup>
                       <div className="w-48">
                         <p className="text-sm font-semibold text-gray-900">{post.title}</p>
-                        <p className="mt-0.5 text-xs text-gray-500">{[post.location_name, post.city].filter(Boolean).join(' · ') || t.noLocation}</p>
+                        <p className="mt-0.5 text-xs text-gray-500">{post.description?.trim() || t.noDescription}</p>
                         <p className="mt-0.5 text-xs text-emerald-700">{t.stopTime}: {timeMapDraft[post.id] || post.visit_time || '--:--'}</p>
                       </div>
                     </Popup>
