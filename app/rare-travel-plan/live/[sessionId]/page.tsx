@@ -1358,7 +1358,7 @@ export default function LiveTravelSessionPage() {
       channel.unsubscribe()
       if (sessionCheckInterval.current) clearInterval(sessionCheckInterval.current)
     }
-  }, [sessionId])
+  }, [locale, sessionId])
 
   useEffect(() => {
     if (!planResult || routedWaypoints.length < 2) return

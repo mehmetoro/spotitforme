@@ -50,6 +50,7 @@ export default function LanguageSwitcher() {
 
   const handleChange = (nextLocale: string) => {
     document.cookie = `NEXT_LOCALE=${nextLocale}; path=/; max-age=31536000; samesite=lax`
+    window.dispatchEvent(new Event('localechange'))
 
     const query = searchParams.toString()
     const nextPathname = withLocale(pathname, nextLocale)
