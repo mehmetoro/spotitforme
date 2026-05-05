@@ -112,8 +112,28 @@ export default function TravelRoutesPage() {
             .order('sort_order', { ascending: true })
             .limit(800)
 
+          let localizedPostRows = (postRows || []) as any[]
+          if (locale !== 'tr' && localizedPostRows.length > 0) {
+            const ids = localizedPostRows.map((row: any) => String(row.id))
+            const { data: translationRows } = await supabase
+              .from('live_trip_post_translations')
+              .select('live_trip_post_id, title')
+              .in('live_trip_post_id', ids)
+              .eq('language', locale)
+
+            if (translationRows && translationRows.length > 0) {
+              const translationMap = new Map(
+                translationRows.map((row: any) => [row.live_trip_post_id as string, row.title as string]),
+              )
+              localizedPostRows = localizedPostRows.map((row: any) => ({
+                ...row,
+                title: translationMap.get(String(row.id)) || row.title,
+              }))
+            }
+          }
+
           const grouped: Record<string, RoutePreviewPost[]> = {}
-          for (const row of postRows || []) {
+          for (const row of localizedPostRows || []) {
             const key = (row as any).session_id as string
             if (!grouped[key]) grouped[key] = []
             if (grouped[key].length < 3) {

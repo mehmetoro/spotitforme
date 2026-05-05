@@ -933,7 +933,7 @@ export default function LiveTravelSessionPage() {
       longitude: parseCoordinate(row.longitude),
     }))
 
-    const rows = await Promise.all(
+    let rows = await Promise.all(
       normalizedRows.map(async (row) => {
         if (row.latitude != null && row.longitude != null) return row
 
@@ -975,6 +975,33 @@ export default function LiveTravelSessionPage() {
         }
       }),
     )
+
+    if (locale !== 'tr' && rows.length > 0) {
+      const ids = rows.map((row) => row.id)
+      const { data: translationRows } = await supabase
+        .from('live_trip_post_translations')
+        .select('live_trip_post_id, title, description')
+        .in('live_trip_post_id', ids)
+        .eq('language', locale)
+
+      if (translationRows && translationRows.length > 0) {
+        const translationMap = new Map(
+          translationRows.map((row: any) => [
+            row.live_trip_post_id as string,
+            { title: row.title as string, description: row.description as string },
+          ]),
+        )
+        rows = rows.map((post) => {
+          const translation = translationMap.get(post.id)
+          if (!translation) return post
+          return {
+            ...post,
+            title: translation.title || post.title,
+            description: translation.description || post.description,
+          }
+        })
+      }
+    }
 
     setTripPosts(rows)
     setRouteOrderDraft(rows.map((row) => row.id))

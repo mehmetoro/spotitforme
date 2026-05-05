@@ -351,7 +351,27 @@ export default function LiveTravelSessionSummaryPage() {
           .order('sort_order', { ascending: true })
           .order('created_at', { ascending: true })
 
-        setCollectedPosts((tripRows || []) as CollectedPost[])
+        let nextCollectedPosts = (tripRows || []) as CollectedPost[]
+        if (locale !== 'tr' && nextCollectedPosts.length > 0) {
+          const ids = nextCollectedPosts.map((row) => row.id)
+          const { data: translationRows } = await supabase
+            .from('live_trip_post_translations')
+            .select('live_trip_post_id, title')
+            .in('live_trip_post_id', ids)
+            .eq('language', locale)
+
+          if (translationRows && translationRows.length > 0) {
+            const translationMap = new Map(
+              translationRows.map((row: any) => [row.live_trip_post_id as string, row.title as string]),
+            )
+            nextCollectedPosts = nextCollectedPosts.map((post) => ({
+              ...post,
+              title: translationMap.get(post.id) || post.title,
+            }))
+          }
+        }
+
+        setCollectedPosts(nextCollectedPosts)
 
         const { data: planData, error: planErr } = await supabase
           .from('rare_travel_plans')
@@ -374,7 +394,7 @@ export default function LiveTravelSessionSummaryPage() {
     }
 
     loadData()
-  }, [sessionId, router, t.authPath, t.errorLoad, t.errorPlanNotFound, t.errorSessionNotFound])
+  }, [locale, sessionId, router, t.authPath, t.errorLoad, t.errorPlanNotFound, t.errorSessionNotFound])
 
   const shareSession = async () => {
     if (!plan) return

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { useCurrentLocale } from '@/hooks/useCurrentLocale'
 import { MapContainer, Marker, Popup, Polyline, TileLayer } from 'react-leaflet'
 import L from 'leaflet'
 
@@ -124,6 +125,7 @@ function visibilityText(value: 'private' | 'followers' | 'public') {
 
 export default function TravelRouteDetailPage() {
   const params = useParams()
+  const locale = useCurrentLocale()
   const routeId = params.id as string
 
   const [route, setRoute] = useState<TravelRoute | null>(null)
@@ -220,7 +222,35 @@ export default function TravelRouteDetailPage() {
           .order('sort_order', { ascending: true })
           .order('created_at', { ascending: true })
 
-        const resolvedStops = await resolveStopsWithCoordinates((stopRows || []) as LiveTripPost[])
+        let localizedStops = (stopRows || []) as LiveTripPost[]
+        if (locale !== 'tr' && localizedStops.length > 0) {
+          const ids = localizedStops.map((stop) => stop.id)
+          const { data: translationRows } = await supabase
+            .from('live_trip_post_translations')
+            .select('live_trip_post_id, title, description')
+            .in('live_trip_post_id', ids)
+            .eq('language', locale)
+
+          if (translationRows && translationRows.length > 0) {
+            const translationMap = new Map(
+              translationRows.map((row: any) => [
+                row.live_trip_post_id as string,
+                { title: row.title as string, description: row.description as string },
+              ]),
+            )
+            localizedStops = localizedStops.map((stop) => {
+              const translation = translationMap.get(stop.id)
+              if (!translation) return stop
+              return {
+                ...stop,
+                title: translation.title || stop.title,
+                description: translation.description || stop.description,
+              }
+            })
+          }
+        }
+
+        const resolvedStops = await resolveStopsWithCoordinates(localizedStops)
         setStops(resolvedStops)
         await loadComments()
       } catch (err: any) {
@@ -300,7 +330,7 @@ export default function TravelRouteDetailPage() {
       commentsChannel.unsubscribe()
       socialCountChannel.unsubscribe()
     }
-  }, [routeId])
+  }, [locale, routeId])
 
   useEffect(() => {
     const loadGeometry = async () => {
