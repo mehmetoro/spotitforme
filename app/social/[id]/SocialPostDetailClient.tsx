@@ -1,10 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import FeedPost from '@/components/social/FeedPost'
-import { DynamicAdvancedMap } from './DynamicAdvancedMap'
 import { extractSightingIdFromParam } from '@/lib/sighting-slug'
 import { useCurrentLocale } from '@/hooks/useCurrentLocale'
 
@@ -18,7 +17,20 @@ export default function SocialPostDetailClient() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
-  const [showMap, setShowMap] = useState(false)
+
+  const googleMapsUrl = useMemo(() => {
+    if (!post) return ''
+
+    const lat = Number(post.latitude)
+    const lng = Number(post.longitude)
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      return `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`
+    }
+
+    const query = [post.location, post.city].filter(Boolean).join(', ').trim()
+    if (!query) return ''
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`
+  }, [post])
 
   useEffect(() => {
     if (!id) return
@@ -222,27 +234,16 @@ export default function SocialPostDetailClient() {
             showFull={true}
             initialShowComments={true}
           />
-          {(post.latitude || post.longitude || post.location || post.city) && (
+          {googleMapsUrl && (
             <div className="mt-6 flex justify-center">
-              <button onClick={() => setShowMap(true)} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-lg shadow">
+              <a
+                href={googleMapsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-lg shadow"
+              >
                 📍 Haritada Gör
-              </button>
-            </div>
-          )}
-          {showMap && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
-              <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-6 relative">
-                <button onClick={() => setShowMap(false)} className="absolute top-3 right-3 text-2xl text-gray-500 hover:text-gray-700">
-                  ×
-                </button>
-                <DynamicAdvancedMap
-                  latitude={post.latitude}
-                  longitude={post.longitude}
-                  location={post.city || post.location || ''}
-                  address={post.location || ''}
-                  accuracy={post.accuracy || 100}
-                />
-              </div>
+              </a>
             </div>
           )}
         </>
