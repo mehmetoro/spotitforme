@@ -216,13 +216,6 @@ export default function SocialPostDetailClient() {
           ← Geri
         </button>
       </div>
-      {post?.user_id && post.user_id !== currentUserId && (
-        <div className="mb-4">
-          <button onClick={handleMessageRequest} className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2 rounded-lg">
-            Mesaj Talebi Gönder
-          </button>
-        </div>
-      )}
       {post && (
         <>
           <FeedPost

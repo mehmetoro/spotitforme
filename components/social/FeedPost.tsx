@@ -105,7 +105,7 @@ export default function FeedPost({
     <div className="bg-white rounded-xl shadow-lg overflow-hidden cursor-pointer">
       {/* Başlık */}
       {title && (
-        <div className="px-6 pt-5 pb-1">
+        <div className="px-4 pt-3 pb-0">
           <h2 className="text-lg font-bold text-gray-900 break-words leading-tight">{title}</h2>
         </div>
       )}
@@ -118,28 +118,28 @@ export default function FeedPost({
 
       {/* gönderi türüne göre küçük üst bilgi */}
       {postType === 'spot' && post.reward && (
-        <div className="px-6 pt-4">
+        <div className="px-4 pt-2">
           <div className="inline-block bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm font-medium">
             Ödül: {post.reward}₺
           </div>
         </div>
       )}
       {postType === 'found' && post.is_public === false && (
-        <div className="px-6 pt-4">
+        <div className="px-4 pt-2">
           <div className="inline-block bg-gray-200 text-gray-700 px-3 py-1 rounded-full text-sm font-medium">
             🔒 Gizli ben gördüm
           </div>
         </div>
       )}
       {postType === 'rare_sight' && (
-        <div className="px-6 pt-4">
+        <div className="px-4 pt-2">
           <div className="inline-block bg-blue-50 text-blue-600 px-3 py-1 rounded-full text-sm font-medium">
             👁️ Nadir Gördüm
           </div>
         </div>
       )}
       {postType === 'product' && (
-        <div className="px-6 pt-4">
+        <div className="px-4 pt-2">
           <div className="inline-block bg-green-50 text-green-600 px-3 py-1 rounded-full text-sm font-medium">
             🛍️ Ürün paylaşımı
           </div>
@@ -148,7 +148,7 @@ export default function FeedPost({
 
       {/* parent spot link */}
       {post.parent_spot_id && (
-        <div className="px-6 pt-4">
+        <div className="px-4 pt-2">
           <Link href={`/social/${post.parent_spot_id}`} className="text-sm text-blue-600 hover:underline">
             🔗 Bu gönderi bir spota bağlı
           </Link>
@@ -157,7 +157,7 @@ export default function FeedPost({
 
       {/* İçerik (Açıklama) */}
       {content && (
-        <div className="px-6 pt-4">
+        <div className="px-4 pt-2">
           <p className="text-gray-800 whitespace-pre-line break-words overflow-hidden">
             {content}
           </p>
@@ -189,13 +189,13 @@ export default function FeedPost({
 
       {/* Medya - Resimler */}
       {images.length > 0 && (
-        <div className="relative mt-4">
+        <div className="relative mt-2">
           {/* Ana resim */}
-          <div className="relative h-[500px] bg-gray-100">
+          <div className="relative h-72 bg-gray-100">
             <img
               src={images[imageIndex]}
               alt={content || 'Post image'}
-              className="w-full h-full object-contain"
+              className="w-full h-full object-cover"
               onError={(e) => {
                 // Resim yüklenemezse placeholder göster
                 e.currentTarget.src = 'https://via.placeholder.com/600x400?text=Resim+Yüklenemedi'
@@ -246,28 +246,11 @@ export default function FeedPost({
         </div>
       )}
 
-      {/* İstatistikler */}
-      <div className="px-6 py-3 border-t border-gray-100">
-        <div className="flex items-center justify-between text-sm text-gray-600">
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center">
-              <span className="mr-1">❤️</span>
-              <span className="font-medium">{post.like_count || 0}</span>
-            </div>
-            <div className="flex items-center">
-              <span className="mr-1">💬</span>
-              <span className="font-medium">{post.comment_count || 0}</span>
-            </div>
-            <div className="flex items-center">
-              <span className="mr-1">🔖</span>
-              <span className="font-medium">{post.save_count || 0}</span>
-            </div>
-          </div>
-          <div className="flex items-center">
-            <span className="mr-1">👁️</span>
-            <span className="font-medium">{post.view_count || 0}</span>
-          </div>
-        </div>
+      {/* Sayılar */}
+      <div className="px-4 pt-1 pb-0 flex items-center gap-3 text-xs text-gray-500">
+        <span>❤️ {post.like_count || 0}</span>
+        <span>💬 {post.comment_count || 0}</span>
+        <span>🔖 {post.save_count || 0}</span>
       </div>
 
       {/* Aksiyon Butonları */}

@@ -84,7 +84,7 @@ export default function PostHeader({ user: author, post, onFollow, onReport }: P
   }
 
   return (
-    <div className="px-6 py-4 overflow-x-hidden">
+    <div className="px-4 py-2 overflow-x-hidden">
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 min-w-0">
         {/* Sol taraf - Kullanıcı bilgileri */}
         <div className="flex items-center space-x-3 min-w-0 w-full">

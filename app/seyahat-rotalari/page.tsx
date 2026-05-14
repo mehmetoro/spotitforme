@@ -389,21 +389,21 @@ export default function TravelRoutesPage() {
                 ))}
               </div>
 
-              <div className="p-3">
+              <div className="p-2">
                 <p className="line-clamp-1 text-sm font-bold text-gray-900">{route.title}</p>
-                <p className="mt-1 text-xs text-gray-500">{route.from_location} {'->'} {route.to_location}</p>
-                <div className="mt-2 flex items-center justify-between">
-                  <span className="rounded-md bg-cyan-100 px-2 py-1 text-[10px] font-bold text-cyan-700">
+                <p className="mt-0.5 text-xs text-gray-500">{route.from_location} {'->'}  {route.to_location}</p>
+                <div className="mt-1 flex items-center justify-between">
+                  <span className="rounded-md bg-cyan-100 px-2 py-0.5 text-[10px] font-bold text-cyan-700">
                   {route.category || t.defaultCategory}
                   </span>
                   <span className="text-[10px] font-semibold text-gray-500">
                     {route.visibility === 'private' ? t.private : route.visibility === 'followers' ? t.followers : t.public}
                   </span>
                 </div>
-                <div className="mt-2 text-xs text-gray-600">
+                <div className="mt-1 text-xs text-gray-600">
                   ❤️ {route.likes_count} · 💬 {route.comments_count} · 🔁 {route.shares_count}
                 </div>
-                <div className="mt-3 flex flex-wrap gap-2">
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
                   <button
                     type="button"
                     onClick={(e) => {

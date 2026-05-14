@@ -51,7 +51,7 @@ export default function PostActions({
   }
 
   return (
-    <div className="px-6 py-3 border-t border-gray-100 overflow-x-hidden">
+    <div className="px-4 py-1.5 border-t border-gray-50 overflow-x-hidden">
       <div className="flex items-center justify-between gap-2 min-w-0">
         {/* Sol taraf - Beğeni ve yorum */}
         <div className="flex items-center gap-2 min-w-0">

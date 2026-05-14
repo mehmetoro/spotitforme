@@ -533,7 +533,7 @@ export default function Feed({ initialUserId, type, category, city, initialSearc
       )}
 
       {/* Feed Posts */}
-      <div className="space-y-6 mt-6 min-w-0">
+      <div className="space-y-3 mt-3 min-w-0">
         {posts
           .filter((post) => {
             // Arama filtresi
